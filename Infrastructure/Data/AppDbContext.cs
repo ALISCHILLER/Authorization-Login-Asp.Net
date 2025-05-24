@@ -12,6 +12,8 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Data
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
         {
+
+
         }
 
         /// <summary>

@@ -1,22 +1,40 @@
-﻿using Authorization_Login_Asp.Net.Domain.Entities;
+﻿using Authorization_Login_Asp.Net.Application.Interfaces;
+using Authorization_Login_Asp.Net.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Authorization_Login_Asp.Net.Application.Interfaces
+namespace Authorization_Login_Asp.Net.Persistence.Repositories
 {
     /// <summary>
-    /// اینترفیس مخزن (Repository) مخصوص کاربر برای انجام عملیات تخصصی روی مدل User
+    /// پیاده‌سازی مخزن (Repository) کاربران با استفاده از Entity Framework Core
     /// </summary>
-    public interface IUserRepository
+    public class UserRepository : IUserRepository
     {
+        private readonly DbContext _context;
+        private readonly DbSet<User> _users;
+
+        /// <summary>
+        /// سازنده با تزریق DbContext
+        /// </summary>
+        /// <param name="context">شیء DbContext پروژه</param>
+        public UserRepository(DbContext context)
+        {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _users = _context.Set<User>();
+        }
+
         /// <summary>
         /// دریافت همه کاربران به صورت غیرهمزمان و با امکان لغو عملیات
         /// </summary>
         /// <param name="cancellationToken">امکان لغو عملیات</param>
         /// <returns>لیستی از همه کاربران</returns>
-        Task<IEnumerable<User>> GetAllAsync(CancellationToken cancellationToken = default);
+        public async Task<IEnumerable<User>> GetAllAsync(CancellationToken cancellationToken = default)
+        {
+            return await _users.ToListAsync(cancellationToken);
+        }
 
         /// <summary>
         /// دریافت کاربر بر اساس شناسه (Id) به صورت غیرهمزمان و با امکان لغو عملیات
@@ -24,7 +42,10 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <param name="id">شناسه کاربر</param>
         /// <param name="cancellationToken">امکان لغو عملیات</param>
         /// <returns>شیء کاربر یا null در صورت عدم وجود</returns>
-        Task<User> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+        public async Task<User> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await _users.FindAsync(new object[] { id }, cancellationToken);
+        }
 
         /// <summary>
         /// دریافت کاربر بر اساس ایمیل (برای فرایند ورود و اعتبارسنجی) به صورت غیرهمزمان و با امکان لغو عملیات
@@ -32,7 +53,14 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <param name="email">آدرس ایمیل کاربر</param>
         /// <param name="cancellationToken">امکان لغو عملیات</param>
         /// <returns>شیء کاربر یا null در صورت عدم وجود</returns>
-        Task<User> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
+        public async Task<User> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return null;
+
+            var loweredEmail = email.ToLowerInvariant();
+            return await _users.SingleOrDefaultAsync(u => u.Email.Value == loweredEmail, cancellationToken);
+        }
 
         /// <summary>
         /// دریافت کاربر بر اساس نام کاربری به صورت غیرهمزمان و با امکان لغو عملیات
@@ -40,7 +68,10 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <param name="username">نام کاربری یکتا</param>
         /// <param name="cancellationToken">امکان لغو عملیات</param>
         /// <returns>شیء کاربر یا null در صورت عدم وجود</returns>
-        Task<User> GetByUsernameAsync(string username, CancellationToken cancellationToken = default);
+        public async Task<User> GetByUsernameAsync(string username, CancellationToken cancellationToken = default)
+        {
+            return await _users.SingleOrDefaultAsync(u => u.Username == username, cancellationToken);
+        }
 
         /// <summary>
         /// افزودن کاربر جدید به مخزن به صورت غیرهمزمان و با امکان لغو عملیات
@@ -48,25 +79,46 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <param name="user">شیء کاربر برای افزودن</param>
         /// <param name="cancellationToken">امکان لغو عملیات</param>
         /// <returns>تسک غیرهمزمان</returns>
-        Task AddAsync(User user, CancellationToken cancellationToken = default);
+        public async Task AddAsync(User user, CancellationToken cancellationToken = default)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            await _users.AddAsync(user, cancellationToken);
+        }
 
         /// <summary>
         /// بروزرسانی اطلاعات یک کاربر موجود در کانتکست (تا ذخیره تغییرات)
         /// </summary>
         /// <param name="user">شیء کاربری که باید بروزرسانی شود</param>
-        void Update(User user);
+        public void Update(User user)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            _users.Update(user);
+        }
 
         /// <summary>
         /// حذف یک کاربر از کانتکست (تا ذخیره تغییرات)
         /// </summary>
         /// <param name="user">شیء کاربری که باید حذف شود</param>
-        void Remove(User user);
+        public void Remove(User user)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            _users.Remove(user);
+        }
 
         /// <summary>
         /// ذخیره تغییرات انجام شده در مخزن به صورت غیرهمزمان و با امکان لغو عملیات
         /// </summary>
         /// <param name="cancellationToken">امکان لغو عملیات</param>
         /// <returns>تعداد رکوردهای تغییر یافته در دیتابیس</returns>
-        Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+        public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            return await _context.SaveChangesAsync(cancellationToken);
+        }
     }
 }
