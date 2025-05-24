@@ -1,12 +1,71 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\",
-  "Documents": [],
+  "WorkspaceRootPath": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|f:\\projct2025\\asp.net\\authorization-login-asp.net\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|f:\\projct2025\\asp.net\\authorization-login-asp.net\\application\\dtos\\loginrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:application\\dtos\\loginrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|f:\\projct2025\\asp.net\\authorization-login-asp.net\\application\\dtos\\registerrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:application\\dtos\\registerrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
-      "DocumentGroups": []
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Program.cs",
+              "DocumentMoniker": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\Program.cs",
+              "RelativeDocumentMoniker": "Program.cs",
+              "ToolTip": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\Program.cs",
+              "RelativeToolTip": "Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAABIAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-22T22:06:47.812Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "RegisterRequest.cs",
+              "DocumentMoniker": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\Application\\DTOs\\RegisterRequest.cs",
+              "RelativeDocumentMoniker": "Application\\DTOs\\RegisterRequest.cs",
+              "ToolTip": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\Application\\DTOs\\RegisterRequest.cs*",
+              "RelativeToolTip": "Application\\DTOs\\RegisterRequest.cs*",
+              "ViewState": "AgIAABUAAAAAAAAAAAAuwBcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-21T13:07:40.183Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "LoginRequest.cs",
+              "DocumentMoniker": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\Application\\DTOs\\LoginRequest.cs",
+              "RelativeDocumentMoniker": "Application\\DTOs\\LoginRequest.cs",
+              "ToolTip": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\Application\\DTOs\\LoginRequest.cs*",
+              "RelativeToolTip": "Application\\DTOs\\LoginRequest.cs*",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-21T13:07:31.312Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
     }
   ]
 }
