@@ -1,12 +1,156 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|e:\\project-zar\\custom\\.net\\authorization login asp.net\\application\\validators\\refreshtokenrequestvalidator .cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:application\\validators\\refreshtokenrequestvalidator .cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|e:\\project-zar\\custom\\.net\\authorization login asp.net\\application\\validators\\registerrequestvalidator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:application\\validators\\registerrequestvalidator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|e:\\project-zar\\custom\\.net\\authorization login asp.net\\application\\validators\\loginrequestvalidator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:application\\validators\\loginrequestvalidator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|e:\\project-zar\\custom\\.net\\authorization login asp.net\\application\\dtos\\authresponse.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:application\\dtos\\authresponse.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|e:\\project-zar\\custom\\.net\\authorization login asp.net\\application\\dtos\\registerrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:application\\dtos\\registerrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|e:\\project-zar\\custom\\.net\\authorization login asp.net\\application\\dtos\\loginrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:application\\dtos\\loginrequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|e:\\project-zar\\custom\\.net\\authorization login asp.net\\infrastructure\\services\\userservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:infrastructure\\services\\userservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|e:\\project-zar\\custom\\.net\\authorization login asp.net\\application\\interfaces\\iuserservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:application\\interfaces\\iuserservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
-      "DocumentGroups": []
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "RefreshTokenRequestValidator .cs",
+              "DocumentMoniker": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\Validators\\RefreshTokenRequestValidator .cs",
+              "RelativeDocumentMoniker": "Application\\Validators\\RefreshTokenRequestValidator .cs",
+              "ToolTip": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\Validators\\RefreshTokenRequestValidator .cs",
+              "RelativeToolTip": "Application\\Validators\\RefreshTokenRequestValidator .cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-27T06:12:20.198Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "RegisterRequestValidator.cs",
+              "DocumentMoniker": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\Validators\\RegisterRequestValidator.cs",
+              "RelativeDocumentMoniker": "Application\\Validators\\RegisterRequestValidator.cs",
+              "ToolTip": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\Validators\\RegisterRequestValidator.cs",
+              "RelativeToolTip": "Application\\Validators\\RegisterRequestValidator.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAACMAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-27T06:12:15.113Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "LoginRequestValidator.cs",
+              "DocumentMoniker": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\Validators\\LoginRequestValidator.cs",
+              "RelativeDocumentMoniker": "Application\\Validators\\LoginRequestValidator.cs",
+              "ToolTip": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\Validators\\LoginRequestValidator.cs",
+              "RelativeToolTip": "Application\\Validators\\LoginRequestValidator.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-27T06:12:08.711Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "AuthResponse.cs",
+              "DocumentMoniker": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\DTOs\\AuthResponse.cs",
+              "RelativeDocumentMoniker": "Application\\DTOs\\AuthResponse.cs",
+              "ToolTip": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\DTOs\\AuthResponse.cs",
+              "RelativeToolTip": "Application\\DTOs\\AuthResponse.cs",
+              "ViewState": "AgIAACsAAAAAAAAAAAA/wDgAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-27T06:11:35.928Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "RegisterRequest.cs",
+              "DocumentMoniker": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\DTOs\\RegisterRequest.cs",
+              "RelativeDocumentMoniker": "Application\\DTOs\\RegisterRequest.cs",
+              "ToolTip": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\DTOs\\RegisterRequest.cs",
+              "RelativeToolTip": "Application\\DTOs\\RegisterRequest.cs",
+              "ViewState": "AgIAAAkAAAAAAAAAAAAgwCsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-27T06:11:21.656Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "LoginRequest.cs",
+              "DocumentMoniker": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\DTOs\\LoginRequest.cs",
+              "RelativeDocumentMoniker": "Application\\DTOs\\LoginRequest.cs",
+              "ToolTip": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\DTOs\\LoginRequest.cs",
+              "RelativeToolTip": "Application\\DTOs\\LoginRequest.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-27T06:11:04.226Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "UserService.cs",
+              "DocumentMoniker": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Infrastructure\\Services\\UserService.cs",
+              "RelativeDocumentMoniker": "Infrastructure\\Services\\UserService.cs",
+              "ToolTip": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Infrastructure\\Services\\UserService.cs",
+              "RelativeToolTip": "Infrastructure\\Services\\UserService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-27T06:10:36.305Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "IUserService.cs",
+              "DocumentMoniker": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\Interfaces\\IUserService.cs",
+              "RelativeDocumentMoniker": "Application\\Interfaces\\IUserService.cs",
+              "ToolTip": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\Interfaces\\IUserService.cs",
+              "RelativeToolTip": "Application\\Interfaces\\IUserService.cs",
+              "ViewState": "AgIAABEAAAAAAAAAAAAgwCIAAAAVAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-27T06:03:14.942Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -1,22 +1,40 @@
 ﻿{
-  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "iisSettings": {
+    "windowsAuthentication": false, // غیرفعال کردن احراز هویت ویندوز
+    "anonymousAuthentication": true, // فعال کردن احراز هویت ناشناس
+    "iisExpress": {
+      "applicationUrl": "http://localhost:5000", // آدرس برنامه در IIS Express
+      "sslPort": 5001 // پورت SSL در IIS Express
+    }
+  },
   "profiles": {
     "http": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": false,
-      "applicationUrl": "http://localhost:5208",
+      "commandName": "Project", // نام دستور اجرا
+      "dotnetRunMessages": true, // نمایش پیام‌های dotnet
+      "launchBrowser": true, // باز کردن مرورگر
+      "launchUrl": "swagger", // آدرس شروع
+      "applicationUrl": "http://localhost:5000", // آدرس برنامه
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development" // محیط اجرا
       }
     },
     "https": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": false,
-      "applicationUrl": "https://localhost:7208;http://localhost:5208",
+      "commandName": "Project", // نام دستور اجرا
+      "dotnetRunMessages": true, // نمایش پیام‌های dotnet
+      "launchBrowser": true, // باز کردن مرورگر
+      "launchUrl": "swagger", // آدرس شروع
+      "applicationUrl": "https://localhost:5001;http://localhost:5000", // آدرس‌های برنامه
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development" // محیط اجرا
+      }
+    },
+    "IIS Express": {
+      "commandName": "IISExpress", // نام دستور اجرا
+      "launchBrowser": true, // باز کردن مرورگر
+      "launchUrl": "swagger", // آدرس شروع
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development" // محیط اجرا
       }
     }
   }

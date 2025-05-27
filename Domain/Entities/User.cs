@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Authorization_Login_Asp.Net.Domain.Enums;
 using Authorization_Login_Asp.Net.Domain.ValueObjects;
+using System.Linq;
 
 namespace Authorization_Login_Asp.Net.Domain.Entities
 {
@@ -64,6 +65,43 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         public bool IsActive { get; set; } = true;
 
         /// <summary>
+        /// شماره تلفن کاربر
+        /// </summary>
+        [MaxLength(15)]
+        public string PhoneNumber { get; set; }
+
+        /// <summary>
+        /// تاریخ آخرین ورود کاربر
+        /// </summary>
+        public DateTime? LastLoginAt { get; set; }
+
+        /// <summary>
+        /// آدرس تصویر پروفایل کاربر
+        /// </summary>
+        [MaxLength(500)]
+        public string ProfileImageUrl { get; set; }
+
+        /// <summary>
+        /// وضعیت تأیید ایمیل کاربر
+        /// </summary>
+        public bool IsEmailVerified { get; set; }
+
+        /// <summary>
+        /// وضعیت تأیید شماره تلفن کاربر
+        /// </summary>
+        public bool IsPhoneVerified { get; set; }
+
+        /// <summary>
+        /// تنظیمات امنیتی کاربر
+        /// </summary>
+        public UserSecuritySettings SecuritySettings { get; set; }
+
+        /// <summary>
+        /// لیست دستگاه‌های متصل کاربر
+        /// </summary>
+        public ICollection<UserDevice> ConnectedDevices { get; set; }
+
+        /// <summary>
         /// لیست توکن‌های رفرش متعلق به این کاربر
         /// یک کاربر می‌تواند چندین رفرش توکن داشته باشد (مثلاً از چند دستگاه)
         /// مقداردهی اولیه در سازنده برای جلوگیری از خطاهای NullReferenceException
@@ -71,11 +109,184 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         public ICollection<RefreshToken> RefreshTokens { get; set; }
 
         /// <summary>
+        /// فعال بودن احراز هویت دو مرحله‌ای
+        /// </summary>
+        public bool TwoFactorEnabled { get; set; }
+
+        /// <summary>
+        /// تاریخ آخرین تغییر رمز عبور
+        /// </summary>
+        public DateTime? LastPasswordChange { get; set; }
+
+        /// <summary>
+        /// تعداد تلاش‌های ناموفق ورود
+        /// </summary>
+        public int FailedLoginAttempts { get; set; }
+
+        /// <summary>
+        /// زمان پایان قفل شدن حساب (در صورت قفل شدن)
+        /// </summary>
+        public DateTime? AccountLockoutEnd { get; set; }
+
+        /// <summary>
+        /// روش احراز هویت دو مرحله‌ای (ایمیل، پیامک، اپلیکیشن)
+        /// </summary>
+        public TwoFactorType? TwoFactorType { get; set; }
+
+        /// <summary>
+        /// کلید مخفی برای احراز هویت دو مرحله‌ای
+        /// </summary>
+        public string TwoFactorSecret { get; set; }
+
+        /// <summary>
+        /// لیست کدهای بازیابی برای احراز هویت دو مرحله‌ای
+        /// </summary>
+        public ICollection<TwoFactorRecoveryCode> RecoveryCodes { get; set; }
+
+        /// <summary>
         /// سازنده بدون پارامتر برای EF Core
         /// </summary>
         public User()
         {
             RefreshTokens = new List<RefreshToken>();
+            ConnectedDevices = new List<UserDevice>();
+            SecuritySettings = new UserSecuritySettings();
+            RecoveryCodes = new List<TwoFactorRecoveryCode>();
+        }
+
+        // Helper methods for security management
+        public bool IsAccountLocked()
+        {
+            return AccountLockoutEnd.HasValue && AccountLockoutEnd.Value > DateTime.UtcNow;
+        }
+
+        public void IncrementFailedLoginAttempts()
+        {
+            FailedLoginAttempts++;
+            if (FailedLoginAttempts >= SecuritySettings.MaxFailedLoginAttempts)
+            {
+                LockAccount(SecuritySettings.AccountLockoutDurationMinutes);
+            }
+        }
+
+        public void ResetFailedLoginAttempts()
+        {
+            FailedLoginAttempts = 0;
+            AccountLockoutEnd = null;
+        }
+
+        public void LockAccount(int durationMinutes)
+        {
+            AccountLockoutEnd = DateTime.UtcNow.AddMinutes(durationMinutes);
+        }
+
+        public bool IsPasswordExpired()
+        {
+            if (!LastPasswordChange.HasValue || !SecuritySettings.PasswordExpiryDate.HasValue)
+                return false;
+
+            return DateTime.UtcNow >= SecuritySettings.PasswordExpiryDate.Value;
+        }
+
+        public bool RequiresPasswordChange()
+        {
+            return SecuritySettings.RequirePasswordChange || IsPasswordExpired();
+        }
+
+        // Helper methods for device management
+        public void AddDevice(UserDevice device)
+        {
+            if (device == null)
+                throw new ArgumentNullException(nameof(device));
+
+            device.UserId = Id;
+            device.CreatedAt = DateTime.UtcNow;
+            device.LastUsedAt = DateTime.UtcNow;
+            device.IsActive = true;
+
+            ConnectedDevices.Add(device);
+        }
+
+        public void RemoveDevice(Guid deviceId)
+        {
+            var device = ConnectedDevices.FirstOrDefault(d => d.Id == deviceId);
+            if (device != null)
+            {
+                device.IsActive = false;
+                device.LastUsedAt = DateTime.UtcNow;
+            }
+        }
+
+        public void UpdateDeviceLastUsed(Guid deviceId)
+        {
+            var device = ConnectedDevices.FirstOrDefault(d => d.Id == deviceId);
+            if (device != null)
+            {
+                device.LastUsedAt = DateTime.UtcNow;
+            }
+        }
+
+        public IEnumerable<UserDevice> GetActiveDevices()
+        {
+            return ConnectedDevices.Where(d => d.IsActive);
+        }
+
+        // Helper methods for two-factor authentication
+        public void EnableTwoFactor(TwoFactorType type, string secret)
+        {
+            TwoFactorEnabled = true;
+            TwoFactorType = type;
+            TwoFactorSecret = secret;
+        }
+
+        public void DisableTwoFactor()
+        {
+            TwoFactorEnabled = false;
+            TwoFactorType = null;
+            TwoFactorSecret = null;
+            RecoveryCodes.Clear();
+        }
+
+        public void AddRecoveryCode(string code)
+        {
+            var recoveryCode = new TwoFactorRecoveryCode
+            {
+                Code = code,
+                CreatedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddDays(30),
+                IsUsed = false
+            };
+
+            RecoveryCodes.Add(recoveryCode);
+        }
+
+        public bool UseRecoveryCode(string code)
+        {
+            var recoveryCode = RecoveryCodes.FirstOrDefault(rc => 
+                rc.Code == code && 
+                !rc.IsUsed && 
+                rc.ExpiresAt > DateTime.UtcNow);
+
+            if (recoveryCode != null)
+            {
+                recoveryCode.IsUsed = true;
+                recoveryCode.UsedAt = DateTime.UtcNow;
+                return true;
+            }
+
+            return false;
+        }
+
+        public void ClearExpiredRecoveryCodes()
+        {
+            var expiredCodes = RecoveryCodes.Where(rc => 
+                rc.ExpiresAt <= DateTime.UtcNow || 
+                rc.IsUsed).ToList();
+
+            foreach (var code in expiredCodes)
+            {
+                RecoveryCodes.Remove(code);
+            }
         }
     }
 }

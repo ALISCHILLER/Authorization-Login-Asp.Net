@@ -18,8 +18,18 @@ namespace Authorization_Login_Asp.Net.Domain.ValueObjects
         /// Regex برای اعتبارسنجی ایمیل
         /// </summary>
         private static readonly Regex EmailRegex = new Regex(
-            @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+            @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        private static readonly string[] DisposableEmailDomains = new[]
+        {
+            "tempmail.com",
+            "throwawaymail.com",
+            "mailinator.com",
+            "guerrillamail.com",
+            "10minutemail.com",
+            "yopmail.com"
+        };
 
         /// <summary>
         /// سازنده خصوصی فقط برای EF Core یا Serialization
@@ -38,6 +48,9 @@ namespace Authorization_Login_Asp.Net.Domain.ValueObjects
 
             if (!EmailRegex.IsMatch(email))
                 throw new ArgumentException("ایمیل وارد شده معتبر نیست.", nameof(email));
+
+            if (IsDisposableEmail(email))
+                throw new ArgumentException("ایمیل موقت مجاز نیست.", nameof(email));
 
             Value = email.ToLowerInvariant();
         }
@@ -66,5 +79,51 @@ namespace Authorization_Login_Asp.Net.Domain.ValueObjects
         /// عملگر تبدیل صریح از string به Email
         /// </summary>
         public static explicit operator Email(string email) => new Email(email);
+
+        // Helper methods
+        public string GetUsername()
+        {
+            return Value.Split('@')[0];
+        }
+
+        public string GetDomain()
+        {
+            return Value.Split('@')[1];
+        }
+
+        public bool IsDisposableEmail(string email)
+        {
+            var domain = email.Split('@')[1].ToLowerInvariant();
+            return Array.Exists(DisposableEmailDomains, d => domain.EndsWith(d));
+        }
+
+        public bool IsCorporateEmail()
+        {
+            var domain = GetDomain();
+            return !domain.Contains("gmail.com") &&
+                   !domain.Contains("yahoo.com") &&
+                   !domain.Contains("hotmail.com") &&
+                   !domain.Contains("outlook.com");
+        }
+
+        public bool IsValidForRegistration()
+        {
+            return !IsDisposableEmail(Value) && 
+                   (IsCorporateEmail() || Value.Length >= 8);
+        }
+
+        public static bool TryParse(string email, out Email result)
+        {
+            try
+            {
+                result = new Email(email);
+                return true;
+            }
+            catch
+            {
+                result = null;
+                return false;
+            }
+        }
     }
 }

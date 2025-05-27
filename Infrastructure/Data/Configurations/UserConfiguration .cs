@@ -63,6 +63,52 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Data.Configurations
             // ایندکس یکتا روی ایمیل (ستون Owned Type)
             builder.HasIndex("Email")
                    .IsUnique();
+
+            // پیکربندی فیلدهای امنیتی جدید
+            builder.Property(u => u.TwoFactorEnabled)
+                   .IsRequired()
+                   .HasDefaultValue(false);
+
+            builder.Property(u => u.LastPasswordChange)
+                   .IsRequired(false);
+
+            builder.Property(u => u.FailedLoginAttempts)
+                   .IsRequired()
+                   .HasDefaultValue(0);
+
+            builder.Property(u => u.AccountLockoutEnd)
+                   .IsRequired(false);
+
+            builder.Property(u => u.TwoFactorType)
+                   .IsRequired(false)
+                   .HasMaxLength(20);
+
+            builder.Property(u => u.TwoFactorSecret)
+                   .IsRequired(false)
+                   .HasMaxLength(32);
+
+            // پیکربندی رابطه با کدهای بازیابی
+            builder.HasMany(u => u.RecoveryCodes)
+                   .WithOne(rc => rc.User)
+                   .HasForeignKey(rc => rc.UserId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            // ایندکس برای جستجوی سریع‌تر
+            builder.HasIndex(u => u.Email.Value);
+            builder.HasIndex(u => u.PhoneNumber);
+            builder.HasIndex(u => u.AccountLockoutEnd);
+
+            // تنظیمات پیش‌فرض برای فیلدهای جدید
+            builder.Property(u => u.IsEmailVerified)
+                   .IsRequired()
+                   .HasDefaultValue(false);
+
+            builder.Property(u => u.IsPhoneVerified)
+                   .IsRequired()
+                   .HasDefaultValue(false);
+
+            builder.Property(u => u.LastLoginAt)
+                   .IsRequired(false);
         }
     }
 }

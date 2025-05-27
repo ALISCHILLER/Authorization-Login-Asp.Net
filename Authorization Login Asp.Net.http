@@ -3,4 +3,67 @@
 GET {{Authorization_Login_Asp.Net_HostAddress}}/weatherforecast/
 Accept: application/json
 
+### درخواست ورود کاربر
+POST https://localhost:5001/api/auth/login
+Content-Type: application/json
+
+{
+    "username": "admin",
+    "password": "Admin123!"
+}
+
+### درخواست ثبت‌نام کاربر جدید
+POST https://localhost:5001/api/auth/register
+Content-Type: application/json
+
+{
+    "username": "newuser",
+    "email": "newuser@example.com",
+    "password": "NewUser123!",
+    "fullName": "New User"
+}
+
+### درخواست تایید ایمیل
+POST https://localhost:5001/api/auth/confirm-email
+Content-Type: application/json
+
+{
+    "email": "newuser@example.com",
+    "token": "email-confirmation-token"
+}
+
+### درخواست بازیابی رمز عبور
+POST https://localhost:5001/api/auth/forgot-password
+Content-Type: application/json
+
+{
+    "email": "newuser@example.com"
+}
+
+### درخواست بازنشانی رمز عبور
+POST https://localhost:5001/api/auth/reset-password
+Content-Type: application/json
+
+{
+    "email": "newuser@example.com",
+    "token": "password-reset-token",
+    "newPassword": "NewPassword123!"
+}
+
+### درخواست تایید دو مرحله‌ای
+POST https://localhost:5001/api/auth/verify-2fa
+Content-Type: application/json
+
+{
+    "code": "123456"
+}
+
+### درخواست تازه‌سازی توکن
+POST https://localhost:5001/api/auth/refresh-token
+Content-Type: application/json
+
+{
+    "refreshToken": "refresh-token-value"
+}
+
 ###
