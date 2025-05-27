@@ -5,61 +5,65 @@ using System.Threading.Tasks;
 using Authorization_Login_Asp.Net.Application.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using System.Diagnostics;
 
 namespace Authorization_Login_Asp.Net.Infrastructure.Services
 {
+    public interface IEmailService
+    {
+        Task SendEmailAsync(string to, string subject, string body);
+    }
+
     public class EmailService : IEmailService
     {
         private readonly IConfiguration _configuration;
         private readonly ILogger<EmailService> _logger;
-        private readonly SmtpClient _smtpClient;
-        private readonly string _fromEmail;
-        private readonly string _fromName;
+        private readonly EmailSettings _settings;
+        private readonly ICircuitBreakerService _circuitBreakerService;
+        private readonly ActivitySource _activitySource;
 
-        public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
+        public EmailService(
+            IConfiguration configuration,
+            ILogger<EmailService> logger,
+            IOptions<EmailSettings> settings,
+            ICircuitBreakerService circuitBreakerService,
+            ITracingService tracingService)
         {
             _configuration = configuration;
             _logger = logger;
-
-            var smtpSettings = _configuration.GetSection("AppSettings:EmailSettings");
-            _fromEmail = smtpSettings["FromEmail"];
-            _fromName = smtpSettings["FromName"];
-
-            _smtpClient = new SmtpClient
-            {
-                Host = smtpSettings["SmtpServer"],
-                Port = int.Parse(smtpSettings["SmtpPort"]),
-                EnableSsl = bool.Parse(smtpSettings["EnableSsl"]),
-                DeliveryMethod = SmtpDeliveryMethod.Network,
-                UseDefaultCredentials = false,
-                Credentials = new NetworkCredential(
-                    smtpSettings["SmtpUsername"],
-                    smtpSettings["SmtpPassword"]
-                )
-            };
+            _settings = settings.Value;
+            _circuitBreakerService = circuitBreakerService;
+            _activitySource = tracingService.CreateActivitySource("EmailService");
         }
 
-        public async Task SendEmailAsync(string to, string subject, string body, bool isHtml = true)
+        public async Task SendEmailAsync(string to, string subject, string body)
         {
-            try
+            using var activity = _activitySource.StartActivity("SendEmail");
+            activity?.SetTag("email.to", to);
+            activity?.SetTag("email.subject", subject);
+
+            await _circuitBreakerService.ExecuteWithCircuitBreakerAsync(async () =>
             {
-                var message = new MailMessage
+                using var client = new SmtpClient(_settings.SmtpServer, _settings.SmtpPort)
                 {
-                    From = new MailAddress(_fromEmail, _fromName),
+                    EnableSsl = _settings.EnableSsl,
+                    Credentials = new System.Net.NetworkCredential(_settings.SmtpUsername, _settings.SmtpPassword)
+                };
+
+                using var message = new MailMessage
+                {
+                    From = new MailAddress(_settings.FromEmail, _settings.FromName),
                     Subject = subject,
                     Body = body,
-                    IsBodyHtml = isHtml
+                    IsBodyHtml = true
                 };
                 message.To.Add(to);
 
-                await _smtpClient.SendMailAsync(message);
+                await client.SendMailAsync(message);
                 _logger.LogInformation("Email sent successfully to {To}", to);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to send email to {To}", to);
-                throw new EmailServiceException("Failed to send email", ex);
-            }
+                activity?.SetStatus(ActivityStatusCode.Ok);
+            }, "EmailService");
         }
 
         public async Task SendPasswordResetEmailAsync(string to, string resetLink)
