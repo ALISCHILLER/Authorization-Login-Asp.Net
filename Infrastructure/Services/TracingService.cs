@@ -1,3 +1,4 @@
+using Authorization_Login_Asp.Net.Infrastructure.Configurations;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenTelemetry;
@@ -21,7 +22,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
         private readonly ActivitySource _activitySource;
 
         public TracingService(
-            ILogger<TracingService> logger,
+            ILogger<TracingService> logger1logger,
             IOptions<TracingSettings> settings)
         {
             _logger = logger;

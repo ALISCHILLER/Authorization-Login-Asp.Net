@@ -4,29 +4,44 @@ using System.Collections.Generic;
 namespace Authorization_Login_Asp.Net.Application.DTOs
 {
     /// <summary>
-    /// پاسخ درخواست تاریخچه ورود کاربر
+    /// پاسخ تاریخچه ورود
     /// </summary>
     public class LoginHistoryResponse
     {
         /// <summary>
-        /// لیست ورودهای کاربر
+        /// شماره صفحه
         /// </summary>
-        public List<LoginHistoryItem> Items { get; set; }
+        public int PageNumber { get; set; }
 
         /// <summary>
-        /// تعداد کل ورودها
+        /// تعداد در هر صفحه
+        /// </summary>
+        public int PageSize { get; set; }
+
+        /// <summary>
+        /// تعداد کل آیتم‌های تاریخچه ورود
         /// </summary>
         public int TotalCount { get; set; }
 
         /// <summary>
-        /// شماره صفحه فعلی
-        /// </summary>
-        public int CurrentPage { get; set; }
-
-        /// <summary>
-        /// تعداد صفحات
+        /// تعداد کل صفحات
         /// </summary>
         public int TotalPages { get; set; }
+
+        /// <summary>
+        /// آیا صفحه بعدی وجود دارد
+        /// </summary>
+        public bool HasNextPage { get; set; }
+
+        /// <summary>
+        /// آیا صفحه قبلی وجود دارد
+        /// </summary>
+        public bool HasPreviousPage { get; set; }
+
+        /// <summary>
+        /// لیست آیتم‌های تاریخچه ورود
+        /// </summary>
+        public List<LoginHistoryItem> Items { get; set; } = new();
     }
 
     /// <summary>
@@ -35,33 +50,38 @@ namespace Authorization_Login_Asp.Net.Application.DTOs
     public class LoginHistoryItem
     {
         /// <summary>
-        /// تاریخ و زمان ورود
+        /// شناسه یکتا
         /// </summary>
-        public DateTime LoginTime { get; set; }
+        public Guid Id { get; set; }
 
         /// <summary>
-        /// آدرس IP کاربر
+        /// شناسه کاربر
+        /// </summary>
+        public Guid UserId { get; set; }
+
+        /// <summary>
+        /// آدرس IP
         /// </summary>
         public string IpAddress { get; set; }
 
         /// <summary>
-        /// اطلاعات مرورگر کاربر
+        /// اطلاعات مرورگر
         /// </summary>
         public string UserAgent { get; set; }
 
         /// <summary>
-        /// موقعیت جغرافیایی (در صورت دسترسی)
+        /// زمان ورود
         /// </summary>
-        public string Location { get; set; }
+        public System.DateTime LoginTime { get; set; }
 
         /// <summary>
-        /// وضعیت ورود (موفق/ناموفق)
+        /// آیا ورود موفقیت‌آمیز بود
         /// </summary>
         public bool IsSuccessful { get; set; }
 
         /// <summary>
-        /// دلیل ناموفق بودن (در صورت ناموفق بودن)
+        /// پیام خطا (در صورت ناموفق بودن)
         /// </summary>
-        public string FailureReason { get; set; }
+        public string ErrorMessage { get; set; }
     }
 } 

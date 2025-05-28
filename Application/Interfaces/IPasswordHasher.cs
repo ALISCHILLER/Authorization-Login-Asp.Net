@@ -1,7 +1,9 @@
+using System.Threading.Tasks;
+
 namespace Authorization_Login_Asp.Net.Application.Interfaces
 {
     /// <summary>
-    /// اینترفیس مدیریت رمز عبور
+    /// اینترفیس سرویس هش کردن رمز عبور
     /// </summary>
     public interface IPasswordHasher
     {
@@ -9,15 +11,23 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// هش کردن رمز عبور
         /// </summary>
         /// <param name="password">رمز عبور</param>
-        /// <returns>هش رمز عبور</returns>
-        string HashPassword(string password);
+        /// <returns>هش و نمک</returns>
+        Task<(string hash, string salt)> HashPasswordAsync(string password);
 
         /// <summary>
         /// بررسی تطابق رمز عبور با هش
         /// </summary>
         /// <param name="password">رمز عبور</param>
-        /// <param name="hashedPassword">هش رمز عبور</param>
+        /// <param name="hash">هش</param>
+        /// <param name="salt">نمک</param>
         /// <returns>نتیجه بررسی</returns>
-        bool VerifyPassword(string password, string hashedPassword);
+        Task<bool> VerifyPasswordAsync(string password, string hash, string salt);
+
+        /// <summary>
+        /// بررسی نیاز به بروزرسانی هش
+        /// </summary>
+        /// <param name="hash">هش</param>
+        /// <returns>نتیجه بررسی</returns>
+        bool NeedsRehash(string hash);
     }
 } 

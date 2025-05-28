@@ -5,89 +5,95 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace Authorization_Login_Asp.Net.Domain.Entities
 {
     /// <summary>
-    /// مدل توکن رفرش برای احراز هویت و مدیریت امنیت توکن‌ها
+    /// مدل توکن رفرش
     /// </summary>
     public class RefreshToken
     {
+        /// <summary>
+        /// کلید اصلی
+        /// </summary>
         [Key]
         public Guid Id { get; set; }
 
         /// <summary>
-        /// مقدار رشته‌ای توکن
+        /// شناسه کاربر
         /// </summary>
         [Required]
+        public Guid UserId { get; set; }
+
+        /// <summary>
+        /// توکن
+        /// </summary>
+        [Required]
+        [MaxLength(500)]
         public string Token { get; set; }
 
         /// <summary>
-        /// تاریخ ایجاد توکن
+        /// تاریخ انقضا
         /// </summary>
-        [Required]
-        public DateTime CreatedAt { get; set; }
-
-        /// <summary>
-        /// تاریخ انقضای توکن
-        /// </summary>
-        [Required]
         public DateTime ExpiresAt { get; set; }
 
         /// <summary>
-        /// آی‌پی کاربر هنگام ایجاد توکن (برای بررسی امنیتی)
+        /// تاریخ ایجاد
         /// </summary>
-        public string CreatedByIp { get; set; }
+        public DateTime CreatedAt { get; set; }
 
         /// <summary>
-        /// تاریخ لغو توکن
+        /// تاریخ استفاده
+        /// </summary>
+        public DateTime? UsedAt { get; set; }
+
+        /// <summary>
+        /// تاریخ باطل شدن
         /// </summary>
         public DateTime? RevokedAt { get; set; }
 
         /// <summary>
-        /// آی‌پی کاربر هنگام لغو توکن
+        /// دلیل باطل شدن
         /// </summary>
-        public string RevokedByIp { get; set; }
+        [MaxLength(200)]
+        public string RevokedReason { get; set; }
 
         /// <summary>
-        /// دلیل لغو توکن (برای لاگ و بررسی امنیتی)
+        /// آدرس IP
         /// </summary>
-        public string RevocationReason { get; set; }
+        [MaxLength(45)]
+        public string IpAddress { get; set; }
 
         /// <summary>
-        /// شناسه توکن جایگزین در صورت Token Rotation
+        /// اطلاعات دستگاه
         /// </summary>
-        public Guid? ReplacedByTokenId { get; set; }
+        [MaxLength(200)]
+        public string DeviceInfo { get; set; }
 
         /// <summary>
-        /// ارجاع به توکن جایگزین (Navigation Property)
+        /// وضعیت فعال بودن
         /// </summary>
-        [ForeignKey(nameof(ReplacedByTokenId))]
-        public RefreshToken ReplacedByToken { get; set; }
+        public bool IsActive { get; set; } = true;
 
         /// <summary>
-        /// شناسه کاربر صاحب توکن
-        /// </summary>
-        public Guid UserId { get; set; }
-
-        /// <summary>
-        /// ارجاع به کاربر صاحب توکن
+        /// کاربر
         /// </summary>
         [ForeignKey(nameof(UserId))]
-        public User User { get; set; }
+        public virtual User User { get; set; }
 
         /// <summary>
-        /// آیا توکن منقضی شده است؟
+        /// بررسی معتبر بودن توکن
         /// </summary>
-        [NotMapped]
-        public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
+        public bool IsValid()
+        {
+            return IsActive && !RevokedAt.HasValue && ExpiresAt > DateTime.UtcNow;
+        }
 
         /// <summary>
-        /// آیا توکن لغو شده است؟
+        /// باطل کردن توکن
         /// </summary>
-        [NotMapped]
-        public bool IsRevoked => RevokedAt != null;
-
-        /// <summary>
-        /// آیا توکن معتبر است؟ (نه لغو شده و نه منقضی)
-        /// </summary>
-        [NotMapped]
-        public bool IsActive => !IsRevoked && !IsExpired;
+        /// <param name="reason">دلیل باطل شدن</param>
+        public void Revoke(string reason = null)
+        {
+            RevokedAt = DateTime.UtcNow;
+            RevokedReason = reason;
+            IsActive = false;
+        }
     }
 }

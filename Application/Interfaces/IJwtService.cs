@@ -1,42 +1,70 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Security.Claims;
 
 namespace Authorization_Login_Asp.Net.Application.Interfaces
 {
     /// <summary>
-    /// اینترفیس سرویس JWT برای تولید و اعتبارسنجی توکن‌های JWT
+    /// اینترفیس سرویس JWT
     /// </summary>
     public interface IJwtService
     {
         /// <summary>
-        /// تولید توکن JWT برای کاربر با اطلاعات کلیدی و ادعاها (Claims)
+        /// تولید توکن JWT
         /// </summary>
-        /// <param name="userId">شناسه یکتا کاربر</param>
-        /// <param name="username">نام کاربری کاربر</param>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="username">نام کاربری</param>
         /// <param name="role">نقش کاربر</param>
-        /// <param name="additionalClaims">لیست کلید-مقدار ادعاهای اضافی در توکن (اختیاری)</param>
-        /// <returns>رشته توکن JWT تولید شده</returns>
+        /// <param name="additionalClaims">کلیم‌های اضافی</param>
+        /// <returns>توکن JWT</returns>
         string GenerateToken(Guid userId, string username, string role, IDictionary<string, string> additionalClaims = null);
 
         /// <summary>
-        /// اعتبارسنجی توکن JWT و بررسی صحت آن (امضا و انقضا)
+        /// اعتبارسنجی توکن JWT
         /// </summary>
-        /// <param name="token">رشته توکن JWT</param>
-        /// <returns>در صورت معتبر بودن، اطلاعات ادعاها (Claims) به صورت دیکشنری برگردانده می‌شود، در غیر این صورت null یا Exception</returns>
+        /// <param name="token">توکن JWT</param>
+        /// <returns>کلیم‌های توکن</returns>
         IDictionary<string, string> ValidateToken(string token);
 
         /// <summary>
-        /// استخراج شناسه کاربر از توکن JWT
+        /// دریافت شناسه کاربر از توکن
         /// </summary>
-        /// <param name="token">رشته توکن JWT</param>
-        /// <returns>شناسه کاربر (Guid) در صورت اعتبارسنجی موفق، در غیر این صورت مقدار پیش‌فرض (Guid.Empty)</returns>
+        /// <param name="token">توکن JWT</param>
+        /// <returns>شناسه کاربر</returns>
         Guid GetUserIdFromToken(string token);
 
         /// <summary>
-        /// استخراج نقش کاربر از توکن JWT
+        /// دریافت نقش کاربر از توکن
         /// </summary>
-        /// <param name="token">رشته توکن JWT</param>
-        /// <returns>نقش کاربر به صورت رشته</returns>
+        /// <param name="token">توکن JWT</param>
+        /// <returns>نقش کاربر</returns>
         string GetUserRoleFromToken(string token);
+
+        /// <summary>
+        /// تولید کلید محرمانه احراز هویت دو مرحله‌ای
+        /// </summary>
+        /// <returns>تاپل شامل کلید محرمانه و کد QR</returns>
+        (string secret, string qrCode) GenerateTwoFactorSecret();
+
+        /// <summary>
+        /// اعتبارسنجی کد احراز هویت دو مرحله‌ای
+        /// </summary>
+        /// <param name="secret">کلید محرمانه</param>
+        /// <param name="code">کد</param>
+        /// <returns>نتیجه اعتبارسنجی</returns>
+        bool ValidateTwoFactorCode(string secret, string code);
+
+        /// <summary>
+        /// تولید کدهای بازیابی
+        /// </summary>
+        /// <returns>لیست کدهای بازیابی</returns>
+        IEnumerable<string> GenerateRecoveryCodes();
+
+        /// <summary>
+        /// تولید کلیم‌های کاربر
+        /// </summary>
+        /// <param name="user">کاربر</param>
+        /// <returns>لیست کلیم‌ها</returns>
+        IEnumerable<Claim> GenerateClaims(Domain.Entities.User user);
     }
 }

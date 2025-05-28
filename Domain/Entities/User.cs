@@ -4,6 +4,9 @@ using System.ComponentModel.DataAnnotations;
 using Authorization_Login_Asp.Net.Domain.Enums;
 using Authorization_Login_Asp.Net.Domain.ValueObjects;
 using System.Linq;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Threading.Tasks;
+using Authorization_Login_Asp.Net.Application.Interfaces;
 
 namespace Authorization_Login_Asp.Net.Domain.Entities
 {
@@ -51,7 +54,7 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// استفاده از Enum برای خوانایی بهتر و جلوگیری از اشتباهات تایپی
         /// </summary>
         [Required]
-        public UserRole Role { get; set; }
+        public Enums.RoleType Role { get; set; }
 
         /// <summary>
         /// تاریخ ایجاد حساب کاربری (ثبت‌نام)
@@ -144,6 +147,11 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         public ICollection<TwoFactorRecoveryCode> RecoveryCodes { get; set; }
 
         /// <summary>
+        /// لیست تاریخچه ورودهای کاربر
+        /// </summary>
+        public ICollection<LoginHistory> LoginHistory { get; set; }
+
+        /// <summary>
         /// سازنده بدون پارامتر برای EF Core
         /// </summary>
         public User()
@@ -152,6 +160,7 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
             ConnectedDevices = new List<UserDevice>();
             SecuritySettings = new UserSecuritySettings();
             RecoveryCodes = new List<TwoFactorRecoveryCode>();
+            LoginHistory = new List<LoginHistory>();
         }
 
         // Helper methods for security management
@@ -287,6 +296,78 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
             {
                 RecoveryCodes.Remove(code);
             }
+        }
+
+        /// <summary>
+        /// تنظیم رمز عبور
+        /// </summary>
+        /// <param name="password">رمز عبور جدید</param>
+        /// <param name="passwordHasher">سرویس هش کردن رمز عبور</param>
+        public async Task SetPasswordAsync(string password, IPasswordHasher passwordHasher)
+        {
+            var (hash, salt) = await passwordHasher.HashPasswordAsync(password);
+            PasswordHash = hash;
+            SecuritySettings.PasswordSalt = salt;
+            LastPasswordChange = DateTime.UtcNow;
+        }
+
+        /// <summary>
+        /// بررسی صحت رمز عبور
+        /// </summary>
+        /// <param name="password">رمز عبور</param>
+        /// <param name="passwordHasher">سرویس هش کردن رمز عبور</param>
+        /// <returns>نتیجه بررسی</returns>
+        public async Task<bool> VerifyPasswordAsync(string password, IPasswordHasher passwordHasher)
+        {
+            return await passwordHasher.VerifyPasswordAsync(password, PasswordHash, SecuritySettings.PasswordSalt);
+        }
+
+        /// <summary>
+        /// تنظیم کلید محرمانه احراز هویت دو مرحله‌ای
+        /// </summary>
+        /// <param name="secret">کلید محرمانه</param>
+        public void SetTwoFactorSecret(string secret)
+        {
+            TwoFactorSecret = secret;
+            TwoFactorEnabled = true;
+        }
+
+        /// <summary>
+        /// تنظیم کدهای بازیابی
+        /// </summary>
+        /// <param name="codes">کدهای بازیابی</param>
+        public void SetRecoveryCodes(IEnumerable<string> codes)
+        {
+            RecoveryCodes.Clear();
+            foreach (var code in codes)
+            {
+                AddRecoveryCode(code);
+            }
+        }
+
+        /// <summary>
+        /// بررسی صحت کد بازیابی
+        /// </summary>
+        /// <param name="code">کد بازیابی</param>
+        /// <returns>نتیجه بررسی</returns>
+        public bool ValidateRecoveryCode(string code)
+        {
+            var recoveryCode = RecoveryCodes.FirstOrDefault(rc => rc.Code == code && !rc.IsUsed && rc.ExpiresAt > DateTime.UtcNow);
+            if (recoveryCode != null)
+            {
+                recoveryCode.IsUsed = true;
+                recoveryCode.UsedAt = DateTime.UtcNow;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// باطل کردن توکن رفرش
+        /// </summary>
+        public void InvalidateRefreshToken()
+        {
+            RefreshTokens.Clear();
         }
     }
 }

@@ -166,6 +166,46 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                 ClockSkew = TimeSpan.Zero
             };
         }
+
+        public string GenerateToken(Guid userId, string username, string role, IDictionary<string, string> additionalClaims = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDictionary<string, string> IJwtService.ValidateToken(string token)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Guid GetUserIdFromToken(string token)
+        {
+            throw new NotImplementedException();
+        }
+
+        public string GetUserRoleFromToken(string token)
+        {
+            throw new NotImplementedException();
+        }
+
+        public (string secret, string qrCode) GenerateTwoFactorSecret()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool ValidateTwoFactorCode(string secret, string code)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IEnumerable<string> GenerateRecoveryCodes()
+        {
+            throw new NotImplementedException();
+        }
+
+        public IEnumerable<Claim> GenerateClaims(User user)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public class JwtServiceException : Exception

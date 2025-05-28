@@ -21,48 +21,95 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Logging
             _securityLogger = new LoggerConfiguration()
                 .WriteTo.File("logs/security-.log", 
                     rollingInterval: RollingInterval.Day,
-                    restrictedToMinimumLevel: LogEventLevel.Information)
+                    restrictedToMinimumLevel: LogEventLevel.Information,
+                    outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .CreateLogger();
         }
 
-        public void LogFailedLoginAttempt(string username, string ipAddress, string reason)
+        /// <summary>
+        /// ثبت تلاش ورود ناموفق
+        /// </summary>
+        public async Task LogFailedLoginAttemptAsync(string username, string ipAddress, string userAgent, string reason)
         {
-            _securityLogger.Warning(
-                "Failed login attempt for user {Username} from IP {IpAddress}. Reason: {Reason}",
-                username, ipAddress, reason);
+            await Task.Run(() => _securityLogger.Warning(
+                "Failed login attempt for user {Username} from IP {IpAddress} using {UserAgent}. Reason: {Reason}",
+                username, ipAddress, userAgent, reason));
         }
 
-        public void LogPasswordChange(Guid userId, string ipAddress)
+        /// <summary>
+        /// ثبت تغییر رمز عبور
+        /// </summary>
+        public async Task LogPasswordChangeAsync(Guid userId, string ipAddress)
         {
-            _securityLogger.Information(
+            await Task.Run(() => _securityLogger.Information(
                 "Password changed for user {UserId} from IP {IpAddress}",
-                userId, ipAddress);
+                userId, ipAddress));
         }
 
-        public void LogUnauthorizedAccess(string username, string ipAddress, string resource)
+        /// <summary>
+        /// ثبت تغییر ایمیل
+        /// </summary>
+        public async Task LogEmailChangeAsync(Guid userId, string oldEmail, string newEmail, string ipAddress)
         {
-            _securityLogger.Warning(
-                "Unauthorized access attempt to {Resource} by user {Username} from IP {IpAddress}",
-                resource, username, ipAddress);
+            await Task.Run(() => _securityLogger.Information(
+                "Email changed for user {UserId} from {OldEmail} to {NewEmail} from IP {IpAddress}",
+                userId, oldEmail, newEmail, ipAddress));
         }
 
-        public void LogSecurityEvent(string eventType, string details, LogLevel level = LogLevel.Information)
+        /// <summary>
+        /// ثبت تغییر شماره تلفن
+        /// </summary>
+        public async Task LogPhoneChangeAsync(Guid userId, string oldPhone, string newPhone, string ipAddress)
         {
-            var logEvent = new LogEvent(
-                DateTimeOffset.UtcNow,
-                level.ToSerilogLevel(),
-                null,
-                MessageTemplate.Empty,
-                new[]
-                {
-                    new LogEventProperty("EventType", new ScalarValue(eventType)),
-                    new LogEventProperty("Details", new ScalarValue(details))
-                });
+            await Task.Run(() => _securityLogger.Information(
+                "Phone number changed for user {UserId} from {OldPhone} to {NewPhone} from IP {IpAddress}",
+                userId, oldPhone, newPhone, ipAddress));
+        }
 
-            _securityLogger.Write(logEvent);
+        /// <summary>
+        /// ثبت فعال‌سازی احراز هویت دو مرحله‌ای
+        /// </summary>
+        public async Task LogTwoFactorActivationAsync(Guid userId, string ipAddress, string method)
+        {
+            await Task.Run(() => _securityLogger.Information(
+                "Two-factor authentication activated for user {UserId} using method {Method} from IP {IpAddress}",
+                userId, method, ipAddress));
+        }
+
+        /// <summary>
+        /// ثبت غیرفعال‌سازی احراز هویت دو مرحله‌ای
+        /// </summary>
+        public async Task LogTwoFactorDeactivationAsync(Guid userId, string ipAddress)
+        {
+            await Task.Run(() => _securityLogger.Information(
+                "Two-factor authentication deactivated for user {UserId} from IP {IpAddress}",
+                userId, ipAddress));
+        }
+
+        /// <summary>
+        /// ثبت تلاش دسترسی غیرمجاز
+        /// </summary>
+        public async Task LogUnauthorizedAccessAttemptAsync(Guid userId, string ipAddress, string resource, string action)
+        {
+            await Task.Run(() => _securityLogger.Warning(
+                "Unauthorized access attempt to {Resource} with action {Action} by user {UserId} from IP {IpAddress}",
+                resource, action, userId, ipAddress));
+        }
+
+        /// <summary>
+        /// ثبت رویداد امنیتی عمومی
+        /// </summary>
+        private async Task LogSecurityEventAsync(string eventType, string details, LogEventLevel level = LogEventLevel.Information)
+        {
+            await Task.Run(() => _securityLogger.Write(level,
+                "Security event: {EventType}. Details: {Details}",
+                eventType, details));
         }
     }
 
+    /// <summary>
+    /// متدهای کمکی برای تبدیل سطوح لاگ
+    /// </summary>
     public static class LogLevelExtensions
     {
         public static LogEventLevel ToSerilogLevel(this LogLevel level)

@@ -1,5 +1,5 @@
 using Authorization_Login_Asp.Net.Application.Interfaces;
-using Authorization_Login_Asp.Net.Infrastructure.Caching;
+using Authorization_Login_Asp.Net.Infrastructure.Logging;
 using Authorization_Login_Asp.Net.Infrastructure.Repositories;
 using Authorization_Login_Asp.Net.Infrastructure.Security;
 using Authorization_Login_Asp.Net.Infrastructure.Services;
@@ -8,8 +8,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Authorization_Login_Asp.Net.Infrastructure.Extensions
 {
+    /// <summary>
+    /// کلاس توسعه‌دهنده برای ثبت سرویس‌های زیرساختی
+    /// </summary>
     public static class ServiceCollectionExtensions
     {
+        /// <summary>
+        /// افزودن سرویس‌های زیرساختی به کانتینر DI
+        /// </summary>
         public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
         {
             // Register repositories
@@ -19,13 +25,9 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Extensions
             services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
-            // Register services
+            // Register application services
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IPermissionService, PermissionService>();
-            services.AddScoped<ILoggingService, LoggingService>();
-            services.AddScoped<IJwtService, JwtService>();
-            services.AddScoped<IEmailService, EmailService>();
-            services.AddScoped<ISmsService, SmsService>();
             services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
             // Register security services
@@ -33,11 +35,20 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Extensions
             services.AddScoped<ITwoFactorAuthenticator, TwoFactorAuthenticator>();
             services.AddSingleton<RateLimiter>();
 
+            // Register communication services
+            services.AddScoped<IEmailService, EmailService>();
+            services.AddScoped<ISmsService, SmsService>();
+
+            // Register logging services
+            services.AddScoped<ILoggingService, LoggingService>();
+            services.AddScoped<ISecurityLogger, SecurityLogger>();
+            services.AddLogging();
+
             // Register caching service
             services.AddSingleton<ICacheService, RedisCacheService>();
 
-            // Register logging
-            services.AddLogging();
+            // Register JWT service
+            services.AddScoped<IJwtService, JwtService>();
 
             return services;
         }

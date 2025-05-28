@@ -1,5 +1,11 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Authorization_Login_Asp.Net.Application.DTOs;
+using Authorization_Login_Asp.Net.Application.Interfaces;
+using Authorization_Login_Asp.Net.Domain.Entities;
 using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
 
 namespace Authorization_Login_Asp.Net.Infrastructure.Services
 {
@@ -9,27 +15,23 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
         Task SendSecurityAlertAsync(string title, string message, AlertSeverity severity);
         Task SendPerformanceAlertAsync(string title, string message, AlertSeverity severity);
         Task SendErrorAlertAsync(string title, string message, AlertSeverity severity);
-        Task<IEnumerable<Notification>> GetNotificationsAsync(int count = 10);
-        Task MarkAsReadAsync(string notificationId);
-        Task DeleteNotificationAsync(string notificationId);
+        Task<IEnumerable<NotificationResponse>> GetNotificationsAsync(int count = 10);
+        Task<NotificationResponse> CreateNotificationAsync(NotificationRequest request);
+        Task MarkAsReadAsync(string id);
+        Task DeleteNotificationAsync(string id);
     }
 
     public class NotificationService : INotificationService
     {
+        private readonly INotificationRepository _notificationRepository;
         private readonly ILogger<NotificationService> _logger;
-        private readonly IEmailService _emailService;
-        private readonly IMetricsService _metricsService;
-        private readonly ConcurrentDictionary<string, Notification> _notifications = new();
-        private readonly object _lockObject = new();
 
         public NotificationService(
-            ILogger<NotificationService> logger,
-            IEmailService emailService,
-            IMetricsService metricsService)
+            INotificationRepository notificationRepository,
+            ILogger<NotificationService> logger)
         {
+            _notificationRepository = notificationRepository;
             _logger = logger;
-            _emailService = emailService;
-            _metricsService = metricsService;
         }
 
         public async Task SendSystemAlertAsync(string title, string message, AlertSeverity severity)
@@ -47,8 +49,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                     IsRead = false
                 };
 
-                _notifications.TryAdd(notification.Id, notification);
-                await SendEmailNotificationAsync(notification);
+                await _notificationRepository.AddAsync(notification);
                 _logger.LogInformation("System alert sent: {Title}", title);
             }
             catch (Exception ex)
@@ -73,8 +74,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                     IsRead = false
                 };
 
-                _notifications.TryAdd(notification.Id, notification);
-                await SendEmailNotificationAsync(notification);
+                await _notificationRepository.AddAsync(notification);
                 _logger.LogWarning("Security alert sent: {Title}", title);
             }
             catch (Exception ex)
@@ -99,8 +99,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                     IsRead = false
                 };
 
-                _notifications.TryAdd(notification.Id, notification);
-                await SendEmailNotificationAsync(notification);
+                await _notificationRepository.AddAsync(notification);
                 _logger.LogWarning("Performance alert sent: {Title}", title);
             }
             catch (Exception ex)
@@ -125,8 +124,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                     IsRead = false
                 };
 
-                _notifications.TryAdd(notification.Id, notification);
-                await SendEmailNotificationAsync(notification);
+                await _notificationRepository.AddAsync(notification);
                 _logger.LogError("Error alert sent: {Title}", title);
             }
             catch (Exception ex)
@@ -136,43 +134,89 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
             }
         }
 
-        public async Task<IEnumerable<Notification>> GetNotificationsAsync(int count = 10)
+        public async Task<IEnumerable<NotificationResponse>> GetNotificationsAsync(int count = 10)
         {
-            return _notifications.Values
-                .OrderByDescending(n => n.CreatedAt)
-                .Take(count)
-                .ToList();
-        }
-
-        public async Task MarkAsReadAsync(string notificationId)
-        {
-            if (_notifications.TryGetValue(notificationId, out var notification))
+            try
             {
-                notification.IsRead = true;
-                _logger.LogInformation("Notification marked as read: {Id}", notificationId);
+                var notifications = await _notificationRepository.GetNotificationsAsync(count);
+                return notifications.Select(MapToResponse);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting notifications");
+                throw;
             }
         }
 
-        public async Task DeleteNotificationAsync(string notificationId)
+        public async Task<NotificationResponse> CreateNotificationAsync(NotificationRequest request)
         {
-            if (_notifications.TryRemove(notificationId, out var notification))
+            try
             {
-                _logger.LogInformation("Notification deleted: {Id}", notificationId);
+                var notification = new Notification
+                {
+                    Title = request.Title,
+                    Message = request.Message,
+                    Type = request.Type,
+                    UserId = request.UserId,
+                    ExpiryDate = request.ExpiryDate
+                };
+
+                var createdNotification = await _notificationRepository.AddAsync(notification);
+                return MapToResponse(createdNotification);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating notification");
+                throw;
             }
         }
 
-        private async Task SendEmailNotificationAsync(Notification notification)
+        public async Task MarkAsReadAsync(string id)
         {
-            var subject = $"[{notification.Severity}] {notification.Title}";
-            var body = $@"
-                <h2>{notification.Title}</h2>
-                <p>{notification.Message}</p>
-                <p><strong>Type:</strong> {notification.Type}</p>
-                <p><strong>Severity:</strong> {notification.Severity}</p>
-                <p><strong>Time:</strong> {notification.CreatedAt:yyyy-MM-dd HH:mm:ss}</p>";
+            try
+            {
+                var notification = await _notificationRepository.GetByIdAsync(id);
+                if (notification == null)
+                {
+                    throw new KeyNotFoundException($"Notification with id {id} not found");
+                }
 
-            // در اینجا می‌توانید آدرس ایمیل ادمین را از تنظیمات بخوانید
-            await _emailService.SendEmailAsync("admin@example.com", subject, body);
+                notification.MarkAsRead();
+                await _notificationRepository.UpdateAsync(notification);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error marking notification as read");
+                throw;
+            }
+        }
+
+        public async Task DeleteNotificationAsync(string id)
+        {
+            try
+            {
+                await _notificationRepository.DeleteAsync(id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting notification");
+                throw;
+            }
+        }
+
+        private static NotificationResponse MapToResponse(Notification notification)
+        {
+            return new NotificationResponse
+            {
+                Id = notification.Id,
+                Title = notification.Title,
+                Message = notification.Message,
+                Type = notification.Type,
+                UserId = notification.UserId,
+                IsRead = notification.IsRead,
+                CreatedAt = notification.CreatedAt,
+                ExpiryDate = notification.ExpiryDate
+            };
         }
     }
 
@@ -185,6 +229,13 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
         public AlertSeverity Severity { get; set; }
         public DateTime CreatedAt { get; set; }
         public bool IsRead { get; set; }
+        public string UserId { get; set; }
+        public DateTime ExpiryDate { get; set; }
+
+        public void MarkAsRead()
+        {
+            IsRead = true;
+        }
     }
 
     public enum NotificationType

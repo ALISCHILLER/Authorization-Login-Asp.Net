@@ -5,36 +5,36 @@ using Authorization_Login_Asp.Net.Application.DTOs;
 namespace Authorization_Login_Asp.Net.Application.Interfaces
 {
     /// <summary>
-    /// اینترفیس سرویس برای مدیریت منطق تجاری مرتبط با رفرش توکن‌ها
+    /// اینترفیس سرویس توکن رفرش
     /// </summary>
     public interface IRefreshTokenService
     {
         /// <summary>
-        /// ایجاد و ذخیره یک رفرش توکن جدید برای یک کاربر مشخص
+        /// تولید توکن رفرش جدید
         /// </summary>
         /// <param name="userId">شناسه کاربر</param>
-        /// <returns>رشته توکن رفرش ایجاد شده</returns>
+        /// <returns>توکن رفرش</returns>
         Task<string> GenerateRefreshTokenAsync(Guid userId);
 
         /// <summary>
-        /// اعتبارسنجی رفرش توکن و ایجاد توکن جدید (Token Rotation)
+        /// تمدید توکن رفرش
         /// </summary>
-        /// <param name="refreshToken">رشته توکن رفرش فعلی</param>
-        /// <returns>آبجکت پاسخ احراز هویت شامل توکن جدید و اطلاعات کاربر</returns>
-        Task<AuthResponse> RefreshTokenAsync(string refreshToken);
+        /// <param name="refreshToken">توکن رفرش</param>
+        /// <returns>توکن رفرش جدید</returns>
+        Task<string> RefreshTokenAsync(string refreshToken);
 
         /// <summary>
-        /// لغو (ری‌ووک) رفرش توکن مشخص (مثلا هنگام خروج از حساب)
+        /// باطل کردن توکن رفرش
         /// </summary>
-        /// <param name="refreshToken">رشته توکن رفرش برای لغو</param>
-        /// <returns>تسک ناهمزمان</returns>
+        /// <param name="refreshToken">توکن رفرش</param>
+        /// <returns>تسک</returns>
         Task RevokeRefreshTokenAsync(string refreshToken);
 
         /// <summary>
-        /// حذف همه رفرش توکن‌های فعال متعلق به یک کاربر (خروج از همه دستگاه‌ها)
+        /// باطل کردن تمام توکن‌های رفرش کاربر
         /// </summary>
         /// <param name="userId">شناسه کاربر</param>
-        /// <returns>تسک ناهمزمان</returns>
+        /// <returns>تسک</returns>
         Task RevokeAllTokensForUserAsync(Guid userId);
     }
 }

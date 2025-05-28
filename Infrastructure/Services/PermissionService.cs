@@ -225,6 +225,36 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
             _cache.Remove($"user_permissions_{userId}");
             _cache.Remove($"user_permission_{userId}_*");
         }
+
+        public Task<bool> HasPermissionAsync(Guid userId, string resource, string action)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IEnumerable<string>> GetUserPermissionsAsync(Guid userId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task AddPermissionAsync(Guid userId, string resource, string action)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task RemovePermissionAsync(Guid userId, string resource, string action)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> HasRolePermissionAsync(string role, string resource, string action)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IEnumerable<string>> GetRolePermissionsAsync(string role)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public class PermissionServiceException : Exception

@@ -1,12 +1,105 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|e:\\project-zar\\custom\\.net\\authorization login asp.net\\infrastructure\\services\\refreshtokenservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:infrastructure\\services\\refreshtokenservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|e:\\project-zar\\custom\\.net\\authorization login asp.net\\infrastructure\\services\\smsservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:infrastructure\\services\\smsservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|e:\\project-zar\\custom\\.net\\authorization login asp.net\\infrastructure\\services\\reportingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:infrastructure\\services\\reportingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|e:\\project-zar\\custom\\.net\\authorization login asp.net\\infrastructure\\services\\permissionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:infrastructure\\services\\permissionservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|e:\\project-zar\\custom\\.net\\authorization login asp.net\\application\\interfaces\\ipermissionrepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BB124422-4D99-49F9-8C3B-532F60CBF096}|Authorization Login Asp.Net.csproj|solutionrelative:application\\interfaces\\ipermissionrepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
-      "DocumentGroups": []
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 2,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "SmsService.cs",
+              "DocumentMoniker": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Infrastructure\\Services\\SmsService.cs",
+              "RelativeDocumentMoniker": "Infrastructure\\Services\\SmsService.cs",
+              "ToolTip": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Infrastructure\\Services\\SmsService.cs*",
+              "RelativeToolTip": "Infrastructure\\Services\\SmsService.cs*",
+              "ViewState": "AgIAAHsAAAAAAAAAAAAIwAsAAAAeAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-28T13:14:39.336Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "ReportingService.cs",
+              "DocumentMoniker": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Infrastructure\\Services\\ReportingService.cs",
+              "RelativeDocumentMoniker": "Infrastructure\\Services\\ReportingService.cs",
+              "ToolTip": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Infrastructure\\Services\\ReportingService.cs*",
+              "RelativeToolTip": "Infrastructure\\Services\\ReportingService.cs*",
+              "ViewState": "AgIAAAMAAAAAAAAAAAAuwBkAAAAfAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-28T13:14:13.772Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "RefreshTokenService.cs",
+              "DocumentMoniker": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Infrastructure\\Services\\RefreshTokenService.cs",
+              "RelativeDocumentMoniker": "Infrastructure\\Services\\RefreshTokenService.cs",
+              "ToolTip": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Infrastructure\\Services\\RefreshTokenService.cs*",
+              "RelativeToolTip": "Infrastructure\\Services\\RefreshTokenService.cs*",
+              "ViewState": "AgIAAFAAAAAAAAAAAAAqwGQAAAAdAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-28T13:13:17.917Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "IPermissionRepository.cs",
+              "DocumentMoniker": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\Interfaces\\IPermissionRepository.cs",
+              "RelativeDocumentMoniker": "Application\\Interfaces\\IPermissionRepository.cs",
+              "ToolTip": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Application\\Interfaces\\IPermissionRepository.cs*",
+              "RelativeToolTip": "Application\\Interfaces\\IPermissionRepository.cs*",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAVAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-28T13:12:46.748Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "PermissionService.cs",
+              "DocumentMoniker": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Infrastructure\\Services\\PermissionService.cs",
+              "RelativeDocumentMoniker": "Infrastructure\\Services\\PermissionService.cs",
+              "ToolTip": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Infrastructure\\Services\\PermissionService.cs*",
+              "RelativeToolTip": "Infrastructure\\Services\\PermissionService.cs*",
+              "ViewState": "AgIAALkAAAAAAAAAAAAqwM0AAAAsAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-05-28T13:12:18.176Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
     }
   ]
 }

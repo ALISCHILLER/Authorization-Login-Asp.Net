@@ -55,5 +55,8 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <param name="name">نام پرمیشن</param>
         /// <returns>True اگر وجود داشته باشد</returns>
         Task<bool> ExistsByNameAsync(string name);
+        Task<IEnumerable<Permission>?> GetPermissionsByRoleIdAsync(int roleId);
+        Task AssignPermissionToRoleAsync(int roleId, int permissionId);
+        Task RemovePermissionFromRoleAsync(int roleId, int permissionId);
     }
 }

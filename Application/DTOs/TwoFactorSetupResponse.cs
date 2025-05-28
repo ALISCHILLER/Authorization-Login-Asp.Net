@@ -31,5 +31,9 @@ namespace Authorization_Login_Asp.Net.Application.DTOs
         /// تاریخ انقضای کدهای بازیابی
         /// </summary>
         public DateTime RecoveryCodesExpiresAt { get; set; }
+
+        public bool Succeeded { get; set; }
+        public string Message { get; set; }
+        public string[] RecoveryCodesArray { get; set; }
     }
 } 

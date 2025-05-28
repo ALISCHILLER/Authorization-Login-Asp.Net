@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Authorization_Login_Asp.Net.Infrastructure.Services;
+using Authorization_Login_Asp.Net.Application.DTOs;
 using System.Threading.Tasks;
 
 namespace Authorization_Login_Asp.Net.Api.Controllers
@@ -33,6 +34,21 @@ namespace Authorization_Login_Asp.Net.Api.Controllers
             {
                 _logger.LogError(ex, "Error getting notifications");
                 return StatusCode(500, "Error getting notifications");
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateNotification([FromBody] NotificationRequest request)
+        {
+            try
+            {
+                var notification = await _notificationService.CreateNotificationAsync(request);
+                return Ok(notification);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating notification");
+                return StatusCode(500, "Error creating notification");
             }
         }
 

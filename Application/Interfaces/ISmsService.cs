@@ -1,36 +1,35 @@
+using System.Threading.Tasks;
+
 namespace Authorization_Login_Asp.Net.Application.Interfaces
 {
     /// <summary>
-    /// اینترفیس مدیریت ارسال پیامک
+    /// اینترفیس سرویس پیامک
     /// </summary>
     public interface ISmsService
     {
         /// <summary>
-        /// ارسال پیامک تأیید شماره تلفن
+        /// ارسال کد تأیید
         /// </summary>
         /// <param name="phoneNumber">شماره تلفن</param>
         /// <param name="code">کد تأیید</param>
+        /// <returns>تسک</returns>
         Task SendVerificationCodeAsync(string phoneNumber, string code);
 
         /// <summary>
-        /// ارسال کد یکبار مصرف برای احراز هویت دو مرحله‌ای
-        /// </summary>
-        /// <param name="phoneNumber">شماره تلفن</param>
-        /// <param name="code">کد یکبار مصرف</param>
-        Task SendTwoFactorCodeAsync(string phoneNumber, string code);
-
-        /// <summary>
-        /// ارسال پیامک اعلان ورود جدید
+        /// ارسال اعلان ورود جدید
         /// </summary>
         /// <param name="phoneNumber">شماره تلفن</param>
         /// <param name="deviceInfo">اطلاعات دستگاه</param>
-        /// <param name="location">موقعیت مکانی</param>
+        /// <param name="location">موقعیت</param>
+        /// <returns>تسک</returns>
         Task SendNewLoginNotificationAsync(string phoneNumber, string deviceInfo, string location);
 
         /// <summary>
-        /// ارسال پیامک تغییر رمز عبور
+        /// ارسال اعلان تغییر رمز عبور
         /// </summary>
         /// <param name="phoneNumber">شماره تلفن</param>
+        /// <returns>تسک</returns>
         Task SendPasswordChangedNotificationAsync(string phoneNumber);
+        Task SendTwoFactorCodeAsync(string phoneNumber, string code);
     }
 } 

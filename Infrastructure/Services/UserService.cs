@@ -1,200 +1,557 @@
-﻿using System;
+using System;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Authorization_Login_Asp.Net.Application.DTOs;
+using Authorization_Login_Asp.Net.Application.Interfaces;
+using Authorization_Login_Asp.Net.Domain.Common;
+using Authorization_Login_Asp.Net.Domain.Entities;
+using Authorization_Login_Asp.Net.Domain.Enums;
+using Authorization_Login_Asp.Net.Domain.ValueObjects;
 using System.Collections.Generic;
 using System.Security.Claims;
-using System.Threading.Tasks;
-using Authorization_Login_Asp.Net.Application.Interfaces;
-using Authorization_Login_Asp.Net.Domain.Entities;
-using Authorization_Login_Asp.Net.Domain.ValueObjects;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
+using System.Linq;
+using System.Threading;
 
 namespace Authorization_Login_Asp.Net.Infrastructure.Services
 {
     public class UserService : IUserService
     {
         private readonly IUserRepository _userRepository;
-        private readonly IRoleRepository _roleRepository;
-        private readonly IPermissionService _permissionService;
+        private readonly IJwtService _jwtService;
         private readonly IEmailService _emailService;
         private readonly ISmsService _smsService;
-        private readonly IJwtService _jwtService;
-        private readonly IRefreshTokenService _refreshTokenService;
-        private readonly ILogger<UserService> _logger;
-        private readonly IConfiguration _configuration;
+        private readonly ILoggingService _logger;
+        private readonly IImageService _imageService;
 
         public UserService(
             IUserRepository userRepository,
-            IRoleRepository roleRepository,
-            IPermissionService permissionService,
+            IJwtService jwtService,
             IEmailService emailService,
             ISmsService smsService,
-            IJwtService jwtService,
-            IRefreshTokenService refreshTokenService,
-            ILogger<UserService> logger,
-            IConfiguration configuration)
+            ILoggingService logger,
+            IImageService imageService)
         {
             _userRepository = userRepository;
-            _roleRepository = roleRepository;
-            _permissionService = permissionService;
+            _jwtService = jwtService;
             _emailService = emailService;
             _smsService = smsService;
-            _jwtService = jwtService;
-            _refreshTokenService = refreshTokenService;
             _logger = logger;
-            _configuration = configuration;
+            _imageService = imageService;
         }
 
-        public async Task<User> GetUserByIdAsync(Guid id)
+        #region احراز هویت و مجوزدهی
+        public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
         {
             try
             {
-                var user = await _userRepository.GetByIdAsync(id);
-                if (user == null)
+                if (await _userRepository.ExistsByEmailAsync(request.Email))
                 {
-                    throw new UserServiceException($"User not found with id {id}");
-                }
-                return user;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to get user by id {UserId}", id);
-                throw new UserServiceException("Failed to get user", ex);
-            }
-        }
-
-        public async Task<User> GetUserByEmailAsync(string email)
-        {
-            try
-            {
-                var user = await _userRepository.GetByEmailAsync(email);
-                if (user == null)
-                {
-                    throw new UserServiceException($"User not found with email {email}");
-                }
-                return user;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to get user by email {Email}", email);
-                throw new UserServiceException("Failed to get user", ex);
-            }
-        }
-
-        public async Task<User> GetUserByUsernameAsync(string username)
-        {
-            return await _userRepository.GetByUsernameAsync(username);
-        }
-
-        public async Task<IEnumerable<User>> GetAllUsersAsync()
-        {
-            try
-            {
-                return await _userRepository.GetAllAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to get all users");
-                throw new UserServiceException("Failed to get users", ex);
-            }
-        }
-
-        public async Task<User> CreateUserAsync(User user, string password)
-        {
-            try
-            {
-                // Validate email uniqueness
-                var existingUser = await _userRepository.GetByEmailAsync(user.Email.Value);
-                if (existingUser != null)
-                {
-                    throw new UserServiceException($"Email {user.Email.Value} is already registered");
+                    throw new ApplicationException("ایمیل قبلاً ثبت شده است");
                 }
 
-                // Hash password
-                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
-                user.CreatedAt = DateTime.UtcNow;
-                user.IsEmailVerified = false;
-                user.TwoFactorEnabled = false;
+                var user = new User
+                {
+                    Username = request.Username,
+                    Email = new Email(request.Email),
+                    FullName = request.FullName,
+                    Role = RoleType.User,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
 
-                // Create user
+                user.SetPassword(request.Password);
+
                 await _userRepository.AddAsync(user);
+                await _userRepository.SaveChangesAsync();
 
-                // Send verification email
-                var verificationToken = Guid.NewGuid().ToString();
-                var verificationLink = $"{_configuration["AppSettings:BaseUrl"]}/verify-email?token={verificationToken}";
-                await _emailService.SendVerificationEmailAsync(user.Email.Value, verificationLink);
+                // Generate confirmation token and send email
+                var confirmationToken = Guid.NewGuid().ToString();
+                await _emailService.SendConfirmationEmailAsync(user.Email.Value, confirmationToken);
 
-                _logger.LogInformation("Created new user with email {Email}", user.Email.Value);
-                return user;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to create user with email {Email}", user.Email.Value);
-                throw new UserServiceException("Failed to create user", ex);
-            }
-        }
+                // Generate JWT token
+                var token = _jwtService.GenerateToken(user.Id, user.Username, user.Role.ToString());
 
-        public async Task UpdateUserAsync(User user)
-        {
-            try
-            {
-                var existingUser = await _userRepository.GetByIdAsync(user.Id);
-                if (existingUser == null)
+                await _logger.LogInformationAsync($"کاربر جدید با ایمیل {user.Email.Value} ثبت نام کرد");
+
+                return new AuthResponse
                 {
-                    throw new UserServiceException($"User not found with id {user.Id}");
-                }
-
-                // Preserve sensitive data
-                user.PasswordHash = existingUser.PasswordHash;
-                user.IsEmailVerified = existingUser.IsEmailVerified;
-                user.TwoFactorEnabled = existingUser.TwoFactorEnabled;
-                user.CreatedAt = existingUser.CreatedAt;
-
-                await _userRepository.UpdateAsync(user);
-                _logger.LogInformation("Updated user {UserId}", user.Id);
+                    Token = token,
+                    User = new UserDto
+                    {
+                        Id = user.Id,
+                        Username = user.Username,
+                        Email = user.Email.Value,
+                        FullName = user.FullName,
+                        Role = user.Role.ToString()
+                    }
+                };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to update user {UserId}", user.Id);
-                throw new UserServiceException("Failed to update user", ex);
+                await _logger.LogErrorAsync(ex, "خطا در ثبت نام کاربر");
+                throw;
             }
         }
 
-        public async Task DeleteUserAsync(Guid id)
+        public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
         {
             try
             {
-                var user = await _userRepository.GetByIdAsync(id);
+                var user = await _userRepository.GetByEmailAsync(request.Email, cancellationToken);
                 if (user == null)
                 {
-                    throw new UserServiceException($"User not found with id {id}");
+                    throw new ApplicationException("کاربر با این ایمیل یافت نشد");
                 }
 
-                await _userRepository.DeleteAsync(id);
-                _logger.LogInformation("Deleted user {UserId}", id);
+                // Create login history entry
+                var loginHistory = new LoginHistory
+                {
+                    UserId = user.Id,
+                    LoginAt = DateTime.UtcNow,
+                    IpAddress = request.IpAddress,
+                    UserAgent = request.UserAgent,
+                    Location = request.Location,
+                    IsSuccessful = false
+                };
+
+                if (!user.VerifyPassword(request.Password))
+                {
+                    user.IncrementFailedLoginAttempts();
+                    loginHistory.FailureReason = "رمز عبور اشتباه است";
+                    await _userRepository.SaveChangesAsync(cancellationToken);
+                    throw new ApplicationException("رمز عبور اشتباه است");
+                }
+
+                if (user.IsAccountLocked())
+                {
+                    loginHistory.FailureReason = "حساب کاربری قفل شده است";
+                    throw new ApplicationException("حساب کاربری شما قفل شده است. لطفاً بعداً تلاش کنید");
+                }
+
+                if (!user.IsEmailVerified)
+                {
+                    loginHistory.FailureReason = "ایمیل تأیید نشده است";
+                    throw new ApplicationException("لطفاً ابتدا ایمیل خود را تأیید کنید");
+                }
+
+                // Generate JWT token
+                var token = _jwtService.GenerateToken(user.Id, user.Username, user.Role.ToString());
+
+                // Update user's last login time and reset failed attempts
+                user.LastLoginAt = DateTime.UtcNow;
+                user.ResetFailedLoginAttempts();
+                loginHistory.IsSuccessful = true;
+
+                await _userRepository.SaveChangesAsync(cancellationToken);
+
+                await _logger.LogInformationAsync($"کاربر {user.Email.Value} با موفقیت وارد شد");
+
+                return new AuthResponse
+                {
+                    Token = token,
+                    User = new UserDto
+                    {
+                        Id = user.Id,
+                        Username = user.Username,
+                        Email = user.Email.Value,
+                        FullName = user.FullName,
+                        Role = user.Role.ToString()
+                    }
+                };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to delete user {UserId}", id);
-                throw new UserServiceException("Failed to delete user", ex);
+                await _logger.LogErrorAsync(ex, "خطا در ورود کاربر");
+                throw;
             }
         }
 
-        public async Task<bool> ValidateUserCredentialsAsync(string email, string password)
+        public async Task<AuthResult> ValidateTwoFactorAsync(TwoFactorDto model)
         {
             try
             {
-                var user = await _userRepository.GetByEmailAsync(email);
+                var user = await _userRepository.GetByIdAsync(model.UserId);
+                if (user == null)
+                {
+                    return new AuthResult { Succeeded = false, Message = "کاربر یافت نشد" };
+                }
+
+                if (!_jwtService.ValidateTwoFactorCode(user, model.Code))
+                {
+                    return new AuthResult { Succeeded = false, Message = "کد تایید اشتباه است" };
+                }
+
+                var token = _jwtService.GenerateToken(user);
+                return new AuthResult
+                {
+                    Succeeded = true,
+                    Message = "کد تایید شد",
+                    User = user,
+                    Token = token
+                };
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در تایید کد احراز هویت دو مرحله‌ای");
+                return new AuthResult { Succeeded = false, Message = "خطا در تایید کد" };
+            }
+        }
+
+        public async Task<AuthResult> RefreshTokenAsync(RefreshTokenDto model)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(model.UserId);
+                if (user == null)
+                {
+                    return new AuthResult { Succeeded = false, Message = "کاربر یافت نشد" };
+                }
+
+                if (!_jwtService.ValidateRefreshToken(user, model.RefreshToken))
+                {
+                    return new AuthResult { Succeeded = false, Message = "توکن رفرش نامعتبر است" };
+                }
+
+                var token = _jwtService.GenerateToken(user);
+                var refreshToken = _jwtService.GenerateRefreshToken(user);
+
+                return new AuthResult
+                {
+                    Succeeded = true,
+                    Message = "توکن با موفقیت تمدید شد",
+                    User = user,
+                    Token = token,
+                    RefreshToken = refreshToken
+                };
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در تمدید توکن");
+                return new AuthResult { Succeeded = false, Message = "خطا در تمدید توکن" };
+            }
+        }
+
+        public async Task LogoutAsync(Guid userId)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user != null)
+                {
+                    user.InvalidateRefreshToken();
+                    await _userRepository.SaveChangesAsync();
+                    await _logger.LogInformationAsync($"کاربر {user.Email.Value} با موفقیت خارج شد");
+                }
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در خروج کاربر");
+                throw;
+            }
+        }
+
+        public async Task<bool> ValidateUserCredentialsAsync(string username, string password)
+        {
+            try
+            {
+                var user = await _userRepository.GetByUsernameAsync(username);
                 if (user == null)
                 {
                     return false;
                 }
 
-                return BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
+                return user.VerifyPassword(password);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to validate credentials for email {Email}", email);
-                throw new UserServiceException("Failed to validate credentials", ex);
+                await _logger.LogErrorAsync(ex, "خطا در بررسی اعتبارنامه‌های کاربر");
+                return false;
+            }
+        }
+        #endregion
+
+        #region مدیریت کاربران
+        public async Task<UserResponse> GetUserByIdAsync(Guid id)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(id);
+                if (user == null)
+                {
+                    throw new ApplicationException("کاربر یافت نشد");
+                }
+
+                return MapToUserResponse(user);
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در دریافت اطلاعات کاربر");
+                throw;
+            }
+        }
+
+        public async Task<UserResponse> GetUserByUsernameAsync(string username)
+        {
+            try
+            {
+                var user = await _userRepository.GetByUsernameAsync(username);
+                if (user == null)
+                {
+                    throw new ApplicationException("کاربر یافت نشد");
+                }
+
+                return MapToUserResponse(user);
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در دریافت اطلاعات کاربر");
+                throw;
+            }
+        }
+
+        public async Task<UserResponse> GetUserByEmailAsync(string email)
+        {
+            try
+            {
+                var user = await _userRepository.GetByEmailAsync(email);
+                if (user == null)
+                {
+                    throw new ApplicationException("کاربر یافت نشد");
+                }
+
+                return MapToUserResponse(user);
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در دریافت اطلاعات کاربر");
+                throw;
+            }
+        }
+
+        public async Task<IEnumerable<UserResponse>> GetAllUsersAsync()
+        {
+            try
+            {
+                var users = await _userRepository.GetAllAsync();
+                return users.Select(MapToUserResponse);
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در دریافت لیست کاربران");
+                throw;
+            }
+        }
+
+        public async Task<UserResponse> CreateUserAsync(CreateUserRequest request)
+        {
+            try
+            {
+                if (await _userRepository.ExistsByEmailAsync(request.Email))
+                {
+                    throw new ApplicationException("ایمیل قبلاً ثبت شده است");
+                }
+
+                var user = new User
+                {
+                    Username = request.Username,
+                    Email = Email.From(request.Email),
+                    FullName = $"{request.FirstName} {request.LastName}",
+                    PhoneNumber = request.PhoneNumber,
+                    Role = RoleType.User
+                };
+
+                user.SetPassword(request.Password);
+                await _userRepository.AddAsync(user);
+                await _userRepository.SaveChangesAsync();
+
+                await _logger.LogInformationAsync($"کاربر جدید با ایمیل {user.Email.Value} ایجاد شد");
+
+                return MapToUserResponse(user);
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در ایجاد کاربر");
+                throw;
+            }
+        }
+
+        public async Task<UserResponse> UpdateUserAsync(Guid id, UpdateUserRequest request)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(id);
+                if (user == null)
+                {
+                    throw new ApplicationException("کاربر یافت نشد");
+                }
+
+                user.Username = request.Username ?? user.Username;
+                if (request.Email != null)
+                {
+                    user.Email = Email.From(request.Email);
+                }
+                user.FullName = $"{request.FirstName ?? user.FirstName} {request.LastName ?? user.LastName}";
+                user.PhoneNumber = request.PhoneNumber ?? user.PhoneNumber;
+                user.IsActive = request.IsActive ?? user.IsActive;
+                user.IsEmailVerified = request.IsEmailVerified ?? user.IsEmailVerified;
+
+                await _userRepository.SaveChangesAsync();
+                await _logger.LogInformationAsync($"اطلاعات کاربر {user.Email.Value} به‌روز شد");
+
+                return MapToUserResponse(user);
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در به‌روزرسانی کاربر");
+                throw;
+            }
+        }
+
+        public async Task<bool> DeleteUserAsync(Guid id)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(id);
+                if (user == null)
+                {
+                    return false;
+                }
+
+                await _userRepository.DeleteAsync(user);
+                await _userRepository.SaveChangesAsync();
+
+                await _logger.LogInformationAsync($"کاربر {user.Email.Value} حذف شد");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در حذف کاربر");
+                return false;
+            }
+        }
+
+        public async Task<bool> ActivateUserAsync(Guid id)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(id);
+                if (user == null)
+                {
+                    return false;
+                }
+
+                user.IsActive = true;
+                await _userRepository.SaveChangesAsync();
+
+                await _logger.LogInformationAsync($"کاربر {user.Email.Value} فعال شد");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در فعال‌سازی کاربر");
+                return false;
+            }
+        }
+
+        public async Task<bool> DeactivateUserAsync(Guid id)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(id);
+                if (user == null)
+                {
+                    return false;
+                }
+
+                user.IsActive = false;
+                await _userRepository.SaveChangesAsync();
+
+                await _logger.LogInformationAsync($"کاربر {user.Email.Value} غیرفعال شد");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در غیرفعال‌سازی کاربر");
+                return false;
+            }
+        }
+
+        public async Task<bool> IsUsernameUniqueAsync(string username)
+        {
+            try
+            {
+                return !await _userRepository.ExistsByUsernameAsync(username);
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در بررسی یکتا بودن نام کاربری");
+                return false;
+            }
+        }
+
+        public async Task<bool> IsEmailUniqueAsync(string email)
+        {
+            try
+            {
+                return !await _userRepository.ExistsByEmailAsync(email);
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در بررسی یکتا بودن ایمیل");
+                return false;
+            }
+        }
+        #endregion
+
+        #region مدیریت پروفایل
+        public async Task<UserResponse> UpdateProfileAsync(Guid userId, UpdateProfileRequest profileData)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    throw new ApplicationException("کاربر یافت نشد");
+                }
+
+                user.FullName = profileData.FullName;
+                user.PhoneNumber = profileData.PhoneNumber;
+
+                await _userRepository.SaveChangesAsync();
+                await _logger.LogInformationAsync($"پروفایل کاربر {user.Email.Value} به‌روز شد");
+
+                return MapToUserResponse(user);
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در به‌روزرسانی پروفایل");
+                throw;
+            }
+        }
+
+        public async Task<string> UploadProfileImageAsync(Guid userId, byte[] imageData)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    throw new ApplicationException("کاربر یافت نشد");
+                }
+
+                // آپلود تصویر و دریافت آدرس
+                var imageUrl = await _imageService.UploadImageAsync(imageData);
+                user.ProfileImageUrl = imageUrl;
+
+                await _userRepository.SaveChangesAsync();
+                await _logger.LogInformationAsync($"تصویر پروفایل کاربر {user.Email.Value} به‌روز شد");
+
+                return imageUrl;
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در آپلود تصویر پروفایل");
+                throw;
             }
         }
 
@@ -205,137 +562,243 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                 var user = await _userRepository.GetByIdAsync(userId);
                 if (user == null)
                 {
-                    throw new UserServiceException($"User not found with id {userId}");
+                    throw new ApplicationException("کاربر یافت نشد");
                 }
 
-                if (!BCrypt.Net.BCrypt.Verify(currentPassword, user.PasswordHash))
+                if (!user.VerifyPassword(currentPassword))
                 {
-                    throw new UserServiceException("Current password is incorrect");
+                    throw new ApplicationException("رمز عبور فعلی اشتباه است");
                 }
 
-                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
-                await _userRepository.UpdateAsync(user);
+                user.SetPassword(newPassword);
+                await _userRepository.SaveChangesAsync();
 
-                // Send password change notification
-                await _emailService.SendEmailAsync(
-                    user.Email.Value,
-                    "Password Changed",
-                    "Your password has been changed successfully. If you did not make this change, please contact support immediately."
-                );
-
-                _logger.LogInformation("Changed password for user {UserId}", userId);
+                await _logger.LogInformationAsync($"رمز عبور کاربر {user.Email.Value} تغییر کرد");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to change password for user {UserId}", userId);
-                throw new UserServiceException("Failed to change password", ex);
+                await _logger.LogErrorAsync(ex, "خطا در تغییر رمز عبور");
+                throw;
             }
         }
 
-        public async Task RequestPasswordResetAsync(string email)
+        public async Task<bool> ResetPasswordAsync(Guid id, string newPassword)
         {
             try
             {
-                var user = await _userRepository.GetByEmailAsync(email);
+                var user = await _userRepository.GetByIdAsync(id);
                 if (user == null)
                 {
-                    // Don't reveal that the email doesn't exist
-                    return;
+                    return false;
                 }
 
-                var resetToken = Guid.NewGuid().ToString();
-                var resetLink = $"{_configuration["ApplicationSettings:BaseUrl"]}/reset-password?token={resetToken}";
-                await _emailService.SendPasswordResetEmailAsync(email, resetLink);
+                user.SetPassword(newPassword);
+                await _userRepository.SaveChangesAsync();
 
-                _logger.LogInformation("Sent password reset email to {Email}", email);
+                await _logger.LogInformationAsync($"رمز عبور کاربر {user.Email.Value} بازنشانی شد");
+                return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send password reset email to {Email}", email);
-                throw new UserServiceException("Failed to send password reset email", ex);
+                await _logger.LogErrorAsync(ex, "خطا در بازنشانی رمز عبور");
+                return false;
             }
         }
+        #endregion
 
-        public async Task EnableTwoFactorAsync(Guid userId, string phoneNumber)
+        #region احراز هویت دو مرحله‌ای
+        public async Task<AuthResult> EnableTwoFactorAsync(Guid userId)
         {
             try
             {
                 var user = await _userRepository.GetByIdAsync(userId);
                 if (user == null)
                 {
-                    throw new UserServiceException($"User not found with id {userId}");
+                    return new AuthResult { Succeeded = false, Message = "کاربر یافت نشد" };
                 }
 
-                user.TwoFactorEnabled = true;
-                user.PhoneNumber = phoneNumber;
-                user.TwoFactorType = TwoFactorType.Sms;
+                var (secret, qrCode) = _jwtService.GenerateTwoFactorSecret(user);
+                user.SetTwoFactorSecret(secret);
+                await _userRepository.SaveChangesAsync();
 
-                await _userRepository.UpdateAsync(user);
-                _logger.LogInformation("Enabled two-factor authentication for user {UserId}", userId);
+                await _logger.LogInformationAsync($"احراز هویت دو مرحله‌ای برای کاربر {user.Email.Value} فعال شد");
+
+                return new AuthResult
+                {
+                    Succeeded = true,
+                    Message = "احراز هویت دو مرحله‌ای فعال شد",
+                    User = user,
+                    RequiresTwoFactor = true
+                };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to enable two-factor authentication for user {UserId}", userId);
-                throw new UserServiceException("Failed to enable two-factor authentication", ex);
+                await _logger.LogErrorAsync(ex, "خطا در فعال‌سازی احراز هویت دو مرحله‌ای");
+                return new AuthResult { Succeeded = false, Message = "خطا در فعال‌سازی احراز هویت دو مرحله‌ای" };
             }
         }
 
-        public async Task DisableTwoFactorAsync(Guid userId)
+        public async Task<AuthResult> DisableTwoFactorAsync(Guid userId, string code)
         {
             try
             {
                 var user = await _userRepository.GetByIdAsync(userId);
                 if (user == null)
                 {
-                    throw new UserServiceException($"User not found with id {userId}");
+                    return new AuthResult { Succeeded = false, Message = "کاربر یافت نشد" };
                 }
 
-                user.TwoFactorEnabled = false;
-                user.TwoFactorType = null;
-                user.TwoFactorSecret = null;
+                if (!_jwtService.ValidateTwoFactorCode(user, code))
+                {
+                    return new AuthResult { Succeeded = false, Message = "کد تایید اشتباه است" };
+                }
 
-                await _userRepository.UpdateAsync(user);
-                _logger.LogInformation("Disabled two-factor authentication for user {UserId}", userId);
+                user.DisableTwoFactor();
+                await _userRepository.SaveChangesAsync();
+
+                await _logger.LogInformationAsync($"احراز هویت دو مرحله‌ای برای کاربر {user.Email.Value} غیرفعال شد");
+
+                return new AuthResult
+                {
+                    Succeeded = true,
+                    Message = "احراز هویت دو مرحله‌ای غیرفعال شد",
+                    User = user
+                };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to disable two-factor authentication for user {UserId}", userId);
-                throw new UserServiceException("Failed to disable two-factor authentication", ex);
+                await _logger.LogErrorAsync(ex, "خطا در غیرفعال‌سازی احراز هویت دو مرحله‌ای");
+                return new AuthResult { Succeeded = false, Message = "خطا در غیرفعال‌سازی احراز هویت دو مرحله‌ای" };
             }
         }
 
-        public async Task<bool> VerifyTwoFactorCodeAsync(Guid userId, string code)
+        public async Task<IEnumerable<string>> GenerateRecoveryCodesAsync(Guid userId)
         {
             try
             {
                 var user = await _userRepository.GetByIdAsync(userId);
                 if (user == null)
                 {
-                    throw new UserServiceException($"User not found with id {userId}");
+                    throw new ApplicationException("کاربر یافت نشد");
                 }
 
-                if (!user.TwoFactorEnabled)
-                {
-                    throw new UserServiceException("Two-factor authentication is not enabled for this user");
-                }
+                var recoveryCodes = _jwtService.GenerateRecoveryCodes();
+                user.SetRecoveryCodes(recoveryCodes);
+                await _userRepository.SaveChangesAsync();
 
-                // Verify code based on two-factor type
-                switch (user.TwoFactorType)
-                {
-                    case TwoFactorType.Sms:
-                        return await _smsService.VerifyCodeAsync(user.PhoneNumber, code);
-                    case TwoFactorType.Email:
-                        return await _emailService.VerifyCodeAsync(user.Email.Value, code);
-                    case TwoFactorType.Authenticator:
-                        return await _jwtService.VerifyAuthenticatorCodeAsync(user.TwoFactorSecret, code);
-                    default:
-                        throw new UserServiceException("Invalid two-factor authentication type");
-                }
+                await _logger.LogInformationAsync($"کدهای بازیابی جدید برای کاربر {user.Email.Value} تولید شدند");
+
+                return recoveryCodes;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to verify two-factor code for user {UserId}", userId);
-                throw new UserServiceException("Failed to verify two-factor code", ex);
+                await _logger.LogErrorAsync(ex, "خطا در تولید کدهای بازیابی");
+                throw;
+            }
+        }
+
+        public async Task<bool> UseRecoveryCodeAsync(Guid userId, string code)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return false;
+                }
+
+                if (!user.ValidateRecoveryCode(code))
+                {
+                    return false;
+                }
+
+                user.UseRecoveryCode(code);
+                await _userRepository.SaveChangesAsync();
+
+                await _logger.LogInformationAsync($"کد بازیابی برای کاربر {user.Email.Value} استفاده شد");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در استفاده از کد بازیابی");
+                return false;
+            }
+        }
+        #endregion
+
+        #region مدیریت نقش‌ها
+        public async Task<RoleType> GetUserRoleAsync(Guid userId)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    throw new ApplicationException("کاربر یافت نشد");
+                }
+
+                return user.Role;
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در دریافت نقش‌های کاربر");
+                throw;
+            }
+        }
+
+        public async Task<bool> AssignRoleToUserAsync(Guid userId, string roleName)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return false;
+                }
+
+                if (user.Roles.Contains(roleName))
+                {
+                    return true;
+                }
+
+                user.Roles.Add(roleName);
+                await _userRepository.SaveChangesAsync();
+
+                await _logger.LogInformationAsync($"نقش {roleName} به کاربر {user.Email.Value} اختصاص داده شد");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در اختصاص نقش به کاربر");
+                return false;
+            }
+        }
+
+        public async Task<bool> RemoveRoleFromUserAsync(Guid userId, string roleName)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return false;
+                }
+
+                if (!user.Roles.Contains(roleName))
+                {
+                    return true;
+                }
+
+                user.Roles.Remove(roleName);
+                await _userRepository.SaveChangesAsync();
+
+                await _logger.LogInformationAsync($"نقش {roleName} از کاربر {user.Email.Value} حذف شد");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در حذف نقش از کاربر");
+                return false;
             }
         }
 
@@ -346,39 +809,20 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                 var user = await _userRepository.GetByIdAsync(userId);
                 if (user == null)
                 {
-                    throw new UserServiceException($"User not found with id {userId}");
+                    throw new ApplicationException("کاربر یافت نشد");
                 }
 
-                var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                    new Claim(ClaimTypes.Name, user.Username),
-                    new Claim(ClaimTypes.Email, user.Email.Value),
-                    new Claim("email_verified", user.IsEmailVerified.ToString()),
-                    new Claim("two_factor_enabled", user.TwoFactorEnabled.ToString())
-                };
-
-                // Add role claims
-                var role = await _roleRepository.GetByIdAsync(user.Role);
-                if (role != null)
-                {
-                    claims.Add(new Claim(ClaimTypes.Role, role.Name));
-                    var permissions = await _permissionService.GetPermissionsByRoleAsync(role.Id);
-                    foreach (var permission in permissions)
-                    {
-                        claims.Add(new Claim("permission", permission.Name));
-                    }
-                }
-
-                return claims;
+                return _jwtService.GenerateClaims(user);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to get claims for user {UserId}", userId);
-                throw new UserServiceException("Failed to get user claims", ex);
+                await _logger.LogErrorAsync(ex, "خطا در دریافت کلیم‌های کاربر");
+                throw;
             }
         }
+        #endregion
 
+        #region مدیریت دستگاه‌ها
         public async Task AddUserDeviceAsync(Guid userId, UserDevice device)
         {
             try
@@ -386,23 +830,18 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                 var user = await _userRepository.GetByIdAsync(userId);
                 if (user == null)
                 {
-                    throw new UserServiceException($"User not found with id {userId}");
+                    throw new ApplicationException("کاربر یافت نشد");
                 }
 
-                device.UserId = userId;
-                device.CreatedAt = DateTime.UtcNow;
-                device.LastUsedAt = DateTime.UtcNow;
-                device.IsActive = true;
+                user.AddDevice(device);
+                await _userRepository.SaveChangesAsync();
 
-                user.ConnectedDevices.Add(device);
-                await _userRepository.UpdateAsync(user);
-
-                _logger.LogInformation("Added new device for user {UserId}", userId);
+                await _logger.LogInformationAsync($"دستگاه جدید به کاربر {user.Email.Value} اضافه شد");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to add device for user {UserId}", userId);
-                throw new UserServiceException("Failed to add device", ex);
+                await _logger.LogErrorAsync(ex, "خطا در افزودن دستگاه");
+                throw;
             }
         }
 
@@ -413,24 +852,17 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                 var user = await _userRepository.GetByIdAsync(userId);
                 if (user == null)
                 {
-                    throw new UserServiceException($"User not found with id {userId}");
+                    throw new ApplicationException("کاربر یافت نشد");
                 }
 
-                var device = user.ConnectedDevices.FirstOrDefault(d => d.Id == deviceId);
-                if (device == null)
-                {
-                    throw new UserServiceException($"Device not found with id {deviceId}");
-                }
-
-                device.IsActive = false;
-                await _userRepository.UpdateAsync(user);
-
-                _logger.LogInformation("Removed device {DeviceId} for user {UserId}", deviceId, userId);
+                user.RemoveDevice(deviceId);
+                await _userRepository.SaveChangesAsync();
+                await _logger.LogInformationAsync($"دستگاه از کاربر {user.Email.Value} حذف شد");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to remove device {DeviceId} for user {UserId}", deviceId, userId);
-                throw new UserServiceException("Failed to remove device", ex);
+                await _logger.LogErrorAsync(ex, "خطا در حذف دستگاه");
+                throw;
             }
         }
 
@@ -441,23 +873,150 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                 var user = await _userRepository.GetByIdAsync(userId);
                 if (user == null)
                 {
-                    throw new UserServiceException($"User not found with id {userId}");
+                    throw new ApplicationException("کاربر یافت نشد");
                 }
 
-                return user.ConnectedDevices.Where(d => d.IsActive);
+                return user.GetActiveDevices();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to get devices for user {UserId}", userId);
-                throw new UserServiceException("Failed to get user devices", ex);
+                await _logger.LogErrorAsync(ex, "خطا در دریافت دستگاه‌های کاربر");
+                throw;
             }
         }
-    }
+        #endregion
 
-    public class UserServiceException : Exception
-    {
-        public UserServiceException(string message) : base(message) { }
-        public UserServiceException(string message, Exception innerException) 
-            : base(message, innerException) { }
+        #region امنیت حساب کاربری
+        public async Task LockAccountAsync(Guid userId, int duration)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    throw new ApplicationException("کاربر یافت نشد");
+                }
+
+                user.LockAccount(duration);
+                await _userRepository.SaveChangesAsync();
+
+                await _logger.LogInformationAsync($"حساب کاربر {user.Email.Value} برای {duration} دقیقه قفل شد");
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در قفل کردن حساب");
+                throw;
+            }
+        }
+
+        public async Task UnlockAccountAsync(Guid userId)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    throw new ApplicationException("کاربر یافت نشد");
+                }
+
+                user.ResetFailedLoginAttempts();
+                await _userRepository.SaveChangesAsync();
+
+                await _logger.LogInformationAsync($"قفل حساب کاربر {user.Email.Value} باز شد");
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در باز کردن قفل حساب");
+                throw;
+            }
+        }
+
+        public async Task<AccountLockStatus> GetAccountLockStatusAsync(Guid userId)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    throw new ApplicationException("کاربر یافت نشد");
+                }
+
+                return user.LockStatus;
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در دریافت وضعیت قفل حساب");
+                throw;
+            }
+        }
+
+        public async Task<LoginHistoryResponse> GetLoginHistoryAsync(Guid userId, int page = 1, int pageSize = 10)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    throw new ApplicationException("کاربر یافت نشد");
+                }
+
+                var history = await _userRepository.GetLoginHistoryAsync(userId, page, pageSize);
+                var totalCount = await _userRepository.GetLoginHistoryCountAsync(userId);
+
+                return new LoginHistoryResponse
+                {
+                    Items = history,
+                    TotalCount = totalCount,
+                    PageNumber = page,
+                    PageSize = pageSize
+                };
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در دریافت تاریخچه ورودها");
+                throw;
+            }
+        }
+
+        public async Task UpdateLastLoginAsync(Guid id)
+        {
+            try
+            {
+                var user = await _userRepository.GetByIdAsync(id);
+                if (user == null)
+                {
+                    throw new ApplicationException("کاربر یافت نشد");
+                }
+
+                user.LastLoginAt = DateTime.UtcNow;
+                await _userRepository.SaveChangesAsync();
+
+                await _logger.LogInformationAsync($"آخرین زمان ورود کاربر {user.Email.Value} به‌روز شد");
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogErrorAsync(ex, "خطا در به‌روزرسانی آخرین زمان ورود");
+                throw;
+            }
+        }
+        #endregion
+
+        #region متدهای کمکی
+        private UserResponse MapToUserResponse(User user)
+        {
+            return new UserResponse
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Email = user.Email.Value,
+                FullName = user.FullName,
+                PhoneNumber = user.PhoneNumber,
+                IsActive = user.IsActive,
+                CreatedAt = user.CreatedAt,
+                LastLoginAt = user.LastLoginAt,
+                Roles = new List<string> { user.Role.ToString() }
+            };
+        }
+        #endregion
     }
 }

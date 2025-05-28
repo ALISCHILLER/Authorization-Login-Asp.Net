@@ -1,5 +1,6 @@
 using Authorization_Login_Asp.Net.Application.Interfaces;
 using Authorization_Login_Asp.Net.Domain.Entities;
+using Authorization_Login_Asp.Net.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -73,6 +74,21 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("نام پرمیشن نمی‌تواند خالی باشد.", nameof(name));
             return await _permissions.AnyAsync(p => p.Name == name);
+        }
+
+        public Task<IEnumerable<Permission>?> GetPermissionsByRoleIdAsync(int roleId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task AssignPermissionToRoleAsync(int roleId, int permissionId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task RemovePermissionFromRoleAsync(int roleId, int permissionId)
+        {
+            throw new NotImplementedException();
         }
     }
 }

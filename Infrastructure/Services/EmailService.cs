@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Net;
 using System.Net.Mail;
 using System.Threading.Tasks;
@@ -7,22 +7,25 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
+using Authorization_Login_Asp.Net.Infrastructure.Configurations;
 
 namespace Authorization_Login_Asp.Net.Infrastructure.Services
 {
-    public interface IEmailService
-    {
-        Task SendEmailAsync(string to, string subject, string body);
-    }
-
+    /// <summary>
+    /// پیاده‌سازی اینترفیس IEmailService برای ارسال ایمیل
+    /// </summary>
     public class EmailService : IEmailService
     {
+        // وابستگی‌ها
         private readonly IConfiguration _configuration;
         private readonly ILogger<EmailService> _logger;
         private readonly EmailSettings _settings;
         private readonly ICircuitBreakerService _circuitBreakerService;
         private readonly ActivitySource _activitySource;
 
+        /// <summary>
+        /// سازنده کلاس با وابستگی‌های لازم
+        /// </summary>
         public EmailService(
             IConfiguration configuration,
             ILogger<EmailService> logger,
@@ -37,7 +40,135 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
             _activitySource = tracingService.CreateActivitySource("EmailService");
         }
 
-        public async Task SendEmailAsync(string to, string subject, string body)
+        #region ✅ پیاده‌سازی متدهای IEmailService
+
+        /// <inheritdoc />
+        public async Task SendConfirmationEmailAsync(string email, string confirmationLink)
+        {
+            using var activity = _activitySource.StartActivity("SendConfirmationEmail");
+
+            try
+            {
+                var subject = "تایید آدرس ایمیل";
+                var body = $@"
+                    <h2>تایید ایمیل</h2>
+                    <p>با تشکر از ثبت نام شما، لطفاً با کلیک روی لینک زیر ایمیل خود را تایید کنید:</p>
+                    <p><a href='{confirmationLink}'>تایید ایمیل</a></p>
+                    <p>در صورتی که این حساب را ایجاد نکرده‌اید، این ایمیل را نادیده بگیرید.</p>";
+
+                await SendEmailAsync(email, subject, body);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در ارسال ایمیل تایید به {Email}", email);
+                throw;
+            }
+        }
+
+        /// <inheritdoc />
+        public async Task SendPasswordResetEmailAsync(string email, string resetLink)
+        {
+            using var activity = _activitySource.StartActivity("SendPasswordResetEmail");
+
+            try
+            {
+                var subject = "بازیابی رمز عبور";
+                var body = $@"
+                    <h2>درخواست بازیابی رمز عبور</h2>
+                    <p>شما درخواست تغییر رمز عبور داده‌اید. برای ادامه روی لینک زیر کلیک کنید:</p>
+                    <p><a href='{resetLink}'>تغییر رمز عبور</a></p>
+                    <p>این لینک ۱ ساعت اعتبار دارد.</p>
+                    <p>در صورتی که این درخواست را نداده‌اید، این ایمیل را نادیده بگیرید.</p>";
+
+                await SendEmailAsync(email, subject, body);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در ارسال لینک بازیابی رمز به {Email}", email);
+                throw;
+            }
+        }
+
+        /// <inheritdoc />
+        public async Task SendTwoFactorCodeAsync(string email, string code)
+        {
+            using var activity = _activitySource.StartActivity("SendTwoFactorCode");
+
+            try
+            {
+                var subject = "کد تأیید دو مرحله‌ای";
+                var body = $@"
+                    <h2>کد تأیید دو مرحله‌ای</h2>
+                    <p>کد تأیید شما: <strong>{code}</strong></p>
+                    <p>این کد ۵ دقیقه اعتبار دارد.</p>
+                    <p>در صورتی که این درخواست را نداده‌اید، فوراً حساب خود را امن کنید.</p>";
+
+                await SendEmailAsync(email, subject, body);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در ارسال کد 2FA به {Email}", email);
+                throw;
+            }
+        }
+
+        /// <inheritdoc />
+        public async Task SendPasswordChangedEmailAsync(string email)
+        {
+            using var activity = _activitySource.StartActivity("SendPasswordChangedEmail");
+
+            try
+            {
+                var subject = "رمز عبور شما تغییر کرد";
+                var body = $@"
+                    <h2>رمز عبور شما تغییر کرد</h2>
+                    <p>رمز عبور حساب شما با موفقیت تغییر یافت.</p>
+                    <p>در صورتی که این عمل را انجام نداده‌اید، فوراً حساب خود را امن کنید.</p>";
+
+                await SendEmailAsync(email, subject, body);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در ارسال اطلاعیه تغییر رمز به {Email}", email);
+                throw;
+            }
+        }
+
+        /// <inheritdoc />
+        public async Task SendNewLoginNotificationAsync(string email, string deviceInfo, string location)
+        {
+            using var activity = _activitySource.StartActivity("SendNewLoginNotification");
+
+            try
+            {
+                var subject = "ورود جدید به حساب شما";
+                var body = $@"
+                    <h2>ورود جدید</h2>
+                    <p>یک دستگاه جدید وارد حساب شما شده است:</p>
+                    <ul>
+                        <li>دستگاه: {deviceInfo}</li>
+                        <li>موقعیت: {location}</li>
+                        <li>زمان: {DateTime.UtcNow}</li>
+                    </ul>
+                    <p>در صورتی که این ورود را انجام نداده‌اید، فوراً حساب خود را امن کنید.</p>";
+
+                await SendEmailAsync(email, subject, body);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در ارسال اطلاعیه ورود جدید به {Email}", email);
+                throw;
+            }
+        }
+
+        #endregion
+
+        #region 🔧 متدهای کمکی
+
+        /// <summary>
+        /// ارسال ایمیل با استفاده از SmtpClient
+        /// </summary>
+        private async Task SendEmailAsync(string to, string subject, string body)
         {
             using var activity = _activitySource.StartActivity("SendEmail");
             activity?.SetTag("email.to", to);
@@ -48,7 +179,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                 using var client = new SmtpClient(_settings.SmtpServer, _settings.SmtpPort)
                 {
                     EnableSsl = _settings.EnableSsl,
-                    Credentials = new System.Net.NetworkCredential(_settings.SmtpUsername, _settings.SmtpPassword)
+                    Credentials = new NetworkCredential(_settings.SmtpUsername, _settings.SmtpPassword)
                 };
 
                 using var message = new MailMessage
@@ -61,114 +192,21 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                 message.To.Add(to);
 
                 await client.SendMailAsync(message);
-                _logger.LogInformation("Email sent successfully to {To}", to);
+                _logger.LogInformation("ایمیل با موفقیت به {To} ارسال شد", to);
                 activity?.SetStatus(ActivityStatusCode.Ok);
             }, "EmailService");
         }
 
-        public async Task SendPasswordResetEmailAsync(string to, string resetLink)
-        {
-            var subject = "Reset Your Password";
-            var body = $@"
-                <h2>Password Reset Request</h2>
-                <p>You have requested to reset your password. Click the link below to proceed:</p>
-                <p><a href='{resetLink}'>Reset Password</a></p>
-                <p>If you did not request this, please ignore this email.</p>
-                <p>This link will expire in 1 hour.</p>";
-
-            await SendEmailAsync(to, subject, body);
-        }
-
-        public async Task SendVerificationEmailAsync(string to, string verificationLink)
-        {
-            var subject = "Verify Your Email";
-            var body = $@"
-                <h2>Email Verification</h2>
-                <p>Thank you for registering. Please click the link below to verify your email address:</p>
-                <p><a href='{verificationLink}'>Verify Email</a></p>
-                <p>If you did not create an account, please ignore this email.</p>";
-
-            await SendEmailAsync(to, subject, body);
-        }
-
-        public async Task SendTwoFactorCodeEmailAsync(string to, string code)
-        {
-            var subject = "Your Two-Factor Authentication Code";
-            var body = $@"
-                <h2>Two-Factor Authentication Code</h2>
-                <p>Your verification code is: <strong>{code}</strong></p>
-                <p>This code will expire in 5 minutes.</p>
-                <p>If you did not request this code, please secure your account immediately.</p>";
-
-            await SendEmailAsync(to, subject, body);
-        }
-
-        public async Task<bool> VerifyCodeAsync(string email, string code)
-        {
-            // In a real implementation, you would validate the code against a stored or recently sent code
-            // For this example, we'll just return true
-            return true;
-        }
-
-        public async Task SendSecurityAlertEmailAsync(string to, string alertType, string details)
-        {
-            var subject = $"Security Alert: {alertType}";
-            var body = $@"
-                <h2>Security Alert</h2>
-                <p>We detected a security-related event on your account:</p>
-                <p><strong>{alertType}</strong></p>
-                <p>Details: {details}</p>
-                <p>If this was not you, please secure your account immediately by:</p>
-                <ul>
-                    <li>Changing your password</li>
-                    <li>Enabling two-factor authentication</li>
-                    <li>Reviewing your recent account activity</li>
-                </ul>
-                <p>If you need assistance, please contact our support team.</p>";
-
-            await SendEmailAsync(to, subject, body);
-        }
-
-        public async Task SendNewDeviceLoginEmailAsync(string to, string deviceInfo, string location)
-        {
-            var subject = "New Device Login Detected";
-            var body = $@"
-                <h2>New Device Login</h2>
-                <p>A new device has logged into your account:</p>
-                <p><strong>Device Information:</strong></p>
-                <ul>
-                    <li>Device: {deviceInfo}</li>
-                    <li>Location: {location}</li>
-                    <li>Time: {DateTime.UtcNow}</li>
-                </ul>
-                <p>If this was you, you can ignore this email.</p>
-                <p>If this was not you, please secure your account immediately.</p>";
-
-            await SendEmailAsync(to, subject, body);
-        }
-
-        public async Task SendPasswordChangedEmailAsync(string to)
-        {
-            var subject = "Password Changed";
-            var body = $@"
-                <h2>Password Changed</h2>
-                <p>Your password was recently changed.</p>
-                <p>If this was you, you can ignore this email.</p>
-                <p>If this was not you, please secure your account immediately by:</p>
-                <ul>
-                    <li>Resetting your password</li>
-                    <li>Enabling two-factor authentication</li>
-                    <li>Reviewing your recent account activity</li>
-                </ul>";
-
-            await SendEmailAsync(to, subject, body);
-        }
+        #endregion
     }
 
+    /// <summary>
+    /// استثنا برای خطاهای مربوط به سرویس ایمیل
+    /// </summary>
     public class EmailServiceException : Exception
     {
         public EmailServiceException(string message) : base(message) { }
-        public EmailServiceException(string message, Exception innerException) 
+        public EmailServiceException(string message, Exception innerException)
             : base(message, innerException) { }
     }
 }

@@ -5,20 +5,10 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Context;
 using Serilog.Events;
+using Authorization_Login_Asp.Net.Application.Interfaces;
 
 namespace Authorization_Login_Asp.Net.Infrastructure.Services
 {
-    public interface ILoggingService
-    {
-        void LogInformation(string message, params object[] args);
-        void LogWarning(string message, params object[] args);
-        void LogError(Exception ex, string message, params object[] args);
-        void LogDebug(string message, params object[] args);
-        void LogTrace(string message, params object[] args);
-        IDisposable BeginScope<TState>(TState state);
-        Task LogWithContextAsync(string message, LogLevel level, IDictionary<string, object> properties);
-    }
-
     public class LoggingService : ILoggingService
     {
         private readonly ILogger<LoggingService> _logger;
@@ -30,59 +20,39 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
             _loggerFactory = loggerFactory;
         }
 
-        public void LogInformation(string message, params object[] args)
+        public async Task LogInformationAsync(string message)
         {
-            _logger.LogInformation(message, args);
+            _logger.LogInformation(message);
+            await Task.CompletedTask;
         }
 
-        public void LogWarning(string message, params object[] args)
+        public async Task LogErrorAsync(Exception exception, string message)
         {
-            _logger.LogWarning(message, args);
+            _logger.LogError(exception, message);
+            await Task.CompletedTask;
         }
 
-        public void LogError(Exception ex, string message, params object[] args)
+        public async Task LogWarningAsync(string message)
         {
-            _logger.LogError(ex, message, args);
+            _logger.LogWarning(message);
+            await Task.CompletedTask;
         }
 
-        public void LogDebug(string message, params object[] args)
+        public async Task LogCriticalAsync(Exception exception, string message)
         {
-            _logger.LogDebug(message, args);
+            _logger.LogCritical(exception, message);
+            await Task.CompletedTask;
         }
 
-        public void LogTrace(string message, params object[] args)
+        public async Task LogDebugAsync(string message)
+        {
+            _logger.LogDebug(message);
+            await Task.CompletedTask;
+        }
+
+        public async Task LogTraceAsync(string message, params object[] args)
         {
             _logger.LogTrace(message, args);
-        }
-
-        public IDisposable BeginScope<TState>(TState state)
-        {
-            return _logger.BeginScope(state);
-        }
-
-        public async Task LogWithContextAsync(string message, LogLevel level, IDictionary<string, object> properties)
-        {
-            using (LogContext.PushProperties(properties))
-            {
-                switch (level)
-                {
-                    case LogLevel.Information:
-                        LogInformation(message);
-                        break;
-                    case LogLevel.Warning:
-                        LogWarning(message);
-                        break;
-                    case LogLevel.Error:
-                        LogError(new Exception(message), message);
-                        break;
-                    case LogLevel.Debug:
-                        LogDebug(message);
-                        break;
-                    case LogLevel.Trace:
-                        LogTrace(message);
-                        break;
-                }
-            }
             await Task.CompletedTask;
         }
     }

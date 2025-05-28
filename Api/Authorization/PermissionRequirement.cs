@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authorization;
+
 namespace Authorization_Login_Asp.Net.API.Authorization
 {
     public class PermissionRequirement : IAuthorizationRequirement
@@ -9,5 +11,4 @@ namespace Authorization_Login_Asp.Net.API.Authorization
             Permission = permission;
         }
     }
-}
 }

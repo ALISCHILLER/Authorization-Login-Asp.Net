@@ -1,203 +1,112 @@
+using Authorization_Login_Asp.Net.Application.Interfaces;
+using Microsoft.Extensions.Options;
 using System;
 using System.Security.Cryptography;
-using System.Text.RegularExpressions;
-using Microsoft.AspNetCore.Cryptography.KeyDerivation;
-using Microsoft.Extensions.Logging;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Authorization_Login_Asp.Net.Infrastructure.Security
 {
     /// <summary>
-    /// کلاس مدیریت رمز عبور با استفاده از PBKDF2
+    /// پیاده‌سازی سرویس هش کردن رمز عبور با استفاده از PBKDF2
     /// </summary>
     public class PasswordHasher : IPasswordHasher
     {
-        private readonly ILogger<PasswordHasher> _logger;
-        private readonly int _iterations = 10000;
-        private readonly int _saltSize = 16;
-        private readonly int _keySize = 32;
-        private const string VERSION_PREFIX = "v1$";
+        private readonly PasswordHasherOptions _options;
 
-        public PasswordHasher(ILogger<PasswordHasher> logger)
+        public PasswordHasher(IOptions<PasswordHasherOptions> options)
         {
-            _logger = logger;
+            _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         }
 
         /// <summary>
-        /// هش کردن رمز عبور
+        /// هش کردن رمز عبور با استفاده از PBKDF2
         /// </summary>
-        /// <param name="password">رمز عبور</param>
-        /// <returns>هش رمز عبور</returns>
-        public string HashPassword(string password)
+        public async Task<(string hash, string salt)> HashPasswordAsync(string password)
         {
-            try
+            if (string.IsNullOrWhiteSpace(password))
+                throw new ArgumentException("Password cannot be empty", nameof(password));
+
+            // تولید نمک تصادفی
+            byte[] salt = new byte[_options.SaltSize];
+            using (var rng = RandomNumberGenerator.Create())
             {
-                if (string.IsNullOrEmpty(password))
-                    throw new ArgumentNullException(nameof(password));
-
-                // بررسی قدرت رمز عبور
-                if (!IsPasswordStrong(password))
-                {
-                    throw new PasswordValidationException("Password does not meet strength requirements");
-                }
-
-                // تولید نمک تصادفی
-                byte[] salt = new byte[_saltSize];
-                using (var rng = RandomNumberGenerator.Create())
-                {
-                    rng.GetBytes(salt);
-                }
-
-                // هش کردن رمز عبور با PBKDF2
-                byte[] hash = KeyDerivation.Pbkdf2(
-                    password: password,
-                    salt: salt,
-                    prf: KeyDerivationPrf.HMACSHA512,
-                    iterationCount: _iterations,
-                    numBytesRequested: _keySize);
-
-                // ترکیب نمک و هش
-                byte[] hashBytes = new byte[_saltSize + _keySize];
-                Array.Copy(salt, 0, hashBytes, 0, _saltSize);
-                Array.Copy(hash, 0, hashBytes, _saltSize, _keySize);
-
-                // اضافه کردن نسخه الگوریتم
-                return VERSION_PREFIX + Convert.ToBase64String(hashBytes);
+                rng.GetBytes(salt);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error hashing password");
-                throw new PasswordHashingException("Failed to hash password", ex);
-            }
+
+            // هش کردن رمز عبور با PBKDF2
+            byte[] hash = await Task.Run(() => Rfc2898DeriveBytes.Pbkdf2(
+                password: Encoding.UTF8.GetBytes(password),
+                salt: salt,
+                iterations: _options.Iterations,
+                hashAlgorithm: HashAlgorithmName.SHA512,
+                outputLength: _options.KeySize));
+
+            return (
+                hash: Convert.ToBase64String(hash),
+                salt: Convert.ToBase64String(salt)
+            );
         }
 
         /// <summary>
         /// بررسی تطابق رمز عبور با هش
         /// </summary>
-        /// <param name="password">رمز عبور</param>
-        /// <param name="hashedPassword">هش رمز عبور</param>
-        /// <returns>نتیجه بررسی</returns>
-        public bool VerifyPassword(string password, string hashedPassword)
+        public async Task<bool> VerifyPasswordAsync(string password, string hash, string salt)
         {
-            try
-            {
-                if (string.IsNullOrEmpty(password))
-                    throw new ArgumentNullException(nameof(password));
+            if (string.IsNullOrWhiteSpace(password))
+                throw new ArgumentException("Password cannot be empty", nameof(password));
+            if (string.IsNullOrWhiteSpace(hash))
+                throw new ArgumentException("Hash cannot be empty", nameof(hash));
+            if (string.IsNullOrWhiteSpace(salt))
+                throw new ArgumentException("Salt cannot be empty", nameof(salt));
 
-                if (string.IsNullOrEmpty(hashedPassword))
-                    throw new ArgumentNullException(nameof(hashedPassword));
+            byte[] saltBytes = Convert.FromBase64String(salt);
+            byte[] hashBytes = Convert.FromBase64String(hash);
 
-                // بررسی نسخه الگوریتم
-                if (!hashedPassword.StartsWith(VERSION_PREFIX))
-                {
-                    _logger.LogWarning("Attempted to verify password with invalid hash format");
-                    return false;
-                }
+            // هش کردن رمز عبور ورودی با همان پارامترها
+            byte[] computedHash = await Task.Run(() => Rfc2898DeriveBytes.Pbkdf2(
+                password: Encoding.UTF8.GetBytes(password),
+                salt: saltBytes,
+                iterations: _options.Iterations,
+                hashAlgorithm: HashAlgorithmName.SHA512,
+                outputLength: _options.KeySize));
 
-                // حذف پیشوند نسخه
-                string hashWithoutVersion = hashedPassword.Substring(VERSION_PREFIX.Length);
-
-                // تبدیل هش به آرایه بایت
-                byte[] hashBytes = Convert.FromBase64String(hashWithoutVersion);
-
-                // استخراج نمک
-                byte[] salt = new byte[_saltSize];
-                Array.Copy(hashBytes, 0, salt, 0, _saltSize);
-
-                // هش کردن رمز عبور ورودی
-                byte[] hash = KeyDerivation.Pbkdf2(
-                    password: password,
-                    salt: salt,
-                    prf: KeyDerivationPrf.HMACSHA512,
-                    iterationCount: _iterations,
-                    numBytesRequested: _keySize);
-
-                // مقایسه هش‌ها
-                for (int i = 0; i < _keySize; i++)
-                {
-                    if (hashBytes[i + _saltSize] != hash[i])
-                        return false;
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error verifying password");
-                throw new PasswordHashingException("Failed to verify password", ex);
-            }
+            // مقایسه هش‌ها با استفاده از مقایسه ثابت زمانی
+            return CryptographicOperations.FixedTimeEquals(computedHash, hashBytes);
         }
 
         /// <summary>
-        /// بررسی قدرت رمز عبور
+        /// بررسی نیاز به بروزرسانی هش
         /// </summary>
-        /// <param name="password">رمز عبور</param>
-        /// <returns>نتیجه بررسی</returns>
-        public bool IsPasswordStrong(string password)
+        public bool NeedsRehash(string hash)
         {
-            if (string.IsNullOrEmpty(password))
-                return false;
+            if (string.IsNullOrWhiteSpace(hash))
+                throw new ArgumentException("Hash cannot be empty", nameof(hash));
 
-            // حداقل 8 کاراکتر
-            if (password.Length < 8)
-                return false;
-
-            // حداقل یک حرف بزرگ
-            if (!Regex.IsMatch(password, "[A-Z]"))
-                return false;
-
-            // حداقل یک حرف کوچک
-            if (!Regex.IsMatch(password, "[a-z]"))
-                return false;
-
-            // حداقل یک عدد
-            if (!Regex.IsMatch(password, "[0-9]"))
-                return false;
-
-            // حداقل یک کاراکتر خاص
-            if (!Regex.IsMatch(password, "[^a-zA-Z0-9]"))
-                return false;
-
-            return true;
+            // در حال حاضر، هش‌ها همیشه با آخرین پارامترها تولید می‌شوند
+            // این متد برای سازگاری با تغییرات آینده در پارامترهای هش کردن است
+            return false;
         }
+    }
+
+    /// <summary>
+    /// تنظیمات سرویس هش کردن رمز عبور
+    /// </summary>
+    public class PasswordHasherOptions
+    {
+        /// <summary>
+        /// تعداد تکرارهای PBKDF2
+        /// </summary>
+        public int Iterations { get; set; } = 310000;
 
         /// <summary>
-        /// بررسی تکراری نبودن رمز عبور
+        /// اندازه نمک به بایت
         /// </summary>
-        /// <param name="password">رمز عبور</param>
-        /// <param name="previousPasswords">رمزهای عبور قبلی</param>
-        /// <returns>نتیجه بررسی</returns>
-        public bool IsPasswordUnique(string password, IEnumerable<string> previousPasswords)
-        {
-            try
-            {
-                foreach (var previousHash in previousPasswords)
-                {
-                    if (VerifyPassword(password, previousHash))
-                    {
-                        return false;
-                    }
-                }
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error checking password uniqueness");
-                throw new PasswordHashingException("Failed to check password uniqueness", ex);
-            }
-        }
-    }
+        public int SaltSize { get; set; } = 16;
 
-    public class PasswordHashingException : Exception
-    {
-        public PasswordHashingException(string message) : base(message) { }
-        public PasswordHashingException(string message, Exception innerException) 
-            : base(message, innerException) { }
-    }
-
-    public class PasswordValidationException : Exception
-    {
-        public PasswordValidationException(string message) : base(message) { }
-        public PasswordValidationException(string message, Exception innerException) 
-            : base(message, innerException) { }
+        /// <summary>
+        /// اندازه کلید خروجی به بایت
+        /// </summary>
+        public int KeySize { get; set; } = 32;
     }
 } 

@@ -4,8 +4,6 @@ using System.Text;
 using Authorization_Login_Asp.Net.Application.Interfaces;
 using Authorization_Login_Asp.Net.Domain.Entities;
 using Authorization_Login_Asp.Net.Domain.Enums;
-using OtpNet;
-using QRCoder;
 
 namespace Authorization_Login_Asp.Net.Infrastructure.Security
 {

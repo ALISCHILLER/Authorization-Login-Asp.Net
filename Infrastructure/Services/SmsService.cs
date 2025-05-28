@@ -109,6 +109,21 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
             return digits;
         }
 
+        public Task SendVerificationCodeAsync(string phoneNumber, string code)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task SendNewLoginNotificationAsync(string phoneNumber, string deviceInfo, string location)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task SendPasswordChangedNotificationAsync(string phoneNumber)
+        {
+            throw new NotImplementedException();
+        }
+
         private class SmsResponse
         {
             public bool Success { get; set; }

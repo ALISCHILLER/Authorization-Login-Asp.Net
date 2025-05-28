@@ -2,6 +2,7 @@ using Authorization_Login_Asp.Net.Application.DTOs;
 using Authorization_Login_Asp.Net.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Threading.Tasks;
 
 namespace Authorization_Login_Asp.Net.API.Controllers
@@ -32,51 +33,76 @@ namespace Authorization_Login_Asp.Net.API.Controllers
         [HttpGet("users/{id}")]
         public async Task<IActionResult> GetUserById(string id)
         {
-            var user = await _userService.GetUserByIdAsync(id);
+            if (!Guid.TryParse(id, out Guid userId))
+            {
+                return BadRequest("شناسه کاربر نامعتبر است");
+            }
+
+            var user = await _userService.GetUserByIdAsync(userId);
+            if (user == null)
+                return NotFound(); 
+
+            return Ok(user);
+        }
+
+        [HttpPut("users/{id}")]
+        public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateUserRequest model)
+        {
+            if (!Guid.TryParse(id, out Guid userId))
+            {
+                return BadRequest("شناسه کاربر نامعتبر است");
+            }
+
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var user = await _userService.UpdateUserAsync(userId, model);
             if (user == null)
                 return NotFound();
 
             return Ok(user);
         }
 
-        [HttpPut("users/{id}")]
-        public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateUserDto model)
-        {
-            var result = await _userService.UpdateUserAsync(id, model);
-            if (!result.Succeeded)
-                return BadRequest(result);
-
-            return Ok(result);
-        }
-
         [HttpDelete("users/{id}")]
         public async Task<IActionResult> DeleteUser(string id)
         {
-            var result = await _userService.DeleteUserAsync(id);
-            if (!result.Succeeded)
-                return BadRequest(result);
+            if (!Guid.TryParse(id, out Guid userId))
+            {
+                return BadRequest("شناسه کاربر نامعتبر است");
+            }
 
-            return Ok(result);
+            await _userService.DeleteUserAsync(userId);
+            return NoContent();
         }
 
         [HttpPost("users/{id}/roles")]
-        public async Task<IActionResult> AssignRole(string id, [FromBody] AssignRoleDto model)
+        public async Task<IActionResult> AssignRole(string id, [FromBody] AssignRoleRequest model)
         {
-            var result = await _userService.AssignRoleAsync(id, model.Role);
-            if (!result.Succeeded)
-                return BadRequest(result);
+            if (!Guid.TryParse(id, out Guid userId))
+            {
+                return BadRequest("شناسه کاربر نامعتبر است");
+            }
 
-            return Ok(result);
+            var result = await _userService.AssignRoleToUserAsync(userId, model.RoleName);
+            if (!result)
+                return BadRequest("نقش با موفقیت به کاربر اختصاص داده نشد");
+
+            return Ok(new { message = "نقش با موفقیت به کاربر اختصاص داده شد" });
         }
 
         [HttpDelete("users/{id}/roles")]
-        public async Task<IActionResult> RemoveRole(string id, [FromBody] RemoveRoleDto model)
+        public async Task<IActionResult> RemoveRole(string id, [FromBody] RemoveRoleRequest model)
         {
-            var result = await _userService.RemoveRoleAsync(id, model.Role);
-            if (!result.Succeeded)
-                return BadRequest(result);
+            if (!Guid.TryParse(id, out Guid userId))
+            {
+                return BadRequest("شناسه کاربر نامعتبر است");
+            }
 
-            return Ok(result);
+            var result = await _userService.RemoveRoleFromUserAsync(userId, model.RoleName);
+            if (!result)
+                return BadRequest("نقش با موفقیت از کاربر حذف نشد");
+
+            return Ok(new { message = "نقش با موفقیت از کاربر حذف شد" });
         }
     }
 }

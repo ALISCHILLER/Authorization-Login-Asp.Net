@@ -197,6 +197,26 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
             }
             return Convert.ToBase64String(randomBytes);
         }
+
+        public Task<string> GenerateRefreshTokenAsync(Guid userId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<string> RefreshTokenAsync(string refreshToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task RevokeRefreshTokenAsync(string refreshToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task RevokeAllTokensForUserAsync(Guid userId)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public class RefreshTokenServiceException : Exception

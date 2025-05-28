@@ -1,8 +1,10 @@
 ﻿using Authorization_Login_Asp.Net.Application.DTOs;
 using Authorization_Login_Asp.Net.Domain.Entities;
+using Authorization_Login_Asp.Net.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Security.Claims;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Authorization_Login_Asp.Net.Application.Interfaces
@@ -12,6 +14,7 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
     /// </summary>
     public interface IUserService
     {
+        #region احراز هویت و مجوزدهی
         /// <summary>
         /// ثبت‌نام کاربر جدید
         /// </summary>
@@ -23,18 +26,138 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// ورود کاربر و دریافت توکن احراز هویت
         /// </summary>
         /// <param name="request">مدل درخواست ورود</param>
+        /// <param name="cancellationToken">توکن لغو عملیات</param>
         /// <returns>اطلاعات احراز هویت شامل توکن</returns>
-        Task<AuthResponse> LoginAsync(LoginRequest request);
+        Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// گرفتن اطلاعات کاربر جاری با شناسه
+        /// تأیید کد احراز هویت دو مرحله‌ای
+        /// </summary>
+        /// <param name="model">مدل احراز هویت دو مرحله‌ای</param>
+        /// <returns>نتیجه تأیید</returns>
+        Task<AuthResult> ValidateTwoFactorAsync(TwoFactorDto model);
+
+        /// <summary>
+        /// تمدید توکن با استفاده از توکن رفرش
+        /// </summary>
+        /// <param name="model">مدل توکن رفرش</param>
+        /// <returns>نتیجه تمدید توکن</returns>
+        Task<AuthResult> RefreshTokenAsync(RefreshTokenDto model);
+
+        /// <summary>
+        /// خروج کاربر و لغو توکن رفرش
         /// </summary>
         /// <param name="userId">شناسه کاربر</param>
-        /// <returns>شیء کاربر یا null</returns>
-        Task<User> GetCurrentUserAsync(Guid userId);
+        /// <returns>تسک</returns>
+        Task LogoutAsync(Guid userId);
 
         /// <summary>
-        /// تغییر رمز عبور کاربر
+        /// بررسی اعتبارنامه‌های کاربر
+        /// </summary>
+        /// <param name="username">نام کاربری</param>
+        /// <param name="password">رمز عبور</param>
+        /// <returns>نتیجه بررسی اعتبارنامه‌ها</returns>
+        Task<bool> ValidateUserCredentialsAsync(string username, string password);
+        #endregion
+
+        #region مدیریت کاربران
+        /// <summary>
+        /// دریافت کاربر با شناسه
+        /// </summary>
+        /// <param name="id">شناسه کاربر</param>
+        /// <returns>اطلاعات کاربر</returns>
+        Task<UserResponse> GetUserByIdAsync(Guid id);
+
+        /// <summary>
+        /// دریافت کاربر با نام کاربری
+        /// </summary>
+        /// <param name="username">نام کاربری</param>
+        /// <returns>اطلاعات کاربر</returns>
+        Task<UserResponse> GetUserByUsernameAsync(string username);
+
+        /// <summary>
+        /// دریافت کاربر با ایمیل
+        /// </summary>
+        /// <param name="email">ایمیل کاربر</param>
+        /// <returns>اطلاعات کاربر</returns>
+        Task<UserResponse> GetUserByEmailAsync(string email);
+
+        /// <summary>
+        /// دریافت لیست تمام کاربران
+        /// </summary>
+        /// <returns>لیست کاربران</returns>
+        Task<IEnumerable<UserResponse>> GetAllUsersAsync();
+
+        /// <summary>
+        /// ایجاد کاربر جدید
+        /// </summary>
+        /// <param name="request">مدل درخواست ایجاد کاربر</param>
+        /// <returns>اطلاعات کاربر جدید</returns>
+        Task<UserResponse> CreateUserAsync(CreateUserRequest request);
+
+        /// <summary>
+        /// به‌روزرسانی اطلاعات کاربر
+        /// </summary>
+        /// <param name="id">شناسه کاربر</param>
+        /// <param name="request">مدل درخواست به‌روزرسانی</param>
+        /// <returns>اطلاعات کاربر به‌روز شده</returns>
+        Task<UserResponse> UpdateUserAsync(Guid id, UpdateUserRequest request);
+
+        /// <summary>
+        /// حذف کاربر
+        /// </summary>
+        /// <param name="id">شناسه کاربر</param>
+        /// <returns>نتیجه حذف</returns>
+        Task<bool> DeleteUserAsync(Guid id);
+
+        /// <summary>
+        /// فعال‌سازی کاربر
+        /// </summary>
+        /// <param name="id">شناسه کاربر</param>
+        /// <returns>نتیجه فعال‌سازی</returns>
+        Task<bool> ActivateUserAsync(Guid id);
+
+        /// <summary>
+        /// غیرفعال‌سازی کاربر
+        /// </summary>
+        /// <param name="id">شناسه کاربر</param>
+        /// <returns>نتیجه غیرفعال‌سازی</returns>
+        Task<bool> DeactivateUserAsync(Guid id);
+
+        /// <summary>
+        /// بررسی یکتا بودن نام کاربری
+        /// </summary>
+        /// <param name="username">نام کاربری</param>
+        /// <returns>نتیجه بررسی</returns>
+        Task<bool> IsUsernameUniqueAsync(string username);
+
+        /// <summary>
+        /// بررسی یکتا بودن ایمیل
+        /// </summary>
+        /// <param name="email">ایمیل</param>
+        /// <returns>نتیجه بررسی</returns>
+        Task<bool> IsEmailUniqueAsync(string email);
+        #endregion
+
+        #region مدیریت پروفایل
+        /// <summary>
+        /// به‌روزرسانی اطلاعات پروفایل
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="profileData">اطلاعات جدید پروفایل</param>
+        /// <returns>اطلاعات به‌روز شده پروفایل</returns>
+        Task<UserResponse> UpdateProfileAsync(Guid userId, UpdateProfileRequest profileData);
+
+        /// <summary>
+        /// آپلود تصویر پروفایل
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="imageData">داده‌های تصویر</param>
+        /// <returns>آدرس تصویر</returns>
+        Task<string> UploadProfileImageAsync(Guid userId, byte[] imageData);
+
+        /// <summary>
+        /// تغییر رمز عبور
         /// </summary>
         /// <param name="userId">شناسه کاربر</param>
         /// <param name="currentPassword">رمز عبور فعلی</param>
@@ -43,165 +166,35 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         Task ChangePasswordAsync(Guid userId, string currentPassword, string newPassword);
 
         /// <summary>
-        /// خروج کاربر و لغو توکن رفرش (در صورت استفاده)
+        /// بازنشانی رمز عبور
         /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <returns>تسک</returns>
-        Task LogoutAsync(Guid userId);
-
-        /// <summary>
-        /// به‌روزرسانی اطلاعات پروفایل کاربر
-        /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <param name="profileData">اطلاعات جدید پروفایل</param>
-        /// <returns>اطلاعات به‌روز شده کاربر</returns>
-        Task<User> UpdateProfileAsync(Guid userId, UpdateProfileRequest profileData);
-
-        /// <summary>
-        /// آپلود تصویر پروفایل کاربر
-        /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <param name="imageData">داده‌های تصویر</param>
-        /// <returns>آدرس تصویر آپلود شده</returns>
-        Task<string> UploadProfileImageAsync(Guid userId, byte[] imageData);
-
-        /// <summary>
-        /// درخواست بازیابی رمز عبور
-        /// </summary>
-        /// <param name="email">ایمیل کاربر</param>
-        /// <returns>تسک</returns>
-        Task RequestPasswordResetAsync(string email);
-
-        /// <summary>
-        /// تأیید کد بازیابی رمز عبور
-        /// </summary>
-        /// <param name="email">ایمیل کاربر</param>
-        /// <param name="code">کد تأیید</param>
+        /// <param name="id">شناسه کاربر</param>
         /// <param name="newPassword">رمز عبور جدید</param>
-        /// <returns>تسک</returns>
-        Task ConfirmPasswordResetAsync(string email, string code, string newPassword);
+        /// <returns>نتیجه بازنشانی</returns>
+        Task<bool> ResetPasswordAsync(Guid id, string newPassword);
+        #endregion
 
-        /// <summary>
-        /// ارسال کد تأیید حساب کاربری
-        /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <returns>تسک</returns>
-        Task SendVerificationCodeAsync(Guid userId);
-
-        /// <summary>
-        /// تأیید حساب کاربری با کد ارسال شده
-        /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <param name="code">کد تأیید</param>
-        /// <returns>تسک</returns>
-        Task VerifyAccountAsync(Guid userId, string code);
-
-        /// <summary>
-        /// اختصاص نقش به کاربر
-        /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <param name="roleName">نام نقش</param>
-        /// <returns>تسک</returns>
-        Task AssignRoleAsync(Guid userId, string roleName);
-
-        /// <summary>
-        /// حذف نقش از کاربر
-        /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <param name="roleName">نام نقش</param>
-        /// <returns>تسک</returns>
-        Task RemoveRoleAsync(Guid userId, string roleName);
-
-        /// <summary>
-        /// دریافت لیست نقش‌های کاربر
-        /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <returns>لیست نام نقش‌ها</returns>
-        Task<IEnumerable<string>> GetUserRolesAsync(Guid userId);
-
-        /// <summary>
-        /// ارسال کد تأیید شماره تلفن
-        /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <param name="phoneNumber">شماره تلفن</param>
-        /// <returns>تسک</returns>
-        Task SendPhoneVerificationCodeAsync(Guid userId, string phoneNumber);
-
-        /// <summary>
-        /// تأیید شماره تلفن با کد ارسال شده
-        /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <param name="code">کد تأیید</param>
-        /// <returns>تسک</returns>
-        Task VerifyPhoneNumberAsync(Guid userId, string code);
-
-        /// <summary>
-        /// به‌روزرسانی تنظیمات امنیتی کاربر
-        /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <param name="settings">تنظیمات جدید</param>
-        /// <returns>تسک</returns>
-        Task UpdateSecuritySettingsAsync(Guid userId, SecuritySettingsRequest settings);
-
-        /// <summary>
-        /// مدیریت دستگاه‌های متصل کاربر
-        /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <returns>لیست دستگاه‌های متصل</returns>
-        Task<IEnumerable<UserDevice>> GetConnectedDevicesAsync(Guid userId);
-
-        /// <summary>
-        /// حذف یک دستگاه از لیست دستگاه‌های متصل
-        /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <param name="deviceId">شناسه دستگاه</param>
-        /// <returns>تسک</returns>
-        Task RemoveDeviceAsync(Guid userId, string deviceId);
-
-        /// <summary>
-        /// ارسال اعلان به کاربر
-        /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <param name="notification">اطلاعات اعلان</param>
-        /// <returns>تسک</returns>
-        Task SendNotificationAsync(Guid userId, NotificationRequest notification);
-
-        /// <summary>
-        /// دریافت لیست اعلان‌های کاربر
-        /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <returns>لیست اعلان‌ها</returns>
-        Task<IEnumerable<Notification>> GetUserNotificationsAsync(Guid userId);
-
+        #region احراز هویت دو مرحله‌ای
         /// <summary>
         /// فعال‌سازی احراز هویت دو مرحله‌ای
         /// </summary>
         /// <param name="userId">شناسه کاربر</param>
-        /// <param name="type">نوع احراز هویت دو مرحله‌ای</param>
-        /// <returns>اطلاعات مورد نیاز برای راه‌اندازی</returns>
-        Task<TwoFactorSetupResponse> EnableTwoFactorAsync(Guid userId, TwoFactorType type);
+        /// <returns>نتیجه فعال‌سازی</returns>
+        Task<AuthResult> EnableTwoFactorAsync(Guid userId);
 
         /// <summary>
         /// غیرفعال‌سازی احراز هویت دو مرحله‌ای
         /// </summary>
         /// <param name="userId">شناسه کاربر</param>
         /// <param name="code">کد تأیید</param>
-        /// <returns>تسک</returns>
-        Task DisableTwoFactorAsync(Guid userId, string code);
-
-        /// <summary>
-        /// تأیید کد احراز هویت دو مرحله‌ای
-        /// </summary>
-        /// <param name="userId">شناسه کاربر</param>
-        /// <param name="code">کد تأیید</param>
-        /// <returns>نتیجه تأیید</returns>
-        Task<bool> VerifyTwoFactorCodeAsync(Guid userId, string code);
+        /// <returns>نتیجه غیرفعال‌سازی</returns>
+        Task<AuthResult> DisableTwoFactorAsync(Guid userId, string code);
 
         /// <summary>
         /// تولید کدهای بازیابی جدید
         /// </summary>
         /// <param name="userId">شناسه کاربر</param>
-        /// <returns>لیست کدهای بازیابی جدید</returns>
+        /// <returns>لیست کدهای بازیابی</returns>
         Task<IEnumerable<string>> GenerateRecoveryCodesAsync(Guid userId);
 
         /// <summary>
@@ -209,14 +202,73 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// </summary>
         /// <param name="userId">شناسه کاربر</param>
         /// <param name="code">کد بازیابی</param>
-        /// <returns>نتیجه استفاده از کد</returns>
+        /// <returns>نتیجه استفاده</returns>
         Task<bool> UseRecoveryCodeAsync(Guid userId, string code);
+        #endregion
 
+        #region مدیریت نقش‌ها
+        /// <summary>
+        /// دریافت نقش کاربر
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <returns>نقش کاربر</returns>
+        Task<RoleType> GetUserRoleAsync(Guid userId);
+
+        /// <summary>
+        /// اختصاص نقش به کاربر
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="roleName">نام نقش</param>
+        /// <returns>نتیجه اختصاص</returns>
+        Task<bool> AssignRoleToUserAsync(Guid userId, string roleName);
+
+        /// <summary>
+        /// حذف نقش از کاربر
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="roleName">نام نقش</param>
+        /// <returns>نتیجه حذف</returns>
+        Task<bool> RemoveRoleFromUserAsync(Guid userId, string roleName);
+
+        /// <summary>
+        /// دریافت کلیم‌های کاربر
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <returns>لیست کلیم‌ها</returns>
+        Task<IEnumerable<Claim>> GetUserClaimsAsync(Guid userId);
+        #endregion
+
+        #region مدیریت دستگاه‌ها
+        /// <summary>
+        /// افزودن دستگاه جدید
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="device">اطلاعات دستگاه</param>
+        /// <returns>تسک</returns>
+        Task AddUserDeviceAsync(Guid userId, UserDevice device);
+
+        /// <summary>
+        /// حذف دستگاه
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="deviceId">شناسه دستگاه</param>
+        /// <returns>تسک</returns>
+        Task RemoveUserDeviceAsync(Guid userId, Guid deviceId);
+
+        /// <summary>
+        /// دریافت لیست دستگاه‌های کاربر
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <returns>لیست دستگاه‌ها</returns>
+        Task<IEnumerable<UserDevice>> GetUserDevicesAsync(Guid userId);
+        #endregion
+
+        #region امنیت حساب کاربری
         /// <summary>
         /// قفل کردن حساب کاربری
         /// </summary>
         /// <param name="userId">شناسه کاربر</param>
-        /// <param name="duration">مدت زمان قفل شدن (به دقیقه)</param>
+        /// <param name="duration">مدت زمان قفل (دقیقه)</param>
         /// <returns>تسک</returns>
         Task LockAccountAsync(Guid userId, int duration);
 
@@ -231,11 +283,11 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// بررسی وضعیت قفل بودن حساب
         /// </summary>
         /// <param name="userId">شناسه کاربر</param>
-        /// <returns>وضعیت قفل بودن</returns>
+        /// <returns>وضعیت قفل</returns>
         Task<AccountLockStatus> GetAccountLockStatusAsync(Guid userId);
 
         /// <summary>
-        /// دریافت تاریخچه ورودهای کاربر
+        /// دریافت تاریخچه ورودها
         /// </summary>
         /// <param name="userId">شناسه کاربر</param>
         /// <param name="page">شماره صفحه</param>
@@ -243,31 +295,48 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <returns>لیست ورودها</returns>
         Task<LoginHistoryResponse> GetLoginHistoryAsync(Guid userId, int page = 1, int pageSize = 10);
 
-        Task<User> GetUserByIdAsync(Guid id);
-        Task<User> GetUserByEmailAsync(string email);
-        Task<User> GetUserByUsernameAsync(string username);
-        Task<IEnumerable<User>> GetAllUsersAsync();
-        Task<User> CreateUserAsync(User user, string password);
-        Task UpdateUserAsync(User user);
-        Task DeleteUserAsync(Guid id);
-        Task<bool> ValidateUserCredentialsAsync(string email, string password);
-        Task<AuthResult> ValidateTwoFactorAsync(TwoFactorDto model);
-        Task<AuthResult> RefreshTokenAsync(RefreshTokenDto model);
-        Task<AuthResult> EnableTwoFactorAsync(string userId);
-        Task<AuthResult> DisableTwoFactorAsync(string userId);
-        Task<IEnumerable<Claim>> GetUserClaimsAsync(Guid userId);
-        Task AddUserDeviceAsync(Guid userId, UserDevice device);
-        Task RemoveUserDeviceAsync(Guid userId, Guid deviceId);
-        Task<IEnumerable<UserDevice>> GetUserDevicesAsync(Guid userId);
+        /// <summary>
+        /// به‌روزرسانی آخرین زمان ورود
+        /// </summary>
+        /// <param name="id">شناسه کاربر</param>
+        /// <returns>تسک</returns>
+        Task UpdateLastLoginAsync(Guid id);
+        #endregion
     }
 
+    /// <summary>
+    /// نتیجه عملیات احراز هویت
+    /// </summary>
     public class AuthResult
     {
+        /// <summary>
+        /// آیا عملیات موفقیت‌آمیز بود
+        /// </summary>
         public bool Succeeded { get; set; }
+
+        /// <summary>
+        /// پیام نتیجه عملیات
+        /// </summary>
         public string Message { get; set; }
+
+        /// <summary>
+        /// اطلاعات کاربر
+        /// </summary>
         public User User { get; set; }
+
+        /// <summary>
+        /// آیا نیاز به احراز هویت دو مرحله‌ای است
+        /// </summary>
         public bool RequiresTwoFactor { get; set; }
+
+        /// <summary>
+        /// توکن دسترسی
+        /// </summary>
         public string Token { get; set; }
+
+        /// <summary>
+        /// توکن رفرش
+        /// </summary>
         public string RefreshToken { get; set; }
     }
 }

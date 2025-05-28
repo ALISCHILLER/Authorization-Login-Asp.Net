@@ -1,32 +1,17 @@
-﻿using Authorization_Login_Asp.Net.Api;
-using Authorization_Login_Asp.Net.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.ResponseCompression;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using System.Text.Json;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks.UI.Client;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks.UI.InMemory.Storage;
-using Microsoft.AspNetCore.Antiforgery;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.Extensions.DependencyInjection;
-using AutoMapper;
 using FluentValidation.AspNetCore;
-using MediatR;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
 using Serilog;
-using Serilog.Events;
-using Serilog.Exceptions;
-using Serilog.Formatting.Compact;
-using Infrastructure.Services;
+using System.Threading.RateLimiting;
+using Authorization_Login_Asp.Net.Application.Interfaces;
+using Authorization_Login_Asp.Net.Infrastructure.Services;
+using Authorization_Login_Asp.Net.API.Middlewares;
+using Authorization_Login_Asp.Net.Infrastructure.Middleware;
 
 // تنظیمات اصلی برنامه
 var builder = WebApplication.CreateBuilder(args);
@@ -132,6 +117,8 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISmsService, SmsService>();
 builder.Services.AddScoped<ILoggingService, LoggingService>();
+builder.Services.AddScoped<IImageService, ImageService>();
+builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 
 // تنظیمات AutoMapper برای نگاشت اشیاء
 builder.Services.AddAutoMapper(typeof(Program).Assembly);
@@ -141,6 +128,9 @@ builder.Services.AddFluentValidation(fv =>
 {
     fv.RegisterValidatorsFromAssemblyContaining<Program>();
 });
+
+// Configure image service options
+builder.Services.Configure<ImageServiceOptions>(builder.Configuration.GetSection("ImageService"));
 
 // ایجاد برنامه
 var app = builder.Build();
@@ -167,6 +157,8 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.MapControllers();
 app.MapHealthChecks("/health");
 app.MapHealthChecksUI();
+
+app.MapControllers().RequireRateLimiting("fixed");
 
 // اجرای برنامه
 app.Run();
