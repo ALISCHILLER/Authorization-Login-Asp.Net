@@ -21,34 +21,8 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// نام یکتا و کوتاه پرمیشن (مثلاً "CanEdit", "CanDelete")
         /// </summary>
         [Required]
-        [MaxLength(50)]
+        [MaxLength(100)]
         public string Name { get; set; }
-
-        /// <summary>
-        /// گروه دسترسی (مثلاً "UserManagement", "ContentManagement")
-        /// برای دسته‌بندی و سازماندهی بهتر دسترسی‌ها
-        /// </summary>
-        [Required]
-        [MaxLength(50)]
-        public string Group { get; set; }
-
-        /// <summary>
-        /// نوع دسترسی (خواندن، نوشتن، حذف و ...)
-        /// </summary>
-        [Required]
-        public PermissionType Type { get; set; }
-
-        /// <summary>
-        /// منبع یا سامانه‌ای که این پرمیشن به آن تعلق دارد
-        /// </summary>
-        [MaxLength(200)]
-        public string Resource { get; set; }
-
-        /// <summary>
-        /// عملیات یا اکشن پرمیشن
-        /// </summary>
-        [MaxLength(50)]
-        public string Action { get; set; }
 
         /// <summary>
         /// توضیح کامل‌تر یا اختیاری درباره عملکرد این پرمیشن
@@ -57,14 +31,16 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         public string Description { get; set; }
 
         /// <summary>
+        /// نام سامانه‌ای که این پرمیشن به آن تعلق دارد
+        /// </summary>
+        [Required]
+        [MaxLength(100)]
+        public string SystemName { get; set; }
+
+        /// <summary>
         /// تاریخ ایجاد پرمیشن
         /// </summary>
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-        /// <summary>
-        /// تاریخ آخرین به‌روزرسانی پرمیشن
-        /// </summary>
-        public DateTime? UpdatedAt { get; set; }
 
         /// <summary>
         /// وضعیت فعال یا غیرفعال بودن پرمیشن
@@ -72,15 +48,70 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         public bool IsActive { get; set; } = true;
 
         /// <summary>
-        /// مجموعه نقش‌هایی که این پرمیشن به آنها تعلق دارد
-        /// ارتباط یک‌به‌چند از طریق RolePermission
+        /// نقش‌هایی که این پرمیشن را دارند
         /// </summary>
-        public ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
+        public virtual ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
 
         /// <summary>
-        /// مجموعه نقش‌هایی که این پرمیشن به آنها تعلق دارد
-        /// ارتباط یک‌به‌چند از طریق Role
+        /// نقش‌هایی که این پرمیشن را دارند
         /// </summary>
-        public virtual ICollection<Role> Roles { get; set; } = new List<Role>();
+        public virtual ICollection<Role> Roles => RolePermissions?.Select(rp => rp.Role).ToList() ?? new List<Role>();
+
+        /// <summary>
+        /// نقش‌هایی که این پرمیشن را دارند
+        /// </summary>
+        public virtual Role Role { get; set; }
+
+        /// <summary>
+        /// نقش‌هایی که این پرمیشن را دارند
+        /// </summary>
+        public Guid RoleId { get; set; }
+
+        /// <summary>
+        /// افزودن پرمیشن به نقش
+        /// </summary>
+        public void AddToRole(Role role)
+        {
+            if (role == null)
+                throw new ArgumentNullException(nameof(role));
+
+            if (!RolePermissions.Any(rp => rp.RoleId == role.Id))
+            {
+                RolePermissions.Add(new RolePermission
+                {
+                    PermissionId = Id,
+                    RoleId = role.Id
+                });
+            }
+        }
+
+        /// <summary>
+        /// حذف پرمیشن از نقش
+        /// </summary>
+        public void RemoveFromRole(Role role)
+        {
+            if (role == null)
+                throw new ArgumentNullException(nameof(role));
+
+            var rolePermission = RolePermissions.FirstOrDefault(rp => rp.RoleId == role.Id);
+            if (rolePermission != null)
+            {
+                RolePermissions.Remove(rolePermission);
+            }
+        }
+
+        /// <summary>
+        /// بررسی وجود پرمیشن در نقش
+        /// </summary>
+        public bool IsInRole(Role role)
+        {
+            return role != null && RolePermissions.Any(rp => rp.RoleId == role.Id);
+        }
+
+        public Permission()
+        {
+            Id = Guid.NewGuid();
+            RolePermissions = new List<RolePermission>();
+        }
     }
 }

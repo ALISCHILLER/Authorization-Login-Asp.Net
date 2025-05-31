@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq.Expressions;
 using Authorization_Login_Asp.Net.Application.Interfaces;
 using Authorization_Login_Asp.Net.Domain.Entities;
 using Authorization_Login_Asp.Net.Infrastructure.Data;
@@ -14,14 +15,73 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
     /// پیاده‌سازی مخزن تاریخچه ورود
     /// این کلاس عملیات مربوط به تاریخچه ورود کاربران را در پایگاه داده پیاده‌سازی می‌کند
     /// </summary>
-    public class LoginHistoryRepository : Repository<LoginHistory>, ILoginHistoryRepository
+    public class LoginHistoryRepository : ILoginHistoryRepository
     {
+        private readonly AppDbContext _context;
+
         /// <summary>
         /// سازنده کلاس مخزن تاریخچه ورود
         /// </summary>
         /// <param name="context">کانتکست پایگاه داده</param>
-        public LoginHistoryRepository(AppDbContext context) : base(context)
+        public LoginHistoryRepository(AppDbContext context)
         {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+        }
+
+        public async Task AddAsync(LoginHistory loginHistory)
+        {
+            if (loginHistory == null)
+                throw new ArgumentNullException(nameof(loginHistory));
+
+            await _context.LoginHistory.AddAsync(loginHistory);
+        }
+
+        public async Task<bool> RemoveAsync(LoginHistory loginHistory)
+        {
+            if (loginHistory == null)
+                throw new ArgumentNullException(nameof(loginHistory));
+
+            _context.LoginHistory.Remove(loginHistory);
+            return await SaveChangesAsync() > 0;
+        }
+
+        public async Task<bool> UpdateAsync(LoginHistory loginHistory)
+        {
+            if (loginHistory == null)
+                throw new ArgumentNullException(nameof(loginHistory));
+
+            _context.Entry(loginHistory).State = EntityState.Modified;
+            return await SaveChangesAsync() > 0;
+        }
+
+        public async Task<LoginHistory> GetByIdAsync(Guid id)
+        {
+            return await _context.LoginHistory.FindAsync(id);
+        }
+
+        public async Task<IEnumerable<LoginHistory>> GetAllAsync()
+        {
+            return await _context.LoginHistory.ToListAsync();
+        }
+
+        public async Task<IEnumerable<LoginHistory>> GetAsync(Expression<Func<LoginHistory, bool>> predicate)
+        {
+            return await _context.LoginHistory.Where(predicate).ToListAsync();
+        }
+
+        public async Task<LoginHistory> GetFirstOrDefaultAsync(Expression<Func<LoginHistory, bool>> predicate)
+        {
+            return await _context.LoginHistory.FirstOrDefaultAsync(predicate);
+        }
+
+        public async Task<bool> ExistsAsync(Expression<Func<LoginHistory, bool>> predicate)
+        {
+            return await _context.LoginHistory.AnyAsync(predicate);
+        }
+
+        public async Task<int> SaveChangesAsync()
+        {
+            return await _context.SaveChangesAsync();
         }
 
         /// <summary>
@@ -32,7 +92,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
         /// <returns>آخرین رکورد ورود موفق کاربر</returns>
         public async Task<LoginHistory> GetLastSuccessfulLoginAsync(Guid userId, CancellationToken cancellationToken = default)
         {
-            return await _dbSet
+            return await _context.LoginHistory
                 .Where(lh => lh.UserId == userId && lh.IsSuccessful)
                 .OrderByDescending(lh => lh.LoginTime)
                 .FirstOrDefaultAsync(cancellationToken);
@@ -45,7 +105,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
         /// <returns>کوئری تاریخچه ورود کاربر</returns>
         public IQueryable<LoginHistory> GetLoginHistoryQuery(Guid userId)
         {
-            return _dbSet.Where(lh => lh.UserId == userId);
+            return _context.LoginHistory.Where(lh => lh.UserId == userId);
         }
 
         /// <summary>
@@ -61,7 +121,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
             if (startTime > endTime)
                 throw new ArgumentException("زمان شروع نمی‌تواند بعد از زمان پایان باشد", nameof(startTime));
 
-            return await _dbSet
+            return await _context.LoginHistory
                 .CountAsync(lh => 
                     lh.UserId == userId && 
                     !lh.IsSuccessful && 
@@ -79,33 +139,17 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
         /// <param name="includeUser">آیا اطلاعات کاربر نیز باید بارگذاری شود؟</param>
         /// <param name="cancellationToken">توکن لغو عملیات</param>
         /// <returns>تاپل شامل لیست تاریخچه ورود و تعداد کل رکوردها</returns>
-        public async Task<(List<LoginHistory> Items, int TotalCount)> GetUserLoginHistoryAsync(
-            Guid userId, 
-            int page = 1, 
-            int pageSize = 10,
-            bool includeUser = false,
-            CancellationToken cancellationToken = default)
+        public async Task<LoginHistoryResult> GetUserLoginHistoryAsync(Guid userId, int page = 1, int pageSize = 10)
         {
-            if (page < 1)
-                throw new ArgumentException("شماره صفحه نمی‌تواند کمتر از 1 باشد", nameof(page));
-
-            if (pageSize < 1)
-                throw new ArgumentException("تعداد آیتم در هر صفحه نمی‌تواند کمتر از 1 باشد", nameof(pageSize));
-
-            var query = _dbSet.Where(lh => lh.UserId == userId);
-
-            if (includeUser)
-                query = query.Include(lh => lh.User);
-
-            var totalCount = await query.CountAsync(cancellationToken);
-
+            var query = _context.LoginHistory.Where(lh => lh.UserId == userId);
+            var totalCount = await query.CountAsync();
             var items = await query
                 .OrderByDescending(lh => lh.LoginTime)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .ToListAsync(cancellationToken);
+                .ToListAsync();
 
-            return (items, totalCount);
+            return new LoginHistoryResult(items, totalCount);
         }
 
         /// <summary>
@@ -125,7 +169,8 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
             if (startTime > endTime)
                 throw new ArgumentException("زمان شروع نمی‌تواند بعد از زمان پایان باشد", nameof(startTime));
 
-            var query = _dbSet.Where(lh => lh.LoginTime >= startTime && lh.LoginTime <= endTime);
+            var query = _context.LoginHistory
+                .Where(lh => lh.LoginTime >= startTime && lh.LoginTime <= endTime);
 
             if (includeUser)
                 query = query.Include(lh => lh.User);
@@ -150,7 +195,8 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
             if (startTime > endTime)
                 throw new ArgumentException("زمان شروع نمی‌تواند بعد از زمان پایان باشد", nameof(startTime));
 
-            var query = _dbSet.Where(lh => lh.LoginTime >= startTime && lh.LoginTime <= endTime);
+            var query = _context.LoginHistory
+                .Where(lh => lh.LoginTime >= startTime && lh.LoginTime <= endTime);
 
             var totalLogins = await query.CountAsync(cancellationToken);
             var successfulLogins = await query.CountAsync(lh => lh.IsSuccessful, cancellationToken);
@@ -174,7 +220,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
             if (count < 1)
                 throw new ArgumentException("تعداد رکوردها نمی‌تواند کمتر از 1 باشد", nameof(count));
 
-            return await _dbSet
+            return await _context.LoginHistory
                 .Where(lh => lh.UserId == userId && !lh.IsSuccessful)
                 .OrderByDescending(lh => lh.LoginTime)
                 .Take(count)
@@ -198,7 +244,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
             if (startTime > endTime)
                 throw new ArgumentException("زمان شروع نمی‌تواند بعد از زمان پایان باشد", nameof(startTime));
 
-            return await _dbSet
+            return await _context.LoginHistory
                 .AnyAsync(lh => 
                     lh.UserId == userId && 
                     lh.IsSuccessful && 
@@ -224,7 +270,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
             if (startTime > endTime)
                 throw new ArgumentException("زمان شروع نمی‌تواند بعد از زمان پایان باشد", nameof(startTime));
 
-            var sessions = await _dbSet
+            var sessions = await _context.LoginHistory
                 .Where(lh => 
                     lh.UserId == userId && 
                     lh.IsSuccessful && 
@@ -252,7 +298,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
             if (startTime > endTime)
                 throw new ArgumentException("زمان شروع نمی‌تواند بعد از زمان پایان باشد", nameof(startTime));
 
-            return await _dbSet
+            return await _context.LoginHistory
                 .Where(lh => 
                     lh.IsSuccessful && 
                     lh.LoginTime >= startTime && 

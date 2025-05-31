@@ -35,6 +35,11 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
         Task SendErrorAlertAsync(string title, string message, AlertSeverity severity);
 
         /// <summary>
+        /// دریافت لیست اعلان‌ها
+        /// </summary>
+        Task<IEnumerable<NotificationResponse>> GetNotificationsAsync(int count = 10);
+
+        /// <summary>
         /// دریافت لیست اعلان‌ها با فیلتر
         /// </summary>
         Task<IEnumerable<NotificationResponse>> GetNotificationsAsync(NotificationFilter filter);
@@ -174,6 +179,19 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                 _logger.LogError(ex, "خطا در ارسال اعلان خطا");
                 throw;
             }
+        }
+
+        /// <summary>
+        /// دریافت لیست اعلان‌ها
+        /// </summary>
+        public async Task<IEnumerable<NotificationResponse>> GetNotificationsAsync(int count = 10)
+        {
+            var filter = new NotificationFilter
+            {
+                PageSize = count,
+                PageNumber = 1
+            };
+            return await GetNotificationsAsync(filter);
         }
 
         /// <summary>

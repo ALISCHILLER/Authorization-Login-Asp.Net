@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using Authorization_Login_Asp.Net.Domain.Enums;
+using System.Linq;
 
 namespace Authorization_Login_Asp.Net.Domain.Entities
 {
@@ -52,46 +54,87 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         public DateTime? UpdatedAt { get; set; }
 
         // Navigation properties
-        public virtual ICollection<User> Users { get; set; } = new List<User>();
-        public virtual ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
-        public virtual ICollection<Permission> Permissions { get; set; } = new List<Permission>();
+        public virtual ICollection<UserRole> UserRoles { get; private set; }
+        public virtual ICollection<RolePermission> RolePermissions { get; private set; }
+
+        public IEnumerable<User> Users => UserRoles?.Select(ur => ur.User);
+        public IEnumerable<Permission> Permissions => RolePermissions?.Select(rp => rp.Permission);
 
         /// <summary>
         /// سازنده
         /// </summary>
         public Role()
         {
-            Users = new List<User>();
+            Id = Guid.NewGuid();
+            UserRoles = new List<UserRole>();
             RolePermissions = new List<RolePermission>();
-            Permissions = new List<Permission>();
-            IsSystem = false;
-            CreatedAt = DateTime.UtcNow;
         }
-    }
 
-    /// <summary>
-    /// نوع نقش
-    /// </summary>
-    public enum RoleType
-    {
-        /// <summary>
-        /// نقش سیستمی
-        /// </summary>
-        System = 1,
+        public void AddPermission(Permission permission)
+        {
+            if (permission == null)
+                throw new ArgumentNullException(nameof(permission));
 
-        /// <summary>
-        /// نقش کاربری
-        /// </summary>
-        User = 2,
+            if (RolePermissions.Any(rp => rp.PermissionId == permission.Id))
+                return;
 
-        /// <summary>
-        /// نقش مدیریتی
-        /// </summary>
-        Admin = 3,
+            RolePermissions.Add(new RolePermission
+            {
+                RoleId = Id,
+                PermissionId = permission.Id,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
 
-        /// <summary>
-        /// نقش مهمان
-        /// </summary>
-        Guest = 4
+        public void RemovePermission(Permission permission)
+        {
+            if (permission == null)
+                throw new ArgumentNullException(nameof(permission));
+
+            var rolePermission = RolePermissions.FirstOrDefault(rp => rp.PermissionId == permission.Id);
+            if (rolePermission != null)
+            {
+                RolePermissions.Remove(rolePermission);
+            }
+        }
+
+        public bool HasPermission(string permissionName)
+        {
+            return RolePermissions.Any(rp => 
+                rp.Permission.Name.Equals(permissionName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public void AddUser(User user)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            if (UserRoles.Any(ur => ur.UserId == user.Id))
+                return;
+
+            UserRoles.Add(new UserRole
+            {
+                RoleId = Id,
+                UserId = user.Id,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        public void RemoveUser(User user)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            var userRole = UserRoles.FirstOrDefault(ur => ur.UserId == user.Id);
+            if (userRole != null)
+            {
+                UserRoles.Remove(userRole);
+            }
+        }
+
+        public bool HasUser(User user)
+        {
+            return user != null && UserRoles.Any(ur => ur.UserId == user.Id);
+        }
     }
 }

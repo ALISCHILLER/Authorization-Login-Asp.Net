@@ -6,18 +6,18 @@ namespace Authorization_Login_Asp.Net.Domain.Enums
     public enum TwoFactorType
     {
         /// <summary>
-        /// احراز هویت از طریق اپلیکیشن
+        /// ایمیل
         /// </summary>
-        App = 0,
+        Email = 0,
 
         /// <summary>
-        /// احراز هویت از طریق پیامک
+        /// پیامک
         /// </summary>
         Sms = 1,
 
         /// <summary>
-        /// احراز هویت از طریق ایمیل
+        /// اپلیکیشن
         /// </summary>
-        Email = 2
+        App = 2
     }
 } 

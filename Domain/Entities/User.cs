@@ -7,6 +7,7 @@ using System.Linq;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Threading.Tasks;
 using Authorization_Login_Asp.Net.Application.Interfaces;
+using BCrypt.Net;
 
 namespace Authorization_Login_Asp.Net.Domain.Entities
 {
@@ -34,7 +35,6 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// برای ذخیره‌سازی باید در کانفیگ EF Core به عنوان Owned Entity تعریف شود
         /// </summary>
         [Required]
-        [MaxLength(100)]
         public Email Email { get; set; }
 
         /// <summary>
@@ -48,21 +48,9 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// <summary>
         /// نام کامل کاربر (نمایشی در پنل یا گزارش‌ها)
         /// </summary>
+        [Required]
         [MaxLength(100)]
         public string FullName { get; set; }
-
-        /// <summary>
-        /// نقش کاربر در سیستم (Admin, User, Manager و غیره)
-        /// استفاده از Enum برای خوانایی بهتر و جلوگیری از اشتباهات تایپی
-        /// </summary>
-        [Required]
-        public Guid RoleId { get; set; }
-
-        /// <summary>
-        /// Navigation property برای دسترسی به نقش کاربر
-        /// </summary>
-        [ForeignKey("RoleId")]
-        public virtual RoleType Role { get; set;
 
         /// <summary>
         /// تاریخ ایجاد حساب کاربری (ثبت‌نام)
@@ -78,6 +66,7 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// <summary>
         /// شماره تلفن کاربر
         /// </summary>
+        [Required]
         [MaxLength(15)]
         public string PhoneNumber { get; set; }
 
@@ -89,6 +78,7 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// <summary>
         /// آدرس تصویر پروفایل کاربر
         /// </summary>
+        [Required]
         [MaxLength(500)]
         public string ProfileImageUrl { get; set; }
 
@@ -110,14 +100,17 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// <summary>
         /// دستگاه‌های متصل کاربر
         /// </summary>
-        public virtual ICollection<UserDevice> UserDevices { get; set; }
+        public virtual ICollection<UserDevice> UserDevices { get; private set; }
 
         /// <summary>
-        /// لیست توکن‌های رفرش متعلق به این کاربر
-        /// یک کاربر می‌تواند چندین رفرش توکن داشته باشد (مثلاً از چند دستگاه)
-        /// مقداردهی اولیه در سازنده برای جلوگیری از خطاهای NullReferenceException
+        /// لیست توکن‌های رفرش کاربر
         /// </summary>
-        public ICollection<RefreshToken> RefreshTokens { get; set; }
+        public virtual ICollection<RefreshToken> RefreshTokens { get; private set; } = new List<RefreshToken>();
+
+        /// <summary>
+        /// آخرین توکن رفرش کاربر
+        /// </summary>
+        public RefreshToken RefreshToken => RefreshTokens?.OrderByDescending(rt => rt.CreatedAt).FirstOrDefault();
 
         /// <summary>
         /// فعال بودن احراز هویت دو مرحله‌ای
@@ -147,45 +140,107 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// <summary>
         /// کلید مخفی برای احراز هویت دو مرحله‌ای
         /// </summary>
+        [Required]
         public string TwoFactorSecret { get; set; }
 
         /// <summary>
         /// لیست کدهای بازیابی برای احراز هویت دو مرحله‌ای
         /// </summary>
-        public ICollection<TwoFactorRecoveryCode> RecoveryCodes { get; set; }
+        public virtual ICollection<TwoFactorRecoveryCode> RecoveryCodes { get; private set; }
 
         /// <summary>
         /// لیست تاریخچه ورودهای کاربر
         /// </summary>
-        public ICollection<LoginHistory> LoginHistory { get; set; }
+        public virtual ICollection<LoginHistory> LoginHistory { get; private set; }
 
         /// <summary>
         /// نام کاربر
         /// </summary>
+        [Required]
         [MaxLength(50)]
         public string FirstName { get; set; }
 
         /// <summary>
         /// نام خانوادگی کاربر
         /// </summary>
+        [Required]
         [MaxLength(50)]
         public string LastName { get; set; }
 
         /// <summary>
         /// وضعیت قفل بودن حساب
         /// </summary>
-        public AccountLockStatus LockStatus { get; private set; }
+        public AccountLockStatus LockStatus { get; private set; } = AccountLockStatus.Create();
+
+        /// <summary>
+        /// نقش اصلی کاربر
+        /// </summary>
+        public RoleType Role { get; set; }
+
+        /// <summary>
+        /// نقش‌های کاربر
+        /// </summary>
+        public virtual ICollection<UserRole> UserRoles { get; private set; } = new List<UserRole>();
+
+        /// <summary>
+        /// نقش‌های کاربر
+        /// </summary>
+        public virtual ICollection<Role> Roles => UserRoles?.Select(ur => ur.Role).ToList() ?? new List<Role>();
+
+        /// <summary>
+        /// نقش اصلی کاربر
+        /// </summary>
+        public Role PrimaryRole => UserRoles?.OrderBy(ur => ur.CreatedAt).FirstOrDefault()?.Role;
 
         /// <summary>
         /// سازنده بدون پارامتر برای EF Core
         /// </summary>
         public User()
         {
+            Id = Guid.NewGuid();
+            Username = "default";
+            Email = new Email("default@example.com");
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("DefaultPassword123!");
+            FullName = "Default User";
+            PhoneNumber = "00000000000";
+            ProfileImageUrl = "/images/default-profile.png";
+            TwoFactorSecret = Guid.NewGuid().ToString("N");
+            FirstName = "Default";
+            LastName = "User";
+            CreatedAt = DateTime.UtcNow;
+            IsActive = true;
             RefreshTokens = new List<RefreshToken>();
             UserDevices = new List<UserDevice>();
             SecuritySettings = new UserSecuritySettings();
             RecoveryCodes = new List<TwoFactorRecoveryCode>();
             LoginHistory = new List<LoginHistory>();
+            UserRoles = new List<UserRole>();
+            Role = RoleType.User;
+        }
+
+        public static User Create(
+            string username,
+            string email,
+            string firstName,
+            string lastName,
+            string phoneNumber,
+            string password)
+        {
+            if (string.IsNullOrWhiteSpace(password))
+                throw new ArgumentNullException(nameof(password));
+
+            return new User
+            {
+                Username = username,
+                Email = new Email(email),
+                FirstName = firstName,
+                LastName = lastName,
+                FullName = $"{firstName} {lastName}",
+                PhoneNumber = phoneNumber,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                ProfileImageUrl = "/images/default-profile.png",
+                TwoFactorSecret = Guid.NewGuid().ToString("N")
+            };
         }
 
         // Helper methods for security management
@@ -281,45 +336,46 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
             RecoveryCodes.Clear();
         }
 
-        public void AddRecoveryCode(string code)
+        public void AddRecoveryCode(string code, DateTime expiresAt)
         {
             var recoveryCode = new TwoFactorRecoveryCode
             {
+                UserId = Id,
                 Code = code,
+                ExpiresAt = expiresAt,
                 CreatedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddDays(30),
-                IsUsed = false
+                IsActive = true
             };
-
             RecoveryCodes.Add(recoveryCode);
         }
 
-        public bool UseRecoveryCode(string code)
+        public bool ValidateRecoveryCode(string code)
         {
-            var recoveryCode = RecoveryCodes.FirstOrDefault(rc => 
-                rc.Code == code && 
-                !rc.IsUsed && 
-                rc.ExpiresAt > DateTime.UtcNow);
-
+            var recoveryCode = RecoveryCodes.FirstOrDefault(rc => rc.Code == code && !rc.IsUsed && rc.ExpiresAt > DateTime.UtcNow);
             if (recoveryCode != null)
             {
                 recoveryCode.IsUsed = true;
                 recoveryCode.UsedAt = DateTime.UtcNow;
                 return true;
             }
-
             return false;
         }
 
-        public void ClearExpiredRecoveryCodes()
+        public void InvalidateRefreshToken()
         {
-            var expiredCodes = RecoveryCodes.Where(rc => 
-                rc.ExpiresAt <= DateTime.UtcNow || 
-                rc.IsUsed).ToList();
+            RefreshTokens.Clear();
+        }
 
-            foreach (var code in expiredCodes)
+        public void SetLockStatus(AccountLockStatus status)
+        {
+            LockStatus = status;
+            if (status == AccountLockStatus.Locked)
             {
-                RecoveryCodes.Remove(code);
+                AccountLockoutEnd = DateTime.UtcNow.AddMinutes(SecuritySettings.AccountLockoutDurationMinutes);
+            }
+            else
+            {
+                AccountLockoutEnd = null;
             }
         }
 
@@ -330,6 +386,11 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// <param name="passwordHasher">سرویس هش کردن رمز عبور</param>
         public async Task SetPasswordAsync(string password, IPasswordHasher passwordHasher)
         {
+            if (string.IsNullOrWhiteSpace(password))
+                throw new ArgumentNullException(nameof(password));
+            if (passwordHasher == null)
+                throw new ArgumentNullException(nameof(passwordHasher));
+
             var (hash, salt) = await passwordHasher.HashPasswordAsync(password);
             PasswordHash = hash;
             SecuritySettings.PasswordSalt = salt;
@@ -344,6 +405,11 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// <returns>نتیجه بررسی</returns>
         public async Task<bool> VerifyPasswordAsync(string password, IPasswordHasher passwordHasher)
         {
+            if (string.IsNullOrWhiteSpace(password))
+                return false;
+            if (passwordHasher == null)
+                throw new ArgumentNullException(nameof(passwordHasher));
+
             return await passwordHasher.VerifyPasswordAsync(password, PasswordHash, SecuritySettings.PasswordSalt);
         }
 
@@ -366,70 +432,138 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
             RecoveryCodes.Clear();
             foreach (var code in codes)
             {
-                AddRecoveryCode(code);
+                AddRecoveryCode(code, DateTime.UtcNow.AddDays(30));
             }
         }
 
         /// <summary>
-        /// بررسی صحت کد بازیابی
+        /// افزودن نقش به کاربر
         /// </summary>
-        /// <param name="code">کد بازیابی</param>
-        /// <returns>نتیجه بررسی</returns>
-        public bool ValidateRecoveryCode(string code)
+        public void AddRole(Role role)
         {
-            var recoveryCode = RecoveryCodes.FirstOrDefault(rc => rc.Code == code && !rc.IsUsed && rc.ExpiresAt > DateTime.UtcNow);
-            if (recoveryCode != null)
+            if (role == null)
+                throw new ArgumentNullException(nameof(role));
+
+            if (UserRoles.Any(ur => ur.RoleId == role.Id))
+                return;
+
+            UserRoles.Add(new UserRole
             {
-                recoveryCode.IsUsed = true;
-                recoveryCode.UsedAt = DateTime.UtcNow;
-                return true;
-            }
-            return false;
+                UserId = Id,
+                RoleId = role.Id,
+                CreatedAt = DateTime.UtcNow
+            });
         }
 
         /// <summary>
-        /// باطل کردن توکن رفرش
+        /// حذف نقش از کاربر
         /// </summary>
-        public void InvalidateRefreshToken()
+        public void RemoveRole(Role role)
         {
-            RefreshTokens.Clear();
+            if (role == null)
+                throw new ArgumentNullException(nameof(role));
+
+            var userRole = UserRoles.FirstOrDefault(ur => ur.RoleId == role.Id);
+            if (userRole != null)
+            {
+                UserRoles.Remove(userRole);
+            }
         }
 
         /// <summary>
-        /// تنظیم وضعیت قفل بودن حساب
+        /// بررسی داشتن نقش
         /// </summary>
-        public void SetLockStatus(AccountLockStatus status)
+        public bool HasRole(string roleName)
         {
-            LockStatus = status;
-            if (status == AccountLockStatus.Locked)
+            return UserRoles.Any(ur => 
+                ur.Role != null && 
+                ur.Role.Name.Equals(roleName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// بررسی داشتن نقش
+        /// </summary>
+        public bool HasRole(Role role)
+        {
+            return role != null && UserRoles.Any(ur => ur.RoleId == role.Id);
+        }
+
+        public bool UseRecoveryCode(string code)
+        {
+            var recoveryCode = RecoveryCodes.FirstOrDefault(rc => 
+                rc.Code == code && 
+                !rc.IsUsed && 
+                rc.ExpiresAt > DateTime.UtcNow);
+
+            if (recoveryCode == null)
+                return false;
+
+            recoveryCode.IsUsed = true;
+            recoveryCode.UsedAt = DateTime.UtcNow;
+            return true;
+        }
+
+        public void AddRefreshToken(RefreshToken refreshToken)
+        {
+            if (refreshToken == null)
+                throw new ArgumentNullException(nameof(refreshToken));
+
+            RefreshTokens.Add(refreshToken);
+        }
+
+        public void RemoveRefreshToken(RefreshToken refreshToken)
+        {
+            if (refreshToken == null)
+                throw new ArgumentNullException(nameof(refreshToken));
+
+            RefreshTokens.Remove(refreshToken);
+        }
+
+        public void RevokeAllRefreshTokens()
+        {
+            foreach (var token in RefreshTokens.Where(rt => !rt.IsRevoked))
             {
-                AccountLockoutEnd = DateTime.UtcNow.AddMinutes(SecuritySettings.AccountLockoutDurationMinutes);
-            }
-            else
-            {
-                AccountLockoutEnd = null;
+                token.RevokedAt = DateTime.UtcNow;
+                token.RevokedReason = "User revoked all tokens";
             }
         }
-    }
 
-    /// <summary>
-    /// وضعیت قفل بودن حساب کاربری
-    /// </summary>
-    public enum AccountLockStatus
-    {
-        /// <summary>
-        /// حساب باز است
-        /// </summary>
-        Unlocked = 0,
+        public void SetPassword(string password)
+        {
+            if (string.IsNullOrWhiteSpace(password))
+                throw new ArgumentNullException(nameof(password));
 
-        /// <summary>
-        /// حساب قفل شده است
-        /// </summary>
-        Locked = 1,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
+            LastPasswordChange = DateTime.UtcNow;
+        }
 
-        /// <summary>
-        /// حساب به صورت موقت قفل شده است
-        /// </summary>
-        TemporarilyLocked = 2
+        public bool VerifyPassword(string password)
+        {
+            if (string.IsNullOrWhiteSpace(password))
+                return false;
+
+            return BCrypt.Net.BCrypt.Verify(password, PasswordHash);
+        }
+
+        public void ClearRoles()
+        {
+            UserRoles.Clear();
+        }
+
+        public void AddRoles(IEnumerable<Role> roles)
+        {
+            if (roles == null)
+                throw new ArgumentNullException(nameof(roles));
+
+            foreach (var role in roles)
+            {
+                AddRole(role);
+            }
+        }
+
+        public IEnumerable<Role> GetRoles()
+        {
+            return UserRoles?.Select(ur => ur.Role).ToList() ?? new List<Role>();
+        }
     }
 }

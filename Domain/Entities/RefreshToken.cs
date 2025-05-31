@@ -32,7 +32,7 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// تاریخ انقضا
         /// </summary>
         [Required]
-        public DateTime ExpiresAt { get; set; }
+        public DateTime ExpiryDate { get; set; }
 
         /// <summary>
         /// تاریخ ایجاد
@@ -44,6 +44,12 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// </summary>
         [MaxLength(50)]
         public string CreatedByIp { get; set; }
+
+        /// <summary>
+        /// آدرس IP توکن
+        /// </summary>
+        [MaxLength(50)]
+        public string IpAddress { get; set; }
 
         /// <summary>
         /// تاریخ باطل شدن
@@ -70,7 +76,7 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// <summary>
         /// وضعیت انقضا
         /// </summary>
-        public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
+        public bool IsExpired => DateTime.UtcNow >= ExpiryDate;
 
         /// <summary>
         /// وضعیت باطل شدن
@@ -95,11 +101,17 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         public virtual RefreshToken ReplacedByToken { get; set; }
 
         /// <summary>
+        /// دلیل باطل شدن
+        /// </summary>
+        [MaxLength(200)]
+        public string RevokedReason { get; set; }
+
+        /// <summary>
         /// بررسی معتبر بودن توکن
         /// </summary>
         public bool IsValid()
         {
-            return IsActive && !RevokedAt.HasValue && ExpiresAt > DateTime.UtcNow;
+            return IsActive && !RevokedAt.HasValue && ExpiryDate > DateTime.UtcNow;
         }
 
         /// <summary>
@@ -112,6 +124,12 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
             RevokedAt = DateTime.UtcNow;
             ReasonRevoked = reason;
             ReplacedByTokenId = replacedByTokenId;
+        }
+
+        public RefreshToken()
+        {
+            Id = Guid.NewGuid();
+            CreatedAt = DateTime.UtcNow;
         }
     }
 }

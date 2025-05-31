@@ -256,5 +256,18 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
                 .FirstOrDefaultAsync();
         }
         #endregion
+
+        public async Task<IEnumerable<User>> GetUsersInRoleAsync(string roleName)
+        {
+            if (string.IsNullOrWhiteSpace(roleName))
+                throw new ArgumentException("Role name cannot be empty", nameof(roleName));
+
+            return await _context.Users
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .Where(u => u.UserRoles.Any(ur => ur.Role.Name == roleName))
+                .AsNoTracking()
+                .ToListAsync();
+        }
     }
 }

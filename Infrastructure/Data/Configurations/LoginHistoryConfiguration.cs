@@ -44,7 +44,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Data.Configurations
             builder.Property(lh => lh.OperatingSystem)
                 .HasMaxLength(50);
 
-            builder.Property(lh => lh.BrowserName)
+            builder.Property(lh => lh.Browser)
                 .HasMaxLength(50);
 
             builder.Property(lh => lh.BrowserVersion)
@@ -94,7 +94,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Data.Configurations
             builder.Property(lh => lh.DeviceName).HasComment("نام دستگاه");
             builder.Property(lh => lh.DeviceType).HasComment("نوع دستگاه");
             builder.Property(lh => lh.OperatingSystem).HasComment("سیستم عامل");
-            builder.Property(lh => lh.BrowserName).HasComment("نام مرورگر");
+            builder.Property(lh => lh.Browser).HasComment("نام مرورگر");
             builder.Property(lh => lh.BrowserVersion).HasComment("نسخه مرورگر");
             builder.Property(lh => lh.Country).HasComment("کشور");
             builder.Property(lh => lh.City).HasComment("شهر");

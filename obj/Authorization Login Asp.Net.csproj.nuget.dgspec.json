@@ -1,25 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Authorization Login Asp.Net.csproj": {}
+    "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\Authorization Login Asp.Net.csproj": {}
   },
   "projects": {
-    "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Authorization Login Asp.Net.csproj": {
+    "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\Authorization Login Asp.Net.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Authorization Login Asp.Net.csproj",
+        "projectUniqueName": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\Authorization Login Asp.Net.csproj",
         "projectName": "Authorization Login Asp.Net",
-        "projectPath": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Authorization Login Asp.Net.csproj",
-        "packagesPath": "C:\\Users\\zar\\.nuget\\packages\\",
-        "outputPath": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\obj\\",
+        "projectPath": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\Authorization Login Asp.Net.csproj",
+        "packagesPath": "C:\\Users\\Ali Soleimani\\.nuget\\packages\\",
+        "outputPath": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
-          "e:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",
-          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\zar\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\DevExpress 18.2.config",
+          "C:\\Users\\Ali Soleimani\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -77,6 +75,14 @@
               "target": "Package",
               "version": "[9.0.0, )"
             },
+            "AspNetCore.HealthChecks.Uris": {
+              "target": "Package",
+              "version": "[9.0.0, )"
+            },
+            "AspNetCoreRateLimit": {
+              "target": "Package",
+              "version": "[5.0.0, )"
+            },
             "AutoMapper.Collection": {
               "target": "Package",
               "version": "[11.0.0, )"
@@ -88,10 +94,6 @@
             "AutoMapper.Collection.EntityFrameworkCore": {
               "target": "Package",
               "version": "[11.0.0, )"
-            },
-            "BCrypt.Net-Core": {
-              "target": "Package",
-              "version": "[1.6.0, )"
             },
             "BCrypt.Net-Next": {
               "target": "Package",
@@ -265,6 +267,10 @@
               "target": "Package",
               "version": "[1.12.0, )"
             },
+            "OpenTelemetry.Exporter.Console": {
+              "target": "Package",
+              "version": "[1.12.0, )"
+            },
             "OpenTelemetry.Exporter.OpenTelemetryProtocol": {
               "target": "Package",
               "version": "[1.12.0, )"
@@ -276,6 +282,10 @@
             "OpenTelemetry.Instrumentation.AspNetCore": {
               "target": "Package",
               "version": "[1.12.0, )"
+            },
+            "OpenTelemetry.Instrumentation.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[1.0.0-beta.8, )"
             },
             "OpenTelemetry.Instrumentation.Http": {
               "target": "Package",
@@ -292,10 +302,6 @@
             "Polly": {
               "target": "Package",
               "version": "[8.5.2, )"
-            },
-            "Polly.Extensions.Http": {
-              "target": "Package",
-              "version": "[3.0.0, )"
             },
             "QRCoder": {
               "target": "Package",

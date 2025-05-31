@@ -57,5 +57,10 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// </summary>
         /// <returns>تسک ناهمزمان</returns>
         Task SaveChangesAsync();
+
+        Task<IEnumerable<RefreshToken>> GetAllByUserIdAsync(Guid userId);
+        Task<bool> IsTokenRevokedAsync(string token);
+        Task RevokeTokenAsync(string token, string reason = null);
+        Task RevokeAllUserTokensAsync(Guid userId);
     }
 }

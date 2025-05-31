@@ -72,6 +72,11 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Data
         public DbSet<UserDevice> UserDevices { get; set; }
 
         /// <summary>
+        /// جدول ارتباط بین کاربران و نقش‌ها
+        /// </summary>
+        public DbSet<UserRole> UserRoles { get; set; }
+
+        /// <summary>
         /// متد تنظیم پیکربندی مدل‌ها در EF Core
         /// </summary>
         /// <param name="modelBuilder">ابزار ساخت مدل‌های EF Core</param>
@@ -91,6 +96,41 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Data
 
             // اعمال فیلترهای سراسری
             ApplyGlobalFilters(modelBuilder);
+
+            // Configure UserRole as many-to-many relationship
+            modelBuilder.Entity<UserRole>()
+                .HasKey(ur => new { ur.UserId, ur.RoleId });
+
+            modelBuilder.Entity<UserRole>()
+                .HasOne(ur => ur.User)
+                .WithMany(u => u.UserRoles)
+                .HasForeignKey(ur => ur.UserId);
+
+            modelBuilder.Entity<UserRole>()
+                .HasOne(ur => ur.Role)
+                .WithMany(r => r.UserRoles)
+                .HasForeignKey(ur => ur.RoleId);
+
+            // Configure other relationships
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.RefreshTokens)
+                .WithOne(rt => rt.User)
+                .HasForeignKey(rt => rt.UserId);
+
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.UserDevices)
+                .WithOne(ud => ud.User)
+                .HasForeignKey(ud => ud.UserId);
+
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.LoginHistory)
+                .WithOne(lh => lh.User)
+                .HasForeignKey(lh => lh.UserId);
+
+            modelBuilder.Entity<Role>()
+                .HasMany(r => r.Permissions)
+                .WithOne(rp => rp.Role)
+                .HasForeignKey(rp => rp.RoleId);
         }
 
         /// <summary>

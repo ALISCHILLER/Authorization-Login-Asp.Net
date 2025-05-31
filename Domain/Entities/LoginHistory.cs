@@ -60,8 +60,8 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// <summary>
         /// نام مرورگر
         /// </summary>
-        [MaxLength(50)]
-        public string BrowserName { get; set; }
+        [MaxLength(100)]
+        public string Browser { get; set; }
 
         /// <summary>
         /// نسخه مرورگر
@@ -107,6 +107,12 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// مدت زمان حضور کاربر (به ثانیه)
         /// </summary>
         public int? SessionDuration { get; set; }
+
+        /// <summary>
+        /// شناسه دستگاه
+        /// </summary>
+        [Required]
+        public Guid DeviceId { get; set; }
 
         /// <summary>
         /// کاربر

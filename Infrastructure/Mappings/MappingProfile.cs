@@ -17,7 +17,9 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Mappings
             // نگاشت از موجودیت User به DTO (UserDto) با تبدیل فیلدهای خاص (مثلاً تبدیل Email به مقدار رشته‌ای و تبدیل Role به رشته)
             CreateMap<User, UserDto>()
                 .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email.Value))
-                .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.Role.ToString()));
+                .ForMember(dest => dest.RoleType, opt => opt.MapFrom(src => src.Role))
+                .ForMember(dest => dest.Roles, opt => opt.MapFrom(src => src.GetRoles()))
+                .ForMember(dest => dest.PrimaryRole, opt => opt.MapFrom(src => src.PrimaryRole));
 
             // نگاشت از درخواست ثبت‌نام (RegisterRequest) به موجودیت User (با تبدیل فیلدهای خاص و نادیده گرفتن فیلدهای هش رمز عبور و رفرش توکن‌ها)
             CreateMap<RegisterRequest, User>()
@@ -39,7 +41,10 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Mappings
                 .ForMember(dest => dest.RefreshTokenExpiresAt, opt => opt.Ignore());
 
             // نگاشت از موجودیت LoginHistory به DTO (LoginHistoryDto)
-            CreateMap<LoginHistory, LoginHistoryDto>();
+            CreateMap<LoginHistory, LoginHistoryDto>()
+                .ForMember(dest => dest.DeviceId, opt => opt.MapFrom(src => src.DeviceId.ToString()))
+                .ForMember(dest => dest.Browser, opt => opt.MapFrom(src => src.BrowserName))
+                .ForMember(dest => dest.SessionDuration, opt => opt.MapFrom(src => src.SessionDuration.HasValue ? TimeSpan.FromSeconds(src.SessionDuration.Value) : (TimeSpan?)null));
 
             // نگاشت از درخواست ثبت ورود (LoginHistoryRequestDto) به موجودیت LoginHistory
             CreateMap<LoginHistoryRequestDto, LoginHistory>()
@@ -50,6 +55,12 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Mappings
                 .ForMember(dest => dest.LogoutTime, opt => opt.Ignore()) // زمان خروج توسط سرویس تنظیم می‌شود
                 .ForMember(dest => dest.SessionDuration, opt => opt.Ignore()) // مدت زمان حضور توسط سرویس محاسبه می‌شود
                 .ForMember(dest => dest.User, opt => opt.Ignore()); // رابطه با کاربر توسط سرویس تنظیم می‌شود
+
+            // نگاشت از DTO (LoginHistoryDto) به موجودیت LoginHistory
+            CreateMap<LoginHistoryDto, LoginHistory>()
+                .ForMember(dest => dest.DeviceId, opt => opt.MapFrom(src => string.IsNullOrEmpty(src.DeviceId) ? Guid.Empty : Guid.Parse(src.DeviceId)))
+                .ForMember(dest => dest.BrowserName, opt => opt.MapFrom(src => src.Browser))
+                .ForMember(dest => dest.SessionDuration, opt => opt.MapFrom(src => src.SessionDuration.HasValue ? (int)src.SessionDuration.Value.TotalSeconds : (int?)null));
         }
     }
 } 

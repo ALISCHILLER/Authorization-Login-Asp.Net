@@ -119,7 +119,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                 }
 
                 // افزودن دسترسی به نقش کاربر
-                var userRoles = await _roleRepository.GetByUserIdAsync(userId.ToString());
+                var userRoles = await _roleRepository.GetByUserIdAsync(userId);
                 foreach (var role in userRoles)
                 {
                     if (!await _rolePermissionRepository.ExistsAsync(role.Id, permission.Id))
@@ -163,7 +163,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                 }
 
                 // حذف دسترسی از نقش‌های کاربر
-                var userRoles = await _roleRepository.GetByUserIdAsync(userId.ToString());
+                var userRoles = await _roleRepository.GetByUserIdAsync(userId);
                 foreach (var role in userRoles)
                 {
                     if (await _rolePermissionRepository.ExistsAsync(role.Id, permission.Id))
@@ -199,13 +199,13 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                     return hasPermission;
                 }
 
+                var permissionName = $"{resource}.{action}";
                 var roleEntity = await _roleRepository.GetByNameAsync(role);
                 if (roleEntity == null)
                 {
                     throw new KeyNotFoundException($"نقش {role} یافت نشد");
                 }
 
-                var permissionName = $"{resource}.{action}";
                 var permission = await _permissionRepository.GetByNameAsync(permissionName);
                 if (permission == null)
                 {
@@ -213,6 +213,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                 }
 
                 var hasAccess = await _rolePermissionRepository.ExistsAsync(roleEntity.Id, permission.Id);
+
                 _cache.Set(cacheKey, hasAccess, _cacheOptions);
                 return hasAccess;
             }

@@ -78,6 +78,12 @@ namespace Authorization_Login_Asp.Net.Application.DTOs
         /// زمان انقضای توکن رفرش
         /// </summary>
         public DateTime RefreshTokenExpiresAt { get; set; }
+
+        /// <summary>
+        /// آیا به احراز هویت دو مرحله‌ای نیاز دارد
+        /// </summary>
+        public bool RequiresTwoFactor { get; set; }
+
         public string Token { get; internal set; }
         public UserDto User { get; internal set; }
     }

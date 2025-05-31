@@ -144,6 +144,41 @@
           }
         }
       },
+      "AspNetCore.HealthChecks.Uris/9.0.0": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Extensions.Diagnostics.HealthChecks": "8.0.11",
+          "Microsoft.Extensions.Http": "8.0.0"
+        },
+        "compile": {
+          "lib/net8.0/HealthChecks.Uris.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/HealthChecks.Uris.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "AspNetCoreRateLimit/5.0.0": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Extensions.Caching.Abstractions": "6.0.0",
+          "Microsoft.Extensions.Logging.Abstractions": "6.0.3",
+          "Microsoft.Extensions.Options": "6.0.0",
+          "Newtonsoft.Json": "13.0.2"
+        },
+        "compile": {
+          "lib/net6.0/AspNetCoreRateLimit.dll": {}
+        },
+        "runtime": {
+          "lib/net6.0/AspNetCoreRateLimit.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
       "AutoMapper/14.0.0": {
         "type": "package",
         "dependencies": {
@@ -262,19 +297,6 @@
         "runtime": {
           "lib/netstandard2.0/Azure.Identity.dll": {
             "related": ".xml"
-          }
-        }
-      },
-      "BCrypt.Net-Core/1.6.0": {
-        "type": "package",
-        "compile": {
-          "lib/netstandard2.0/BCrypt.Net-Core.dll": {
-            "related": ".pdb"
-          }
-        },
-        "runtime": {
-          "lib/netstandard2.0/BCrypt.Net-Core.dll": {
-            "related": ".pdb"
           }
         }
       },
@@ -2938,6 +2960,22 @@
           }
         }
       },
+      "OpenTelemetry.Exporter.Console/1.12.0": {
+        "type": "package",
+        "dependencies": {
+          "OpenTelemetry": "1.12.0"
+        },
+        "compile": {
+          "lib/net9.0/OpenTelemetry.Exporter.Console.dll": {
+            "related": ".dll-keyless.pem;.dll-keyless.sig;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net9.0/OpenTelemetry.Exporter.Console.dll": {
+            "related": ".dll-keyless.pem;.dll-keyless.sig;.xml"
+          }
+        }
+      },
       "OpenTelemetry.Exporter.OpenTelemetryProtocol/1.12.0": {
         "type": "package",
         "dependencies": {
@@ -2989,6 +3027,23 @@
         "frameworkReferences": [
           "Microsoft.AspNetCore.App"
         ]
+      },
+      "OpenTelemetry.Instrumentation.EntityFrameworkCore/1.0.0-beta.8": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Extensions.Options": "3.1.0",
+          "OpenTelemetry.Api.ProviderBuilderExtensions": "[1.6.0, 2.0.0)"
+        },
+        "compile": {
+          "lib/netstandard2.0/OpenTelemetry.Instrumentation.EntityFrameworkCore.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/OpenTelemetry.Instrumentation.EntityFrameworkCore.dll": {
+            "related": ".xml"
+          }
+        }
       },
       "OpenTelemetry.Instrumentation.Http/1.12.0": {
         "type": "package",
@@ -5680,6 +5735,34 @@
         "lib/net8.0/HealthChecks.UI.SqlServer.Storage.xml"
       ]
     },
+    "AspNetCore.HealthChecks.Uris/9.0.0": {
+      "sha512": "XYdNlA437KeF8p9qOpZFyNqAN+c0FXt/JjTvzH/Qans0q0O3pPE8KPnn39ucQQjR/Roum1vLTP3kXiUs8VHyuA==",
+      "type": "package",
+      "path": "aspnetcore.healthchecks.uris/9.0.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "aspnetcore.healthchecks.uris.9.0.0.nupkg.sha512",
+        "aspnetcore.healthchecks.uris.nuspec",
+        "icon.png",
+        "lib/net8.0/HealthChecks.Uris.dll",
+        "lib/net8.0/HealthChecks.Uris.xml",
+        "lib/netstandard2.0/HealthChecks.Uris.dll",
+        "lib/netstandard2.0/HealthChecks.Uris.xml"
+      ]
+    },
+    "AspNetCoreRateLimit/5.0.0": {
+      "sha512": "6fq9+o1maGADUmpK/PvcF0DtXW2+7bSkIL7MDIo/agbIHKN8XkMQF4oze60DO731WaQmHmK260hB30FwPzCmEg==",
+      "type": "package",
+      "path": "aspnetcoreratelimit/5.0.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "aspnetcoreratelimit.5.0.0.nupkg.sha512",
+        "aspnetcoreratelimit.nuspec",
+        "lib/net6.0/AspNetCoreRateLimit.dll"
+      ]
+    },
     "AutoMapper/14.0.0": {
       "sha512": "OC+1neAPM4oCCqQj3g2GJ2shziNNhOkxmNB9cVS8jtx4JbgmRzLcUOxB9Tsz6cVPHugdkHgCaCrTjjSI0Z5sCQ==",
       "type": "package",
@@ -5786,29 +5869,6 @@
         "azureicon.png",
         "lib/netstandard2.0/Azure.Identity.dll",
         "lib/netstandard2.0/Azure.Identity.xml"
-      ]
-    },
-    "BCrypt.Net-Core/1.6.0": {
-      "sha512": "hsKiHGjrnlDW05MzuzzlD9gNP8YOW2KbZ+FbvISrilsKJJ76tXKhWey6psZX5sd7DczNpSU2U6ldjPoblk8BLw==",
-      "type": "package",
-      "path": "bcrypt.net-core/1.6.0",
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "bcrypt.net-core.1.6.0.nupkg.sha512",
-        "bcrypt.net-core.nuspec",
-        "lib/net40/BCrypt.Net-Core.dll",
-        "lib/net40/BCrypt.Net-Core.pdb",
-        "lib/net45/BCrypt.Net-Core.dll",
-        "lib/net45/BCrypt.Net-Core.pdb",
-        "lib/net451/BCrypt.Net-Core.dll",
-        "lib/net451/BCrypt.Net-Core.pdb",
-        "lib/net452/BCrypt.Net-Core.dll",
-        "lib/net452/BCrypt.Net-Core.pdb",
-        "lib/netstandard1.3/BCrypt.Net-Core.dll",
-        "lib/netstandard1.3/BCrypt.Net-Core.pdb",
-        "lib/netstandard2.0/BCrypt.Net-Core.dll",
-        "lib/netstandard2.0/BCrypt.Net-Core.pdb"
       ]
     },
     "BCrypt.Net-Next/4.0.3": {
@@ -9858,6 +9918,37 @@
         "opentelemetry.api.providerbuilderextensions.nuspec"
       ]
     },
+    "OpenTelemetry.Exporter.Console/1.12.0": {
+      "sha512": "0sxyasnQ1B4YzvVbu9onZZ0WXGEQsuKqkaebsSlSMHHxMXCFvr6Ce2ABvU8p28AcEWPyu5k56fWYBa3fPvQFSQ==",
+      "type": "package",
+      "path": "opentelemetry.exporter.console/1.12.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE.TXT",
+        "README.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "lib/net462/OpenTelemetry.Exporter.Console.dll",
+        "lib/net462/OpenTelemetry.Exporter.Console.dll-keyless.pem",
+        "lib/net462/OpenTelemetry.Exporter.Console.dll-keyless.sig",
+        "lib/net462/OpenTelemetry.Exporter.Console.xml",
+        "lib/net8.0/OpenTelemetry.Exporter.Console.dll",
+        "lib/net8.0/OpenTelemetry.Exporter.Console.dll-keyless.pem",
+        "lib/net8.0/OpenTelemetry.Exporter.Console.dll-keyless.sig",
+        "lib/net8.0/OpenTelemetry.Exporter.Console.xml",
+        "lib/net9.0/OpenTelemetry.Exporter.Console.dll",
+        "lib/net9.0/OpenTelemetry.Exporter.Console.dll-keyless.pem",
+        "lib/net9.0/OpenTelemetry.Exporter.Console.dll-keyless.sig",
+        "lib/net9.0/OpenTelemetry.Exporter.Console.xml",
+        "lib/netstandard2.0/OpenTelemetry.Exporter.Console.dll",
+        "lib/netstandard2.0/OpenTelemetry.Exporter.Console.dll-keyless.pem",
+        "lib/netstandard2.0/OpenTelemetry.Exporter.Console.dll-keyless.sig",
+        "lib/netstandard2.0/OpenTelemetry.Exporter.Console.xml",
+        "opentelemetry-icon-color.png",
+        "opentelemetry.exporter.console.1.12.0.nupkg.sha512",
+        "opentelemetry.exporter.console.nuspec"
+      ]
+    },
     "OpenTelemetry.Exporter.OpenTelemetryProtocol/1.12.0": {
       "sha512": "7LzQSPhz5pNaL4xZgT3wkZODA1NLrEq3bet8KDHgtaJ9q+VNP7wmiZky8gQfMkB4FXuI/pevT8ZurL4p5997WA==",
       "type": "package",
@@ -9939,6 +10030,20 @@
         "opentelemetry-icon-color.png",
         "opentelemetry.instrumentation.aspnetcore.1.12.0.nupkg.sha512",
         "opentelemetry.instrumentation.aspnetcore.nuspec"
+      ]
+    },
+    "OpenTelemetry.Instrumentation.EntityFrameworkCore/1.0.0-beta.8": {
+      "sha512": "ilfbH1bDPm9YytgspAnQRVy3Hw0rNkYhjNJSNeT9QFWrwXAjCYVPVGTpHOgzM9gB5bS/u+04IgQainDzthUnVA==",
+      "type": "package",
+      "path": "opentelemetry.instrumentation.entityframeworkcore/1.0.0-beta.8",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/netstandard2.0/OpenTelemetry.Instrumentation.EntityFrameworkCore.dll",
+        "lib/netstandard2.0/OpenTelemetry.Instrumentation.EntityFrameworkCore.xml",
+        "opentelemetry-icon-color.png",
+        "opentelemetry.instrumentation.entityframeworkcore.1.0.0-beta.8.nupkg.sha512",
+        "opentelemetry.instrumentation.entityframeworkcore.nuspec"
       ]
     },
     "OpenTelemetry.Instrumentation.Http/1.12.0": {
@@ -10431,6 +10536,7 @@
       "path": "runtime.win-arm64.runtime.native.system.data.sqlclient.sni/4.4.0",
       "files": [
         ".nupkg.metadata",
+        ".signature.p7s",
         "ThirdPartyNotices.txt",
         "dotnet_library_license.txt",
         "runtime.win-arm64.runtime.native.system.data.sqlclient.sni.4.4.0.nupkg.sha512",
@@ -10446,6 +10552,7 @@
       "path": "runtime.win-x64.runtime.native.system.data.sqlclient.sni/4.4.0",
       "files": [
         ".nupkg.metadata",
+        ".signature.p7s",
         "ThirdPartyNotices.txt",
         "dotnet_library_license.txt",
         "runtime.win-x64.runtime.native.system.data.sqlclient.sni.4.4.0.nupkg.sha512",
@@ -10461,6 +10568,7 @@
       "path": "runtime.win-x86.runtime.native.system.data.sqlclient.sni/4.4.0",
       "files": [
         ".nupkg.metadata",
+        ".signature.p7s",
         "ThirdPartyNotices.txt",
         "dotnet_library_license.txt",
         "runtime.win-x86.runtime.native.system.data.sqlclient.sni.4.4.0.nupkg.sha512",
@@ -15354,10 +15462,11 @@
       "AspNetCore.HealthChecks.UI.Client >= 9.0.0",
       "AspNetCore.HealthChecks.UI.InMemory.Storage >= 9.0.0",
       "AspNetCore.HealthChecks.UI.SqlServer.Storage >= 9.0.0",
+      "AspNetCore.HealthChecks.Uris >= 9.0.0",
+      "AspNetCoreRateLimit >= 5.0.0",
       "AutoMapper.Collection >= 11.0.0",
       "AutoMapper.Collection.EntityFramework >= 11.0.0",
       "AutoMapper.Collection.EntityFrameworkCore >= 11.0.0",
-      "BCrypt.Net-Core >= 1.6.0",
       "BCrypt.Net-Next >= 4.0.3",
       "CoAPnet >= 1.2.0",
       "CoAPnet.Extensions.DTLS >= 1.2.0",
@@ -15400,14 +15509,15 @@
       "OpenTelemetry >= 1.12.0",
       "OpenTelemetry.Api >= 1.12.0",
       "OpenTelemetry.Api.ProviderBuilderExtensions >= 1.12.0",
+      "OpenTelemetry.Exporter.Console >= 1.12.0",
       "OpenTelemetry.Exporter.OpenTelemetryProtocol >= 1.12.0",
       "OpenTelemetry.Extensions.Hosting >= 1.12.0",
       "OpenTelemetry.Instrumentation.AspNetCore >= 1.12.0",
+      "OpenTelemetry.Instrumentation.EntityFrameworkCore >= 1.0.0-beta.8",
       "OpenTelemetry.Instrumentation.Http >= 1.12.0",
       "OpenTelemetry.Instrumentation.Runtime >= 1.12.0",
       "Otp.NET >= 1.4.0",
       "Polly >= 8.5.2",
-      "Polly.Extensions.Http >= 3.0.0",
       "QRCoder >= 1.6.0",
       "RabbitMQ.Client >= 7.1.2",
       "RabbitMQ.Client.OAuth2 >= 2.0.0",
@@ -15443,26 +15553,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\zar\\.nuget\\packages\\": {},
-    "e:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {},
-    "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder": {}
+    "C:\\Users\\Ali Soleimani\\.nuget\\packages\\": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Authorization Login Asp.Net.csproj",
+      "projectUniqueName": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\Authorization Login Asp.Net.csproj",
       "projectName": "Authorization Login Asp.Net",
-      "projectPath": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\Authorization Login Asp.Net.csproj",
-      "packagesPath": "C:\\Users\\zar\\.nuget\\packages\\",
-      "outputPath": "E:\\project-zar\\custom\\.net\\Authorization Login Asp.Net\\obj\\",
+      "projectPath": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\Authorization Login Asp.Net.csproj",
+      "packagesPath": "C:\\Users\\Ali Soleimani\\.nuget\\packages\\",
+      "outputPath": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
-        "e:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",
-        "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\zar\\AppData\\Roaming\\NuGet\\NuGet.Config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\DevExpress 18.2.config",
+        "C:\\Users\\Ali Soleimani\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -15520,6 +15627,14 @@
             "target": "Package",
             "version": "[9.0.0, )"
           },
+          "AspNetCore.HealthChecks.Uris": {
+            "target": "Package",
+            "version": "[9.0.0, )"
+          },
+          "AspNetCoreRateLimit": {
+            "target": "Package",
+            "version": "[5.0.0, )"
+          },
           "AutoMapper.Collection": {
             "target": "Package",
             "version": "[11.0.0, )"
@@ -15531,10 +15646,6 @@
           "AutoMapper.Collection.EntityFrameworkCore": {
             "target": "Package",
             "version": "[11.0.0, )"
-          },
-          "BCrypt.Net-Core": {
-            "target": "Package",
-            "version": "[1.6.0, )"
           },
           "BCrypt.Net-Next": {
             "target": "Package",
@@ -15708,6 +15819,10 @@
             "target": "Package",
             "version": "[1.12.0, )"
           },
+          "OpenTelemetry.Exporter.Console": {
+            "target": "Package",
+            "version": "[1.12.0, )"
+          },
           "OpenTelemetry.Exporter.OpenTelemetryProtocol": {
             "target": "Package",
             "version": "[1.12.0, )"
@@ -15719,6 +15834,10 @@
           "OpenTelemetry.Instrumentation.AspNetCore": {
             "target": "Package",
             "version": "[1.12.0, )"
+          },
+          "OpenTelemetry.Instrumentation.EntityFrameworkCore": {
+            "target": "Package",
+            "version": "[1.0.0-beta.8, )"
           },
           "OpenTelemetry.Instrumentation.Http": {
             "target": "Package",
@@ -15735,10 +15854,6 @@
           "Polly": {
             "target": "Package",
             "version": "[8.5.2, )"
-          },
-          "Polly.Extensions.Http": {
-            "target": "Package",
-            "version": "[3.0.0, )"
           },
           "QRCoder": {
             "target": "Package",

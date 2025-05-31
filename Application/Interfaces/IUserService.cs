@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using Authorization_Login_Asp.Net.Domain.ValueObjects;
 
 namespace Authorization_Login_Asp.Net.Application.Interfaces
 {
@@ -28,7 +29,7 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <param name="request">مدل درخواست ورود</param>
         /// <param name="cancellationToken">توکن لغو عملیات</param>
         /// <returns>اطلاعات احراز هویت شامل توکن</returns>
-        Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);
+        Task<AuthResponse> LoginAsync(LoginRequest request);
 
         /// <summary>
         /// تأیید کد احراز هویت دو مرحله‌ای
@@ -66,49 +67,48 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// </summary>
         /// <param name="id">شناسه کاربر</param>
         /// <returns>اطلاعات کاربر</returns>
-        Task<UserResponse> GetUserByIdAsync(Guid id);
-
-        /// <summary>
-        /// دریافت کاربر با نام کاربری
-        /// </summary>
-        /// <param name="username">نام کاربری</param>
-        /// <returns>اطلاعات کاربر</returns>
-        Task<UserResponse> GetUserByUsernameAsync(string username);
+        Task<User> GetByIdAsync(Guid userId);
 
         /// <summary>
         /// دریافت کاربر با ایمیل
         /// </summary>
         /// <param name="email">ایمیل کاربر</param>
         /// <returns>اطلاعات کاربر</returns>
-        Task<UserResponse> GetUserByEmailAsync(string email);
+        Task<User> GetByEmailAsync(string email);
+
+        /// <summary>
+        /// دریافت کاربر با نام کاربری
+        /// </summary>
+        /// <param name="username">نام کاربری</param>
+        /// <returns>اطلاعات کاربر</returns>
+        Task<User> GetByUsernameAsync(string username);
 
         /// <summary>
         /// دریافت لیست تمام کاربران
         /// </summary>
         /// <returns>لیست کاربران</returns>
-        Task<IEnumerable<UserResponse>> GetAllUsersAsync();
+        Task<IEnumerable<User>> GetAllAsync();
 
         /// <summary>
         /// ایجاد کاربر جدید
         /// </summary>
-        /// <param name="request">مدل درخواست ایجاد کاربر</param>
+        /// <param name="user">اطلاعات کاربر</param>
         /// <returns>اطلاعات کاربر جدید</returns>
-        Task<UserResponse> CreateUserAsync(CreateUserRequest request);
+        Task<User> CreateAsync(User user);
 
         /// <summary>
         /// به‌روزرسانی اطلاعات کاربر
         /// </summary>
-        /// <param name="id">شناسه کاربر</param>
-        /// <param name="request">مدل درخواست به‌روزرسانی</param>
+        /// <param name="user">اطلاعات کاربر</param>
         /// <returns>اطلاعات کاربر به‌روز شده</returns>
-        Task<UserResponse> UpdateUserAsync(Guid id, UpdateUserRequest request);
+        Task UpdateAsync(User user);
 
         /// <summary>
         /// حذف کاربر
         /// </summary>
         /// <param name="id">شناسه کاربر</param>
         /// <returns>نتیجه حذف</returns>
-        Task<bool> DeleteUserAsync(Guid id);
+        Task DeleteAsync(Guid userId);
 
         /// <summary>
         /// فعال‌سازی کاربر
@@ -144,9 +144,9 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// به‌روزرسانی اطلاعات پروفایل
         /// </summary>
         /// <param name="userId">شناسه کاربر</param>
-        /// <param name="profileData">اطلاعات جدید پروفایل</param>
+        /// <param name="request">مدل درخواست به‌روزرسانی</param>
         /// <returns>اطلاعات به‌روز شده پروفایل</returns>
-        Task<UserResponse> UpdateProfileAsync(Guid userId, UpdateProfileRequest profileData);
+        Task<UserResponse> UpdateProfileAsync(Guid userId, UpdateProfileRequest request);
 
         /// <summary>
         /// آپلود تصویر پروفایل
@@ -163,15 +163,16 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <param name="currentPassword">رمز عبور فعلی</param>
         /// <param name="newPassword">رمز عبور جدید</param>
         /// <returns>تسک</returns>
-        Task ChangePasswordAsync(Guid userId, string currentPassword, string newPassword);
+        Task<bool> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword);
 
         /// <summary>
         /// بازنشانی رمز عبور
         /// </summary>
-        /// <param name="id">شناسه کاربر</param>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="token">توکن بازنشانی</param>
         /// <param name="newPassword">رمز عبور جدید</param>
         /// <returns>نتیجه بازنشانی</returns>
-        Task<bool> ResetPasswordAsync(Guid id, string newPassword);
+        Task<bool> ResetPasswordAsync(Guid userId, string token, string newPassword);
         #endregion
 
         #region احراز هویت دو مرحله‌ای
@@ -245,7 +246,7 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <param name="userId">شناسه کاربر</param>
         /// <param name="device">اطلاعات دستگاه</param>
         /// <returns>تسک</returns>
-        Task AddUserDeviceAsync(Guid userId, UserDevice device);
+        Task<bool> AddDeviceAsync(Guid userId, UserDevice device);
 
         /// <summary>
         /// حذف دستگاه
@@ -253,14 +254,14 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <param name="userId">شناسه کاربر</param>
         /// <param name="deviceId">شناسه دستگاه</param>
         /// <returns>تسک</returns>
-        Task RemoveUserDeviceAsync(Guid userId, Guid deviceId);
+        Task<bool> RemoveDeviceAsync(Guid userId, Guid deviceId);
 
         /// <summary>
         /// دریافت لیست دستگاه‌های کاربر
         /// </summary>
         /// <param name="userId">شناسه کاربر</param>
         /// <returns>لیست دستگاه‌ها</returns>
-        Task<IEnumerable<UserDevice>> GetUserDevicesAsync(Guid userId);
+        Task<IEnumerable<UserDevice>> GetDevicesAsync(Guid userId);
         #endregion
 
         #region امنیت حساب کاربری
@@ -268,9 +269,9 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// قفل کردن حساب کاربری
         /// </summary>
         /// <param name="userId">شناسه کاربر</param>
-        /// <param name="duration">مدت زمان قفل (دقیقه)</param>
+        /// <param name="reason">دلیل قفل</param>
         /// <returns>تسک</returns>
-        Task LockAccountAsync(Guid userId, int duration);
+        Task<bool> LockAccountAsync(Guid userId, string reason);
 
         /// <summary>
         /// باز کردن قفل حساب کاربری
@@ -301,6 +302,61 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <param name="id">شناسه کاربر</param>
         /// <returns>تسک</returns>
         Task UpdateLastLoginAsync(Guid id);
+        #endregion
+
+        #region امنیت حساب کاربری
+        /// <summary>
+        /// بررسی وضعیت قفل بودن حساب
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <returns>وضعیت قفل</returns>
+        Task<bool> IsLockedOutAsync(Guid userId);
+        #endregion
+
+        #region امنیت حساب کاربری
+        /// <summary>
+        /// بررسی وضعیت تایید ایمیل
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <returns>وضعیت تایید ایمیل</returns>
+        Task<bool> IsEmailConfirmedAsync(Guid userId);
+
+        /// <summary>
+        /// بررسی وضعیت تایید تلفن
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <returns>وضعیت تایید تلفن</returns>
+        Task<bool> IsPhoneConfirmedAsync(Guid userId);
+
+        /// <summary>
+        /// تولید توکن تایید ایمیل
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <returns>توکن تایید ایمیل</returns>
+        Task<string> GenerateEmailConfirmationTokenAsync(Guid userId);
+
+        /// <summary>
+        /// تولید توکن تایید تلفن
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <returns>توکن تایید تلفن</returns>
+        Task<string> GeneratePhoneConfirmationTokenAsync(Guid userId);
+
+        /// <summary>
+        /// تایید ایمیل
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="token">توکن تایید</param>
+        /// <returns>نتیجه تایید</returns>
+        Task<bool> ConfirmEmailAsync(Guid userId, string token);
+
+        /// <summary>
+        /// تایید تلفن
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="token">توکن تایید</param>
+        /// <returns>نتیجه تایید</returns>
+        Task<bool> ConfirmPhoneAsync(Guid userId, string token);
         #endregion
     }
 

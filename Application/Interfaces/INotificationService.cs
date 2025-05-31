@@ -7,6 +7,7 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
     public interface INotificationService
     {
         Task<IEnumerable<NotificationResponse>> GetNotificationsAsync(int count = 10);
+        Task<IEnumerable<NotificationResponse>> GetNotificationsAsync(NotificationFilter filter);
         Task<NotificationResponse> CreateNotificationAsync(NotificationRequest request);
         Task MarkAsReadAsync(string id);
         Task DeleteNotificationAsync(string id);

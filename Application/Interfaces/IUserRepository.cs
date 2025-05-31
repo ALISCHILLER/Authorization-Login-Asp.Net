@@ -142,5 +142,12 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <returns>آخرین رکورد ورود موفق یا null</returns>
         Task<LoginHistory> GetLastSuccessfulLoginAsync(Guid userId);
         #endregion
+
+        /// <summary>
+        /// دریافت کاربران با نقش مشخص
+        /// </summary>
+        /// <param name="roleName">نام نقش</param>
+        /// <returns>لیست کاربران با نقش مشخص</returns>
+        Task<IEnumerable<User>> GetUsersInRoleAsync(string roleName);
     }
 }

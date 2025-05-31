@@ -32,6 +32,16 @@ namespace Authorization_Login_Asp.Net.Domain.ValueObjects
         }
 
         /// <summary>
+        /// سازنده استاتیک
+        /// </summary>
+        /// <param name="email">آدرس ایمیل</param>
+        /// <returns>نمونه جدید از ایمیل</returns>
+        public static Email From(string email)
+        {
+            return new Email(email);
+        }
+
+        /// <summary>
         /// تبدیل ضمنی به رشته
         /// </summary>
         public static implicit operator string(Email email) => email?.Value;

@@ -104,7 +104,7 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <param name="userId">شناسه کاربر</param>
         /// <param name="cancellationToken">توکن لغو عملیات</param>
         /// <returns>لیست نقش‌های کاربر مورد نظر</returns>
-        Task<IEnumerable<Role>> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+        Task<IEnumerable<Role>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// بررسی وجود نقش در یک نوع خاص
@@ -144,7 +144,7 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <param name="roleName">نام نقش</param>
         /// <param name="cancellationToken">توکن لغو عملیات</param>
         /// <returns>درست اگر کاربر به نقش تعلق داشته باشد</returns>
-        Task<bool> IsUserInRoleAsync(string userId, string roleName, CancellationToken cancellationToken = default);
+        Task<bool> IsUserInRoleAsync(Guid userId, string roleName, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// بررسی تعلق کاربر به چند نقش
@@ -153,7 +153,7 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <param name="roleNames">نام‌های نقش‌ها</param>
         /// <param name="cancellationToken">توکن لغو عملیات</param>
         /// <returns>درست اگر کاربر به همه نقش‌ها تعلق داشته باشد</returns>
-        Task<bool> IsUserInAllRolesAsync(string userId, IEnumerable<string> roleNames, CancellationToken cancellationToken = default);
+        Task<bool> IsUserInAllRolesAsync(Guid userId, IEnumerable<string> roleNames, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// بررسی تعلق کاربر به حداقل یکی از نقش‌ها
@@ -162,6 +162,20 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// <param name="roleNames">نام‌های نقش‌ها</param>
         /// <param name="cancellationToken">توکن لغو عملیات</param>
         /// <returns>درست اگر کاربر به حداقل یکی از نقش‌ها تعلق داشته باشد</returns>
-        Task<bool> IsUserInAnyRoleAsync(string userId, IEnumerable<string> roleNames, CancellationToken cancellationToken = default);
+        Task<bool> IsUserInAnyRoleAsync(Guid userId, IEnumerable<string> roleNames, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// افزودن کاربر به نقش
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="roleName">نام نقش</param>
+        Task AddUserToRoleAsync(Guid userId, string roleName);
+
+        /// <summary>
+        /// حذف کاربر از نقش
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="roleName">نام نقش</param>
+        Task RemoveUserFromRoleAsync(Guid userId, string roleName);
     }
 }

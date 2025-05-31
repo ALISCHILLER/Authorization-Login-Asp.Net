@@ -28,12 +28,15 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
     /// </summary>
     public class RoleRepository : Repository<Role>, IRoleRepository
     {
+        private readonly AppDbContext _context;
+
         /// <summary>
         /// سازنده کلاس مخزن نقش‌ها
         /// </summary>
         /// <param name="context">کانتکست پایگاه داده</param>
         public RoleRepository(AppDbContext context) : base(context)
         {
+            _context = context;
         }
 
         /// <summary>
@@ -223,17 +226,11 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
         /// <param name="userId">شناسه کاربر</param>
         /// <param name="cancellationToken">توکن لغو عملیات</param>
         /// <returns>لیست نقش‌های کاربر مورد نظر</returns>
-        public async Task<IEnumerable<Role>> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default)
+        public async Task<IEnumerable<Role>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(userId))
-                throw new ArgumentException("شناسه کاربر نمی‌تواند خالی باشد", nameof(userId));
-
-            if (!Guid.TryParse(userId, out Guid userGuid))
-                throw new ArgumentException("شناسه کاربر باید یک GUID معتبر باشد", nameof(userId));
-
             return await _dbSet
                 .Include(r => r.Permissions)
-                .Where(r => r.Users.Any(u => u.Id == userGuid))
+                .Where(r => r.Users.Any(u => u.Id == userId))
                 .ToListAsync(cancellationToken);
         }
 
@@ -315,19 +312,13 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
         /// <param name="roleName">نام نقش</param>
         /// <param name="cancellationToken">توکن لغو عملیات</param>
         /// <returns>درست اگر کاربر به نقش تعلق داشته باشد</returns>
-        public async Task<bool> IsUserInRoleAsync(string userId, string roleName, CancellationToken cancellationToken = default)
+        public async Task<bool> IsUserInRoleAsync(Guid userId, string roleName, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(userId))
-                throw new ArgumentException("شناسه کاربر نمی‌تواند خالی باشد", nameof(userId));
-
             if (string.IsNullOrWhiteSpace(roleName))
                 throw new ArgumentException("نام نقش نمی‌تواند خالی باشد", nameof(roleName));
 
-            if (!Guid.TryParse(userId, out Guid userGuid))
-                throw new ArgumentException("شناسه کاربر باید یک GUID معتبر باشد", nameof(userId));
-
             return await _dbSet
-                .AnyAsync(r => r.Name == roleName && r.Users.Any(u => u.Id == userGuid), cancellationToken);
+                .AnyAsync(r => r.Name == roleName && r.Users.Any(u => u.Id == userId), cancellationToken);
         }
 
         /// <summary>
@@ -337,19 +328,13 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
         /// <param name="roleNames">نام‌های نقش‌ها</param>
         /// <param name="cancellationToken">توکن لغو عملیات</param>
         /// <returns>درست اگر کاربر به همه نقش‌ها تعلق داشته باشد</returns>
-        public async Task<bool> IsUserInAllRolesAsync(string userId, IEnumerable<string> roleNames, CancellationToken cancellationToken = default)
+        public async Task<bool> IsUserInAllRolesAsync(Guid userId, IEnumerable<string> roleNames, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(userId))
-                throw new ArgumentException("شناسه کاربر نمی‌تواند خالی باشد", nameof(userId));
-
             if (roleNames == null || !roleNames.Any())
                 throw new ArgumentException("لیست نقش‌ها نمی‌تواند خالی باشد", nameof(roleNames));
 
-            if (!Guid.TryParse(userId, out Guid userGuid))
-                throw new ArgumentException("شناسه کاربر باید یک GUID معتبر باشد", nameof(userId));
-
             var userRoles = await _dbSet
-                .Where(r => r.Users.Any(u => u.Id == userGuid))
+                .Where(r => r.Users.Any(u => u.Id == userId))
                 .Select(r => r.Name)
                 .ToListAsync(cancellationToken);
 
@@ -363,19 +348,58 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
         /// <param name="roleNames">نام‌های نقش‌ها</param>
         /// <param name="cancellationToken">توکن لغو عملیات</param>
         /// <returns>درست اگر کاربر به حداقل یکی از نقش‌ها تعلق داشته باشد</returns>
-        public async Task<bool> IsUserInAnyRoleAsync(string userId, IEnumerable<string> roleNames, CancellationToken cancellationToken = default)
+        public async Task<bool> IsUserInAnyRoleAsync(Guid userId, IEnumerable<string> roleNames, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(userId))
-                throw new ArgumentException("شناسه کاربر نمی‌تواند خالی باشد", nameof(userId));
-
             if (roleNames == null || !roleNames.Any())
                 throw new ArgumentException("لیست نقش‌ها نمی‌تواند خالی باشد", nameof(roleNames));
 
-            if (!Guid.TryParse(userId, out Guid userGuid))
-                throw new ArgumentException("شناسه کاربر باید یک GUID معتبر باشد", nameof(userId));
-
             return await _dbSet
-                .AnyAsync(r => roleNames.Contains(r.Name) && r.Users.Any(u => u.Id == userGuid), cancellationToken);
+                .AnyAsync(r => roleNames.Contains(r.Name) && r.Users.Any(u => u.Id == userId), cancellationToken);
+        }
+
+        public async Task AddUserToRoleAsync(Guid userId, string roleName)
+        {
+            if (string.IsNullOrWhiteSpace(roleName))
+                throw new ArgumentException("نام نقش نمی‌تواند خالی باشد", nameof(roleName));
+
+            var role = await GetByNameAsync(roleName);
+            if (role == null)
+                throw new ArgumentException($"نقش {roleName} یافت نشد", nameof(roleName));
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                throw new ArgumentException($"کاربر با شناسه {userId} یافت نشد", nameof(userId));
+
+            if (!await IsUserInRoleAsync(userId, roleName))
+            {
+                var userRole = new UserRole
+                {
+                    UserId = userId,
+                    RoleId = role.Id,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _context.UserRoles.AddAsync(userRole);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task RemoveUserFromRoleAsync(Guid userId, string roleName)
+        {
+            if (string.IsNullOrWhiteSpace(roleName))
+                throw new ArgumentException("نام نقش نمی‌تواند خالی باشد", nameof(roleName));
+
+            var role = await GetByNameAsync(roleName);
+            if (role == null)
+                throw new ArgumentException($"نقش {roleName} یافت نشد", nameof(roleName));
+
+            var userRole = await _context.UserRoles
+                .FirstOrDefaultAsync(ur => ur.UserId == userId && ur.RoleId == role.Id);
+            
+            if (userRole != null)
+            {
+                _context.UserRoles.Remove(userRole);
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }

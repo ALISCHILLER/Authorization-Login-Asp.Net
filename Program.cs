@@ -20,6 +20,20 @@ using System.IdentityModel.Tokens.Jwt;
 using HealthChecks.UI.Client;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Exporter;
+using System.Diagnostics;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Authorization_Login_Asp.Net.Infrastructure.Data;
+using FluentValidation.AspNetCore;
+using AspNetCoreRateLimit;
+using System;
+using Authorization_Login_Asp.Net.Infrastructure.Configurations;
+using Authorization_Login_Asp.Net.Application.Validators;
+using System.Linq;
 
 // تنظیمات اصلی برنامه
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +47,11 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    })
+    .AddFluentValidation(fv => 
+    {
+        fv.RegisterValidatorsFromAssemblyContaining<Program>();
+        fv.DisableDataAnnotationsValidation = true;
     });
 
 // تنظیمات Swagger و API Explorer
@@ -144,6 +163,7 @@ builder.Services.AddScoped<ILoggingService, LoggingService>();
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddSingleton<IMetricsService, MetricsService>();
+builder.Services.AddScoped<ITwoFactorService, TwoFactorService>();
 
 // تنظیمات AutoMapper برای نگاشت اشیاء
 builder.Services.AddAutoMapper(typeof(Program).Assembly);
@@ -151,8 +171,9 @@ builder.Services.AddAutoMapper(typeof(Program).Assembly);
 // تنظیمات FluentValidation برای اعتبارسنجی
 builder.Services.AddFluentValidation(fv =>
 {
-    fv.RegisterValidatorsFromAssemblyContaining<Program>();
+    fv.RegisterValidatorsFromAssemblyContaining<LoginRequestValidator>();
     fv.AutomaticValidationEnabled = true;
+    fv.ImplicitlyValidateChildProperties = true;
 });
 
 // Configure image service options
@@ -162,7 +183,8 @@ builder.Services.Configure<ImageServiceOptions>(builder.Configuration.GetSection
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>()
     .AddRedis(builder.Configuration.GetConnectionString("Redis"))
-    .AddUrlGroup(new Uri(builder.Configuration["ExternalServices:ApiEndpoint"]), "External API");
+    .AddUrlGroup(new Uri(builder.Configuration["ExternalServices:ApiEndpoint"]), "External API")
+    .AddCheck<DatabaseHealthCheck>("Database");
 
 // تنظیمات UI برای Health Checks
 builder.Services.AddHealthChecksUI(options =>
@@ -207,19 +229,28 @@ builder.WebHost.ConfigureKestrel(options =>
     options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(1);
 });
 
-// Add OpenTelemetry
-builder.Services.AddOpenTelemetry()
-    .WithTracing(tracerProviderBuilder =>
-        tracerProviderBuilder
-            .AddSource("Authorization.Login")
-            .SetResourceBuilder(ResourceBuilder.CreateDefault()
-                .AddService("Authorization.Login"))
+// Configure OpenTelemetry
+builder.Services.Configure<TracingSettings>(builder.Configuration.GetSection("Tracing"));
+builder.Services.AddScoped<ITracingService, TracingService>();
+
+var tracingSettings = builder.Configuration.GetSection("Tracing").Get<TracingSettings>();
+if (tracingSettings != null && tracingSettings.EnableTracing)
+{
+    builder.Services.AddOpenTelemetry()
+        .ConfigureResource(resource => resource
+            .AddService(serviceName: "AuthorizationLoginService"))
+        .WithTracing(tracing => tracing
+            .AddSource("UserService")
+            .AddConsoleExporter()
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
-            .AddSqlClientInstrumentation()
-            .AddOtlpExporter());
+            .AddEntityFrameworkCoreInstrumentation())
+        .WithMetrics(metrics => metrics
+            .AddConsoleExporter()
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation());
+}
 
-// ایجاد برنامه
 var app = builder.Build();
 
 // تنظیمات میدلورها در محیط توسعه

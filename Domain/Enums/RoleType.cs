@@ -3,33 +3,38 @@ using System;
 namespace Authorization_Login_Asp.Net.Domain.Enums
 {
     /// <summary>
-    /// انواع نقش کاربران در سیستم
+    /// انواع نقش‌های کاربری
     /// </summary>
     public enum RoleType
     {
         /// <summary>
         /// کاربر عادی
         /// </summary>
-        User = 0,
+        User = 4,
 
         /// <summary>
-        /// مدیر سیستم
+        /// مدیر
         /// </summary>
-        Admin = 1,
+        Admin = 2,
 
         /// <summary>
-        /// اپراتور
+        /// مدیر ارشد
         /// </summary>
-        Operator = 2,
+        SuperAdmin = 1,
 
         /// <summary>
-        /// مدیر محتوا
+        /// کاربر مهمان
         /// </summary>
-        ContentManager = 3,
+        Guest = 5,
 
         /// <summary>
-        /// پشتیبان
+        /// کاربر محدود شده
         /// </summary>
-        Support = 4
+        Restricted = 3,
+
+        /// <summary>
+        /// کاربر تأیید نشده
+        /// </summary>
+        Unverified = 0
     }
 } 

@@ -12,6 +12,10 @@ using QRCoder;
 using Authorization_Login_Asp.Net.Application.Interfaces;
 using Authorization_Login_Asp.Net.Domain.Entities;
 using Authorization_Login_Asp.Net.Infrastructure.Options;
+using Microsoft.Extensions.Logging;
+using System.Linq;
+using Microsoft.Extensions.DependencyInjection;
+using OpenTelemetry.Trace;
 
 namespace Authorization_Login_Asp.Net.Infrastructure.Services
 {
@@ -23,65 +27,63 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
     {
         private readonly JwtOptions _jwtOptions;
         private readonly ILogger<JwtService> _logger;
+        private readonly IRefreshTokenRepository _refreshTokenRepository;
 
         /// <summary>
         /// سازنده سرویس JWT
         /// </summary>
         /// <param name="jwtOptions">تنظیمات JWT</param>
         /// <param name="logger">سرویس لاگر</param>
-        public JwtService(IOptions<JwtOptions> jwtOptions, ILogger<JwtService> logger)
+        /// <param name="refreshTokenRepository">ریپوزیتور خدمات رفرش توکن</param>
+        public JwtService(
+            IOptions<JwtOptions> jwtOptions, 
+            ILogger<JwtService> logger,
+            IRefreshTokenRepository refreshTokenRepository)
         {
             _jwtOptions = jwtOptions?.Value ?? throw new ArgumentNullException(nameof(jwtOptions));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _refreshTokenRepository = refreshTokenRepository ?? throw new ArgumentNullException(nameof(refreshTokenRepository));
         }
 
         /// <inheritdoc/>
-        public string GenerateToken(Guid userId, string username, string role, IDictionary<string, string> additionalClaims = null)
+        public string GenerateToken(User user)
         {
-            if (string.IsNullOrWhiteSpace(username))
-                throw new ArgumentNullException(nameof(username));
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            var claims = GenerateClaims(user);
+            return GenerateToken(user.Id, user.Username, user.Role.ToString(), claims);
+        }
+
+        private string GenerateToken(Guid userId, string username, string role, IEnumerable<Claim> claims)
+        {
             if (string.IsNullOrWhiteSpace(role))
                 throw new ArgumentNullException(nameof(role));
 
-            try
+            var claimsList = new List<Claim>
             {
-                var claims = new List<Claim>
-                {
-                    new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-                    new Claim(JwtRegisteredClaimNames.UniqueName, username),
-                    new Claim(ClaimTypes.Role, role),
-                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                    new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
-                };
+                new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
+                new Claim(JwtRegisteredClaimNames.UniqueName, username),
+                new Claim(ClaimTypes.Role, role),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
+            };
 
-                // اضافه کردن کلیم‌های اضافی
-                if (additionalClaims != null)
-                {
-                    foreach (var claim in additionalClaims)
-                    {
-                        claims.Add(new Claim(claim.Key, claim.Value));
-                    }
-                }
+            claimsList.AddRange(claims);
 
-                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SecretKey));
-                var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-                var expires = DateTime.UtcNow.AddMinutes(_jwtOptions.ExpiryMinutes);
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SecretKey));
+            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var expires = DateTime.UtcNow.AddMinutes(_jwtOptions.ExpiryMinutes);
 
-                var token = new JwtSecurityToken(
-                    issuer: _jwtOptions.Issuer,
-                    audience: _jwtOptions.Audience,
-                    claims: claims,
-                    expires: expires,
-                    signingCredentials: credentials
-                );
+            var token = new JwtSecurityToken(
+                issuer: _jwtOptions.Issuer,
+                audience: _jwtOptions.Audience,
+                claims: claimsList,
+                expires: expires,
+                signingCredentials: credentials
+            );
 
-                return new JwtSecurityTokenHandler().WriteToken(token);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در تولید توکن JWT برای کاربر {Username}", username);
-                throw;
-            }
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
         /// <inheritdoc/>
@@ -238,19 +240,29 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                 };
 
                 // اضافه کردن نقش کاربر
-                if (user.Role != null)
+                if (user.PrimaryRole != null)
                 {
-                    claims.Add(new Claim(ClaimTypes.Role, user.Role.Name));
+                    claims.Add(new Claim(ClaimTypes.Role, user.PrimaryRole.Name));
 
                     // اضافه کردن دسترسی‌های کاربر از طریق نقش
-                    if (user.Role.Permissions != null)
+                    foreach (var permission in user.PrimaryRole.Permissions)
                     {
-                        foreach (var permission in user.Role.Permissions)
+                        if (permission.IsActive)
                         {
-                            if (permission.IsActive)
-                            {
-                                claims.Add(new Claim("Permission", permission.Name));
-                            }
+                            claims.Add(new Claim("Permission", permission.Name));
+                        }
+                    }
+                }
+
+                // اضافه کردن سایر نقش‌های کاربر
+                foreach (var role in user.Roles)
+                {
+                    claims.Add(new Claim("Role", role.Name));
+                    foreach (var permission in role.Permissions)
+                    {
+                        if (permission.IsActive)
+                        {
+                            claims.Add(new Claim("Permission", permission.Name));
                         }
                     }
                 }
@@ -263,5 +275,270 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                 throw;
             }
         }
+
+        public async Task<string> GenerateTokenAsync(User user)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            var token = GenerateToken(user);
+            return await Task.FromResult(token);
+        }
+
+        public async Task<string> GenerateTokenAsync(Guid userId, string username, string role, IDictionary<string, string> claims = null)
+        {
+            var claimsList = new List<Claim>
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
+                new Claim(JwtRegisteredClaimNames.UniqueName, username),
+                new Claim(ClaimTypes.Role, role),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
+            };
+
+            if (claims != null)
+            {
+                claimsList.AddRange(claims.Select(c => new Claim(c.Key, c.Value)));
+            }
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SecretKey));
+            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var expires = DateTime.UtcNow.AddMinutes(_jwtOptions.ExpiryMinutes);
+
+            var token = new JwtSecurityToken(
+                issuer: _jwtOptions.Issuer,
+                audience: _jwtOptions.Audience,
+                claims: claimsList,
+                expires: expires,
+                signingCredentials: credentials
+            );
+
+            return await Task.FromResult(new JwtSecurityTokenHandler().WriteToken(token));
+        }
+
+        public string GenerateRefreshToken(User user)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            var refreshToken = new RefreshToken
+            {
+                Token = GenerateRandomToken(),
+                UserId = user.Id,
+                ExpiryDate = DateTime.UtcNow.AddDays(_jwtOptions.RefreshTokenExpiryDays),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _refreshTokenRepository.AddAsync(refreshToken).Wait();
+            _refreshTokenRepository.SaveChangesAsync().Wait();
+            return refreshToken.Token;
+        }
+
+        public bool ValidateRefreshToken(User user, string refreshToken)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+            if (string.IsNullOrWhiteSpace(refreshToken))
+                return false;
+
+            var token = _refreshTokenRepository.GetByTokenAsync(refreshToken).Result;
+            if (token == null || token.UserId != user.Id)
+                return false;
+
+            return !token.IsRevoked && token.ExpiryDate > DateTime.UtcNow;
+        }
+
+        private string GenerateRandomToken()
+        {
+            var randomBytes = new byte[32];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomBytes);
+            return Convert.ToBase64String(randomBytes);
+        }
+
+        public async Task<bool> ValidateTokenAsync(string token)
+        {
+            try
+            {
+                ValidateToken(token);
+                return await Task.FromResult(true);
+            }
+            catch
+            {
+                return await Task.FromResult(false);
+            }
+        }
+
+        public async Task<bool> ValidateRefreshTokenAsync(User user, string refreshToken)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+            if (string.IsNullOrWhiteSpace(refreshToken))
+                return false;
+
+            var token = await _refreshTokenRepository.GetByTokenAsync(refreshToken);
+            if (token == null || token.UserId != user.Id)
+                return false;
+
+            return !token.IsRevoked && token.ExpiryDate > DateTime.UtcNow;
+        }
+
+        public async Task<ClaimsPrincipal> GetPrincipalFromTokenAsync(string token)
+        {
+            try
+            {
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var key = Encoding.ASCII.GetBytes(_jwtOptions.SecretKey);
+                var tokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = true,
+                    ValidIssuer = _jwtOptions.Issuer,
+                    ValidateAudience = true,
+                    ValidAudience = _jwtOptions.Audience,
+                    ValidateLifetime = false // Don't validate lifetime here
+                };
+
+                var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
+                if (!(securityToken is JwtSecurityToken jwtSecurityToken) || 
+                    !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    throw new SecurityTokenException("توکن نامعتبر است");
+                }
+
+                return await Task.FromResult(principal);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در دریافت اطلاعات از توکن");
+                throw;
+            }
+        }
+
+        public async Task RevokeRefreshTokenAsync(string refreshToken, string reason = null)
+        {
+            var token = await _refreshTokenRepository.GetByTokenAsync(refreshToken);
+            if (token != null)
+            {
+                token.Revoke(reason);
+                await _refreshTokenRepository.SaveChangesAsync();
+            }
+        }
+
+        public async Task RevokeAllRefreshTokensAsync(Guid userId)
+        {
+            var tokens = await _refreshTokenRepository.GetAllByUserIdAsync(userId);
+            foreach (var token in tokens)
+            {
+                token.Revoke("همه توکن‌های کاربر باطل شدند");
+            }
+            await _refreshTokenRepository.SaveChangesAsync();
+        }
+
+        public async Task<IDictionary<string, string>> GetTokenClaimsAsync(string token)
+        {
+            var principal = await GetPrincipalFromTokenAsync(token);
+            return principal.Claims.ToDictionary(c => c.Type, c => c.Value);
+        }
+
+        public async Task<DateTime> GetTokenExpirationAsync(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                throw new ArgumentNullException(nameof(token));
+
+            var handler = new JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(token);
+            return await Task.FromResult(jwtToken.ValidTo);
+        }
+
+        public async Task<bool> IsTokenRevokedAsync(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                throw new ArgumentNullException(nameof(token));
+
+            return await _refreshTokenRepository.IsTokenRevokedAsync(token);
+        }
+
+        public async Task RevokeAllUserTokensAsync(Guid userId)
+        {
+            await _refreshTokenRepository.RevokeAllUserTokensAsync(userId);
+        }
+
+        public async Task RevokeTokenAsync(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                throw new ArgumentNullException(nameof(token));
+
+            await _refreshTokenRepository.RevokeTokenAsync(token);
+        }
+
+        public (string secret, string qrCode) GenerateTwoFactorSecret(User user)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            var (secret, qrCode) = GenerateTwoFactorSecret();
+            return (secret, qrCode);
+        }
+
+        public bool ValidateTwoFactorToken(User user, string token)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+            if (string.IsNullOrWhiteSpace(token))
+                throw new ArgumentNullException(nameof(token));
+
+            return ValidateTwoFactorCode(user.TwoFactorSecret, token);
+        }
+
+        public async Task<(string accessToken, string refreshToken)> GenerateTokensAsync(User user)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            var accessToken = await GenerateTokenAsync(user);
+            var refreshToken = await GenerateRefreshTokenAsync(user);
+            return (accessToken, refreshToken);
+        }
+
+        public async Task<string> GenerateAccessTokenAsync(User user)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            var token = GenerateToken(user);
+            return await Task.FromResult(token);
+        }
+
+        public async Task<string> GenerateRefreshTokenAsync(User user)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
+            var refreshToken = new RefreshToken
+            {
+                Token = GenerateRandomToken(),
+                UserId = user.Id,
+                ExpiryDate = DateTime.UtcNow.AddDays(_jwtOptions.RefreshTokenExpiryDays),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _refreshTokenRepository.AddAsync(refreshToken);
+            await _refreshTokenRepository.SaveChangesAsync();
+            return refreshToken.Token;
+        }
+    }
+
+    public class TracingService : Application.Interfaces.ITracingService
+    {
+        public ActivitySource CreateActivitySource(string name) => new(name);
+        
+        public void AddTracing(IServiceCollection services)
+        {
+            // پیاده‌سازی
+        }
+        
+        // سایر متدها...
     }
 }

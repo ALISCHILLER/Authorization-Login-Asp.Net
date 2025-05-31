@@ -31,34 +31,19 @@ namespace Authorization_Login_Asp.Net.Application.DTOs
         public string FullName { get; set; }
 
         /// <summary>
-        /// شناسه نقش
+        /// نوع نقش
         /// </summary>
-        public Guid RoleId { get; set; }
-
-        /// <summary>
-        /// نام نقش
-        /// </summary>
-        public string RoleName { get; set; }
-
-        /// <summary>
-        /// نقش کاربر
-        /// </summary>
-        public string Role { get; set; }
-
-        /// <summary>
-        /// تاریخ ایجاد
-        /// </summary>
-        public DateTime CreatedAt { get; set; }
-
-        /// <summary>
-        /// وضعیت فعال بودن
-        /// </summary>
-        public bool IsActive { get; set; }
+        public RoleType RoleType { get; set; }
 
         /// <summary>
         /// شماره تلفن
         /// </summary>
         public string PhoneNumber { get; set; }
+
+        /// <summary>
+        /// تاریخ ایجاد
+        /// </summary>
+        public DateTime CreatedAt { get; set; }
 
         /// <summary>
         /// تاریخ آخرین ورود
@@ -69,6 +54,11 @@ namespace Authorization_Login_Asp.Net.Application.DTOs
         /// آدرس تصویر پروفایل
         /// </summary>
         public string ProfileImageUrl { get; set; }
+
+        /// <summary>
+        /// وضعیت فعال بودن
+        /// </summary>
+        public bool IsActive { get; set; }
 
         /// <summary>
         /// وضعیت تأیید ایمیل
@@ -89,6 +79,16 @@ namespace Authorization_Login_Asp.Net.Application.DTOs
         /// روش احراز هویت دو مرحله‌ای
         /// </summary>
         public TwoFactorType? TwoFactorType { get; set; }
+
+        /// <summary>
+        /// نقش‌های کاربر
+        /// </summary>
+        public IEnumerable<RoleDto> Roles { get; set; }
+
+        /// <summary>
+        /// نقش اصلی کاربر
+        /// </summary>
+        public RoleDto PrimaryRole { get; set; }
     }
 
     /// <summary>
@@ -284,5 +284,46 @@ namespace Authorization_Login_Asp.Net.Application.DTOs
         /// تعداد کدهای بازیابی
         /// </summary>
         public int RecoveryCodesCount { get; set; }
+    }
+
+    /// <summary>
+    /// مدل نقش کاربر
+    /// </summary>
+    public class RoleDto
+    {
+        /// <summary>
+        /// شناسه نقش
+        /// </summary>
+        public Guid Id { get; set; }
+
+        /// <summary>
+        /// نام نقش
+        /// </summary>
+        public string Name { get; set; }
+
+        /// <summary>
+        /// نام نمایشی نقش
+        /// </summary>
+        public string DisplayName { get; set; }
+
+        /// <summary>
+        /// توضیح نقش
+        /// </summary>
+        public string Description { get; set; }
+
+        /// <summary>
+        /// آیا نقش سیستمی است
+        /// </summary>
+        public bool IsSystem { get; set; }
+
+        /// <summary>
+        /// وضعیت فعال بودن نقش
+        /// </summary>
+        public bool IsActive { get; set; }
+
+        /// <summary>
+        /// دسترسی‌های نقش
+        /// </summary>
+        public IEnumerable<string> Permissions { get; set; }
     }
 }

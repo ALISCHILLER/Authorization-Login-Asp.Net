@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Authorization_Login_Asp.Net.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace Authorization_Login_Asp.Net.Application.Interfaces
 {
@@ -38,20 +39,14 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         Task<int> GetFailedLoginAttemptsCountAsync(Guid userId, DateTime startTime, DateTime endTime, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// دریافت تاریخچه ورود کاربر با امکان صفحه‌بندی و مرتب‌سازی
+        /// دریافت تاریخچه ورود کاربر با صفحه‌بندی
         /// </summary>
         /// <param name="userId">شناسه کاربر</param>
         /// <param name="page">شماره صفحه</param>
         /// <param name="pageSize">تعداد آیتم در هر صفحه</param>
-        /// <param name="includeUser">آیا اطلاعات کاربر نیز باید بارگذاری شود؟</param>
-        /// <param name="cancellationToken">توکن لغو عملیات</param>
-        /// <returns>تاپل شامل لیست تاریخچه ورود و تعداد کل رکوردها</returns>
-        Task<(List<LoginHistory> Items, int TotalCount)> GetUserLoginHistoryAsync(
-            Guid userId, 
-            int page = 1, 
-            int pageSize = 10,
-            bool includeUser = false,
-            CancellationToken cancellationToken = default);
+        /// <param name="includeUser">آیا اطلاعات کاربر نیز بازگردانده شود</param>
+        /// <returns>لیست تاریخچه ورود و تعداد کل رکوردها</returns>
+        Task<LoginHistoryResult> GetUserLoginHistoryAsync(Guid userId, int page = 1, int pageSize = 10);
 
         /// <summary>
         /// دریافت تاریخچه ورود کاربران در بازه زمانی مشخص
@@ -130,5 +125,19 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
             DateTime startTime,
             DateTime endTime,
             CancellationToken cancellationToken = default);
+
+        Task AddAsync(LoginHistory loginHistory);
+        Task<int> SaveChangesAsync();
+    }
+
+    public class LoginHistoryResult
+    {
+        public List<LoginHistory> Items { get; set; }
+        public int TotalCount { get; set; }
+
+        public IEnumerable<TResult> Select<TResult>(Func<LoginHistory, TResult> selector)
+        {
+            return Items.Select(selector);
+        }
     }
 } 

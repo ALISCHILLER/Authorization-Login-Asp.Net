@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Authorization_Login_Asp.Net.Domain.Enums;
 
 namespace Authorization_Login_Asp.Net.Application.DTOs
 {
@@ -49,8 +50,18 @@ namespace Authorization_Login_Asp.Net.Application.DTOs
         public DateTime? LastLoginAt { get; set; }
 
         /// <summary>
+        /// آدرس عکس پروفایل کاربر
+        /// </summary>
+        public string ProfileImageUrl { get; set; }
+
+        /// <summary>
+        /// نوع نقش کاربر
+        /// </summary>
+        public RoleType RoleType { get; set; }
+
+        /// <summary>
         /// لیست نام‌های نقش‌های اختصاص داده شده به کاربر (به صورت پیش‌فرض خالی)
         /// </summary>
-        public List<string> Roles { get; set; } = new List<string>();
+        public IEnumerable<RoleDto> Roles { get; set; }
     }
 } 

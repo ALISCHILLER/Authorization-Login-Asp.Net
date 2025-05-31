@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Authorization_Login_Asp.Net.Application.DTOs
 {
@@ -13,9 +14,19 @@ namespace Authorization_Login_Asp.Net.Application.DTOs
         public Guid Id { get; set; }
 
         /// <summary>
+        /// شناسه کاربر
+        /// </summary>
+        public Guid UserId { get; set; }
+
+        /// <summary>
         /// زمان ورود
         /// </summary>
         public DateTime LoginTime { get; set; }
+
+        /// <summary>
+        /// زمان خروج
+        /// </summary>
+        public DateTime? LogoutTime { get; set; }
 
         /// <summary>
         /// آدرس IP
@@ -28,39 +39,9 @@ namespace Authorization_Login_Asp.Net.Application.DTOs
         public string UserAgent { get; set; }
 
         /// <summary>
-        /// نام دستگاه
+        /// مکان
         /// </summary>
-        public string DeviceName { get; set; }
-
-        /// <summary>
-        /// نوع دستگاه
-        /// </summary>
-        public string DeviceType { get; set; }
-
-        /// <summary>
-        /// سیستم عامل
-        /// </summary>
-        public string OperatingSystem { get; set; }
-
-        /// <summary>
-        /// نام مرورگر
-        /// </summary>
-        public string BrowserName { get; set; }
-
-        /// <summary>
-        /// نسخه مرورگر
-        /// </summary>
-        public string BrowserVersion { get; set; }
-
-        /// <summary>
-        /// کشور
-        /// </summary>
-        public string Country { get; set; }
-
-        /// <summary>
-        /// شهر
-        /// </summary>
-        public string City { get; set; }
+        public string Location { get; set; }
 
         /// <summary>
         /// وضعیت موفقیت‌آمیز بودن ورود
@@ -73,14 +54,34 @@ namespace Authorization_Login_Asp.Net.Application.DTOs
         public string FailureReason { get; set; }
 
         /// <summary>
-        /// زمان خروج
+        /// مدت زمان نشست
         /// </summary>
-        public DateTime? LogoutTime { get; set; }
+        public TimeSpan? SessionDuration { get; set; }
 
         /// <summary>
-        /// مدت زمان حضور کاربر (به ثانیه)
+        /// شناسه دستگاه
         /// </summary>
-        public int? SessionDuration { get; set; }
+        public string DeviceId { get; set; }
+
+        /// <summary>
+        /// نام دستگاه
+        /// </summary>
+        public string DeviceName { get; set; }
+
+        /// <summary>
+        /// نوع دستگاه
+        /// </summary>
+        public string DeviceType { get; set; }
+
+        /// <summary>
+        /// نام مرورگر
+        /// </summary>
+        public string Browser { get; set; }
+
+        /// <summary>
+        /// سیستم عامل
+        /// </summary>
+        public string OperatingSystem { get; set; }
     }
 
     /// <summary>
