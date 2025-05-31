@@ -10,6 +10,16 @@ namespace Authorization_Login_Asp.Net.Application.Validators
     {
         public LoginHistoryItemValidator()
         {
+            // اعتبارسنجی شناسه
+            RuleFor(x => x.Id)
+                .NotEmpty()
+                .WithMessage("شناسه الزامی است.");
+
+            // اعتبارسنجی شناسه کاربر
+            RuleFor(x => x.UserId)
+                .NotEmpty()
+                .WithMessage("شناسه کاربر الزامی است.");
+
             // اعتبارسنجی تاریخ و زمان ورود
             RuleFor(x => x.LoginTime)
                 .NotEmpty()
@@ -29,18 +39,60 @@ namespace Authorization_Login_Asp.Net.Application.Validators
                 .MaximumLength(500)
                 .WithMessage("اطلاعات مرورگر نمی‌تواند بیشتر از ۵۰۰ کاراکتر باشد.");
 
-            // اعتبارسنجی موقعیت جغرافیایی
-            RuleFor(x => x.Location)
-                .MaximumLength(200)
-                .WithMessage("موقعیت جغرافیایی نمی‌تواند بیشتر از ۲۰۰ کاراکتر باشد.");
+            // اعتبارسنجی نام دستگاه
+            RuleFor(x => x.DeviceName)
+                .MaximumLength(100)
+                .WithMessage("نام دستگاه نمی‌تواند بیشتر از ۱۰۰ کاراکتر باشد.");
 
-            // اعتبارسنجی دلیل ناموفق بودن
+            // اعتبارسنجی نوع دستگاه
+            RuleFor(x => x.DeviceType)
+                .MaximumLength(50)
+                .WithMessage("نوع دستگاه نمی‌تواند بیشتر از ۵۰ کاراکتر باشد.");
+
+            // اعتبارسنجی سیستم عامل
+            RuleFor(x => x.OperatingSystem)
+                .MaximumLength(50)
+                .WithMessage("سیستم عامل نمی‌تواند بیشتر از ۵۰ کاراکتر باشد.");
+
+            // اعتبارسنجی نام مرورگر
+            RuleFor(x => x.BrowserName)
+                .MaximumLength(50)
+                .WithMessage("نام مرورگر نمی‌تواند بیشتر از ۵۰ کاراکتر باشد.");
+
+            // اعتبارسنجی نسخه مرورگر
+            RuleFor(x => x.BrowserVersion)
+                .MaximumLength(50)
+                .WithMessage("نسخه مرورگر نمی‌تواند بیشتر از ۵۰ کاراکتر باشد.");
+
+            // اعتبارسنجی کشور
+            RuleFor(x => x.Country)
+                .MaximumLength(100)
+                .WithMessage("کشور نمی‌تواند بیشتر از ۱۰۰ کاراکتر باشد.");
+
+            // اعتبارسنجی شهر
+            RuleFor(x => x.City)
+                .MaximumLength(100)
+                .WithMessage("شهر نمی‌تواند بیشتر از ۱۰۰ کاراکتر باشد.");
+
+            // اعتبارسنجی دلیل شکست
             RuleFor(x => x.FailureReason)
+                .MaximumLength(200)
+                .WithMessage("دلیل شکست نمی‌تواند بیشتر از ۲۰۰ کاراکتر باشد.")
                 .NotEmpty()
                 .When(x => !x.IsSuccessful)
-                .WithMessage("در صورت ناموفق بودن ورود، دلیل آن الزامی است.")
-                .MaximumLength(500)
-                .WithMessage("دلیل ناموفق بودن نمی‌تواند بیشتر از ۵۰۰ کاراکتر باشد.");
+                .WithMessage("در صورت ناموفق بودن ورود، دلیل شکست الزامی است.");
+
+            // اعتبارسنجی زمان خروج
+            RuleFor(x => x.LogoutTime)
+                .GreaterThan(x => x.LoginTime)
+                .When(x => x.LogoutTime.HasValue)
+                .WithMessage("زمان خروج باید بعد از زمان ورود باشد.");
+
+            // اعتبارسنجی مدت زمان نشست
+            RuleFor(x => x.SessionDuration)
+                .GreaterThan(0)
+                .When(x => x.SessionDuration.HasValue)
+                .WithMessage("مدت زمان نشست باید بزرگتر از صفر باشد.");
         }
     }
 } 

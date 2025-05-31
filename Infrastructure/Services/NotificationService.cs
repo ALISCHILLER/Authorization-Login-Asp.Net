@@ -9,18 +9,60 @@ using Microsoft.Extensions.Logging;
 
 namespace Authorization_Login_Asp.Net.Infrastructure.Services
 {
+    /// <summary>
+    /// سرویس مدیریت اعلان‌های سیستم
+    /// </summary>
     public interface INotificationService
     {
+        /// <summary>
+        /// ارسال اعلان سیستمی
+        /// </summary>
         Task SendSystemAlertAsync(string title, string message, AlertSeverity severity);
+
+        /// <summary>
+        /// ارسال اعلان امنیتی
+        /// </summary>
         Task SendSecurityAlertAsync(string title, string message, AlertSeverity severity);
+
+        /// <summary>
+        /// ارسال اعلان عملکردی
+        /// </summary>
         Task SendPerformanceAlertAsync(string title, string message, AlertSeverity severity);
+
+        /// <summary>
+        /// ارسال اعلان خطا
+        /// </summary>
         Task SendErrorAlertAsync(string title, string message, AlertSeverity severity);
-        Task<IEnumerable<NotificationResponse>> GetNotificationsAsync(int count = 10);
+
+        /// <summary>
+        /// دریافت لیست اعلان‌ها با فیلتر
+        /// </summary>
+        Task<IEnumerable<NotificationResponse>> GetNotificationsAsync(NotificationFilter filter);
+
+        /// <summary>
+        /// ایجاد اعلان جدید
+        /// </summary>
         Task<NotificationResponse> CreateNotificationAsync(NotificationRequest request);
-        Task MarkAsReadAsync(string id);
-        Task DeleteNotificationAsync(string id);
+
+        /// <summary>
+        /// علامت‌گذاری اعلان به عنوان خوانده شده
+        /// </summary>
+        Task MarkAsReadAsync(Guid id);
+
+        /// <summary>
+        /// حذف اعلان
+        /// </summary>
+        Task DeleteNotificationAsync(Guid id);
+
+        /// <summary>
+        /// پاکسازی اعلان‌های منقضی شده
+        /// </summary>
+        Task CleanupExpiredNotificationsAsync();
     }
 
+    /// <summary>
+    /// پیاده‌سازی سرویس مدیریت اعلان‌های سیستم
+    /// </summary>
     public class NotificationService : INotificationService
     {
         private readonly INotificationRepository _notificationRepository;
@@ -34,177 +76,220 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
             _logger = logger;
         }
 
+        /// <summary>
+        /// ارسال اعلان سیستمی
+        /// </summary>
         public async Task SendSystemAlertAsync(string title, string message, AlertSeverity severity)
         {
             try
             {
-                var notification = new Notification
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Title = title,
-                    Message = message,
-                    Severity = severity,
-                    Type = NotificationType.System,
-                    CreatedAt = DateTime.UtcNow,
-                    IsRead = false
-                };
+                var notification = Domain.Entities.Notification.Create(
+                    title: title,
+                    message: message,
+                    type: NotificationType.System,
+                    severity: severity,
+                    userId: null,
+                    expiryDate: null);
 
                 await _notificationRepository.AddAsync(notification);
-                _logger.LogInformation("System alert sent: {Title}", title);
+                _logger.LogInformation("اعلان سیستمی ارسال شد: {Title}", title);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending system alert");
+                _logger.LogError(ex, "خطا در ارسال اعلان سیستمی");
                 throw;
             }
         }
 
+        /// <summary>
+        /// ارسال اعلان امنیتی
+        /// </summary>
         public async Task SendSecurityAlertAsync(string title, string message, AlertSeverity severity)
         {
             try
             {
-                var notification = new Notification
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Title = title,
-                    Message = message,
-                    Severity = severity,
-                    Type = NotificationType.Security,
-                    CreatedAt = DateTime.UtcNow,
-                    IsRead = false
-                };
+                var notification = Domain.Entities.Notification.Create(
+                    title: title,
+                    message: message,
+                    type: NotificationType.Security,
+                    severity: severity,
+                    userId: null,
+                    expiryDate: null);
 
                 await _notificationRepository.AddAsync(notification);
-                _logger.LogWarning("Security alert sent: {Title}", title);
+                _logger.LogWarning("اعلان امنیتی ارسال شد: {Title}", title);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending security alert");
+                _logger.LogError(ex, "خطا در ارسال اعلان امنیتی");
                 throw;
             }
         }
 
+        /// <summary>
+        /// ارسال اعلان عملکردی
+        /// </summary>
         public async Task SendPerformanceAlertAsync(string title, string message, AlertSeverity severity)
         {
             try
             {
-                var notification = new Notification
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Title = title,
-                    Message = message,
-                    Severity = severity,
-                    Type = NotificationType.Performance,
-                    CreatedAt = DateTime.UtcNow,
-                    IsRead = false
-                };
+                var notification = Domain.Entities.Notification.Create(
+                    title: title,
+                    message: message,
+                    type: NotificationType.Performance,
+                    severity: severity,
+                    userId: null,
+                    expiryDate: null);
 
                 await _notificationRepository.AddAsync(notification);
-                _logger.LogWarning("Performance alert sent: {Title}", title);
+                _logger.LogWarning("اعلان عملکردی ارسال شد: {Title}", title);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending performance alert");
+                _logger.LogError(ex, "خطا در ارسال اعلان عملکردی");
                 throw;
             }
         }
 
+        /// <summary>
+        /// ارسال اعلان خطا
+        /// </summary>
         public async Task SendErrorAlertAsync(string title, string message, AlertSeverity severity)
         {
             try
             {
-                var notification = new Notification
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Title = title,
-                    Message = message,
-                    Severity = severity,
-                    Type = NotificationType.Error,
-                    CreatedAt = DateTime.UtcNow,
-                    IsRead = false
-                };
+                var notification = Domain.Entities.Notification.Create(
+                    title: title,
+                    message: message,
+                    type: NotificationType.Error,
+                    severity: severity,
+                    userId: null,
+                    expiryDate: null);
 
                 await _notificationRepository.AddAsync(notification);
-                _logger.LogError("Error alert sent: {Title}", title);
+                _logger.LogError("اعلان خطا ارسال شد: {Title}", title);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending error alert");
+                _logger.LogError(ex, "خطا در ارسال اعلان خطا");
                 throw;
             }
         }
 
-        public async Task<IEnumerable<NotificationResponse>> GetNotificationsAsync(int count = 10)
+        /// <summary>
+        /// دریافت لیست اعلان‌ها با فیلتر
+        /// </summary>
+        public async Task<IEnumerable<NotificationResponse>> GetNotificationsAsync(NotificationFilter filter)
         {
             try
             {
-                var notifications = await _notificationRepository.GetNotificationsAsync(count);
+                var notifications = await _notificationRepository.GetNotificationsAsync(filter);
                 return notifications.Select(MapToResponse);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting notifications");
+                _logger.LogError(ex, "خطا در دریافت لیست اعلان‌ها");
                 throw;
             }
         }
 
+        /// <summary>
+        /// ایجاد اعلان جدید
+        /// </summary>
         public async Task<NotificationResponse> CreateNotificationAsync(NotificationRequest request)
         {
             try
             {
-                var notification = new Notification
-                {
-                    Title = request.Title,
-                    Message = request.Message,
-                    Type = request.Type,
-                    UserId = request.UserId,
-                    ExpiryDate = request.ExpiryDate
-                };
+                var notification = Domain.Entities.Notification.Create(
+                    title: request.Title,
+                    message: request.Message,
+                    type: request.Type,
+                    severity: request.Severity,
+                    userId: request.UserId,
+                    expiryDate: request.ExpiryDate);
 
                 var createdNotification = await _notificationRepository.AddAsync(notification);
                 return MapToResponse(createdNotification);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating notification");
+                _logger.LogError(ex, "خطا در ایجاد اعلان جدید");
                 throw;
             }
         }
 
-        public async Task MarkAsReadAsync(string id)
+        /// <summary>
+        /// علامت‌گذاری اعلان به عنوان خوانده شده
+        /// </summary>
+        public async Task MarkAsReadAsync(Guid id)
         {
             try
             {
                 var notification = await _notificationRepository.GetByIdAsync(id);
                 if (notification == null)
                 {
-                    throw new KeyNotFoundException($"Notification with id {id} not found");
+                    throw new KeyNotFoundException($"اعلان با شناسه {id} یافت نشد");
                 }
 
                 notification.MarkAsRead();
                 await _notificationRepository.UpdateAsync(notification);
+                _logger.LogInformation("اعلان با شناسه {Id} به عنوان خوانده شده علامت‌گذاری شد", id);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error marking notification as read");
+                _logger.LogError(ex, "خطا در علامت‌گذاری اعلان به عنوان خوانده شده");
                 throw;
             }
         }
 
-        public async Task DeleteNotificationAsync(string id)
+        /// <summary>
+        /// حذف اعلان
+        /// </summary>
+        public async Task DeleteNotificationAsync(Guid id)
         {
             try
             {
-                await _notificationRepository.DeleteAsync(id);
+                var notification = await _notificationRepository.GetByIdAsync(id);
+                if (notification == null)
+                {
+                    throw new KeyNotFoundException($"اعلان با شناسه {id} یافت نشد");
+                }
+
+                await _notificationRepository.DeleteAsync(notification);
+                _logger.LogInformation("اعلان با شناسه {Id} حذف شد", id);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting notification");
+                _logger.LogError(ex, "خطا در حذف اعلان");
                 throw;
             }
         }
 
-        private static NotificationResponse MapToResponse(Notification notification)
+        /// <summary>
+        /// پاکسازی اعلان‌های منقضی شده
+        /// </summary>
+        public async Task CleanupExpiredNotificationsAsync()
+        {
+            try
+            {
+                var expiredNotifications = await _notificationRepository.GetExpiredNotificationsAsync();
+                foreach (var notification in expiredNotifications)
+                {
+                    await _notificationRepository.DeleteAsync(notification);
+                }
+                _logger.LogInformation("{Count} اعلان منقضی شده پاکسازی شد", expiredNotifications.Count());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در پاکسازی اعلان‌های منقضی شده");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// تبدیل موجودیت اعلان به مدل پاسخ
+        /// </summary>
+        private static NotificationResponse MapToResponse(Domain.Entities.Notification notification)
         {
             return new NotificationResponse
             {
@@ -212,45 +297,13 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
                 Title = notification.Title,
                 Message = notification.Message,
                 Type = notification.Type,
+                Severity = notification.Severity,
                 UserId = notification.UserId,
                 IsRead = notification.IsRead,
                 CreatedAt = notification.CreatedAt,
+                ReadAt = notification.ReadAt,
                 ExpiryDate = notification.ExpiryDate
             };
         }
-    }
-
-    public class Notification
-    {
-        public string Id { get; set; }
-        public string Title { get; set; }
-        public string Message { get; set; }
-        public NotificationType Type { get; set; }
-        public AlertSeverity Severity { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public bool IsRead { get; set; }
-        public string UserId { get; set; }
-        public DateTime ExpiryDate { get; set; }
-
-        public void MarkAsRead()
-        {
-            IsRead = true;
-        }
-    }
-
-    public enum NotificationType
-    {
-        System,
-        Security,
-        Performance,
-        Error
-    }
-
-    public enum AlertSeverity
-    {
-        Info,
-        Warning,
-        Error,
-        Critical
     }
 } 

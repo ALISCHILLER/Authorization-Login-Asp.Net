@@ -4,44 +4,45 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Security
 {
     /// <summary>
     /// تنظیمات JWT
+    /// این کلاس تنظیمات امنیتی و اعتبارسنجی مربوط به توکن‌های JWT را تعریف می‌کند
     /// </summary>
     public class JwtSettings
     {
         /// <summary>
         /// کلید مخفی برای امضای توکن
         /// </summary>
-        [Required(ErrorMessage = "SecretKey is required")]
-        [MinLength(32, ErrorMessage = "SecretKey must be at least 32 characters long")]
+        [Required(ErrorMessage = "کلید مخفی الزامی است")]
+        [MinLength(32, ErrorMessage = "کلید مخفی باید حداقل 32 کاراکتر باشد")]
         public string SecretKey { get; set; }
 
         /// <summary>
         /// صادرکننده توکن
         /// </summary>
-        [Required(ErrorMessage = "Issuer is required")]
+        [Required(ErrorMessage = "صادرکننده توکن الزامی است")]
         public string Issuer { get; set; }
 
         /// <summary>
         /// مخاطب توکن
         /// </summary>
-        [Required(ErrorMessage = "Audience is required")]
+        [Required(ErrorMessage = "مخاطب توکن الزامی است")]
         public string Audience { get; set; }
 
         /// <summary>
         /// مدت زمان اعتبار توکن (دقیقه)
         /// </summary>
-        [Range(1, 1440, ErrorMessage = "ExpirationInMinutes must be between 1 and 1440")]
+        [Range(1, 1440, ErrorMessage = "مدت زمان اعتبار توکن باید بین 1 تا 1440 دقیقه باشد")]
         public int ExpirationInMinutes { get; set; } = 60;
 
         /// <summary>
         /// مدت زمان اعتبار توکن بازیابی (روز)
         /// </summary>
-        [Range(1, 30, ErrorMessage = "RefreshTokenExpirationDays must be between 1 and 30")]
+        [Range(1, 30, ErrorMessage = "مدت زمان اعتبار توکن بازیابی باید بین 1 تا 30 روز باشد")]
         public int RefreshTokenExpirationDays { get; set; } = 7;
 
         /// <summary>
         /// حداکثر تعداد توکن‌های بازیابی فعال برای هر کاربر
         /// </summary>
-        [Range(1, 10, ErrorMessage = "MaxActiveRefreshTokensPerUser must be between 1 and 10")]
+        [Range(1, 10, ErrorMessage = "حداکثر تعداد توکن‌های بازیابی فعال باید بین 1 تا 10 باشد")]
         public int MaxActiveRefreshTokensPerUser { get; set; } = 5;
 
         /// <summary>
@@ -57,7 +58,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Security
         /// <summary>
         /// مدت زمان اعتبار کش توکن‌ها (دقیقه)
         /// </summary>
-        [Range(1, 1440, ErrorMessage = "TokenCacheExpirationMinutes must be between 1 and 1440")]
+        [Range(1, 1440, ErrorMessage = "مدت زمان اعتبار کش توکن‌ها باید بین 1 تا 1440 دقیقه باشد")]
         public int TokenCacheExpirationMinutes { get; set; } = 60;
 
         /// <summary>
@@ -109,5 +110,25 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Security
         /// Custom Claims
         /// </summary>
         public Dictionary<string, string> CustomClaims { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>
+        /// اعتبارسنجی تنظیمات
+        /// </summary>
+        /// <returns>نتیجه اعتبارسنجی</returns>
+        public ValidationResult Validate()
+        {
+            var validationContext = new ValidationContext(this);
+            var validationResults = new List<ValidationResult>();
+            
+            if (!Validator.TryValidateObject(this, validationContext, validationResults, true))
+            {
+                return new ValidationResult(
+                    string.Join(", ", validationResults.Select(r => r.ErrorMessage)),
+                    validationResults.SelectMany(r => r.MemberNames)
+                );
+            }
+
+            return ValidationResult.Success;
+        }
     }
 } 

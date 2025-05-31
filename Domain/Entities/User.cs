@@ -34,6 +34,7 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// برای ذخیره‌سازی باید در کانفیگ EF Core به عنوان Owned Entity تعریف شود
         /// </summary>
         [Required]
+        [MaxLength(100)]
         public Email Email { get; set; }
 
         /// <summary>
@@ -41,6 +42,7 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// هیچ‌گاه رمز عبور به صورت متن ساده ذخیره نمی‌شود
         /// </summary>
         [Required]
+        [MaxLength(100)]
         public string PasswordHash { get; set; }
 
         /// <summary>
@@ -54,7 +56,13 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// استفاده از Enum برای خوانایی بهتر و جلوگیری از اشتباهات تایپی
         /// </summary>
         [Required]
-        public Enums.RoleType Role { get; set; }
+        public Guid RoleId { get; set; }
+
+        /// <summary>
+        /// Navigation property برای دسترسی به نقش کاربر
+        /// </summary>
+        [ForeignKey("RoleId")]
+        public virtual RoleType Role { get; set;
 
         /// <summary>
         /// تاریخ ایجاد حساب کاربری (ثبت‌نام)
@@ -100,9 +108,9 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         public UserSecuritySettings SecuritySettings { get; set; }
 
         /// <summary>
-        /// لیست دستگاه‌های متصل کاربر
+        /// دستگاه‌های متصل کاربر
         /// </summary>
-        public ICollection<UserDevice> ConnectedDevices { get; set; }
+        public virtual ICollection<UserDevice> UserDevices { get; set; }
 
         /// <summary>
         /// لیست توکن‌های رفرش متعلق به این کاربر
@@ -152,12 +160,29 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         public ICollection<LoginHistory> LoginHistory { get; set; }
 
         /// <summary>
+        /// نام کاربر
+        /// </summary>
+        [MaxLength(50)]
+        public string FirstName { get; set; }
+
+        /// <summary>
+        /// نام خانوادگی کاربر
+        /// </summary>
+        [MaxLength(50)]
+        public string LastName { get; set; }
+
+        /// <summary>
+        /// وضعیت قفل بودن حساب
+        /// </summary>
+        public AccountLockStatus LockStatus { get; private set; }
+
+        /// <summary>
         /// سازنده بدون پارامتر برای EF Core
         /// </summary>
         public User()
         {
             RefreshTokens = new List<RefreshToken>();
-            ConnectedDevices = new List<UserDevice>();
+            UserDevices = new List<UserDevice>();
             SecuritySettings = new UserSecuritySettings();
             RecoveryCodes = new List<TwoFactorRecoveryCode>();
             LoginHistory = new List<LoginHistory>();
@@ -213,12 +238,12 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
             device.LastUsedAt = DateTime.UtcNow;
             device.IsActive = true;
 
-            ConnectedDevices.Add(device);
+            UserDevices.Add(device);
         }
 
         public void RemoveDevice(Guid deviceId)
         {
-            var device = ConnectedDevices.FirstOrDefault(d => d.Id == deviceId);
+            var device = UserDevices.FirstOrDefault(d => d.Id == deviceId);
             if (device != null)
             {
                 device.IsActive = false;
@@ -228,7 +253,7 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
 
         public void UpdateDeviceLastUsed(Guid deviceId)
         {
-            var device = ConnectedDevices.FirstOrDefault(d => d.Id == deviceId);
+            var device = UserDevices.FirstOrDefault(d => d.Id == deviceId);
             if (device != null)
             {
                 device.LastUsedAt = DateTime.UtcNow;
@@ -237,7 +262,7 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
 
         public IEnumerable<UserDevice> GetActiveDevices()
         {
-            return ConnectedDevices.Where(d => d.IsActive);
+            return UserDevices.Where(d => d.IsActive);
         }
 
         // Helper methods for two-factor authentication
@@ -369,5 +394,42 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         {
             RefreshTokens.Clear();
         }
+
+        /// <summary>
+        /// تنظیم وضعیت قفل بودن حساب
+        /// </summary>
+        public void SetLockStatus(AccountLockStatus status)
+        {
+            LockStatus = status;
+            if (status == AccountLockStatus.Locked)
+            {
+                AccountLockoutEnd = DateTime.UtcNow.AddMinutes(SecuritySettings.AccountLockoutDurationMinutes);
+            }
+            else
+            {
+                AccountLockoutEnd = null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// وضعیت قفل بودن حساب کاربری
+    /// </summary>
+    public enum AccountLockStatus
+    {
+        /// <summary>
+        /// حساب باز است
+        /// </summary>
+        Unlocked = 0,
+
+        /// <summary>
+        /// حساب قفل شده است
+        /// </summary>
+        Locked = 1,
+
+        /// <summary>
+        /// حساب به صورت موقت قفل شده است
+        /// </summary>
+        TemporarilyLocked = 2
     }
 }

@@ -5,31 +5,60 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Authorization_Login_Asp.Net.Infrastructure.Data.Configurations
 {
     /// <summary>
-    /// پیکربندی EF Core برای جدول Role
+    /// کلاس پیکربندی موجودیت نقش
+    /// این کلاس تنظیمات نگاشت موجودیت Role به جدول پایگاه داده را تعریف می‌کند
     /// </summary>
     public class RoleConfiguration : IEntityTypeConfiguration<Role>
     {
+        /// <summary>
+        /// متد پیکربندی موجودیت نقش
+        /// </summary>
+        /// <param name="builder">سازنده پیکربندی موجودیت</param>
         public void Configure(EntityTypeBuilder<Role> builder)
         {
-            // کلید اصلی
+            // تنظیم کلید اصلی
             builder.HasKey(r => r.Id);
 
-            // نام نقش - اجباری و یکتا
+            // تنظیم نام جدول
+            builder.ToTable("Roles");
+
+            // تنظیم محدودیت‌های فیلدها
             builder.Property(r => r.Name)
-                   .IsRequired()
-                   .HasMaxLength(50);
+                .IsRequired()
+                .HasMaxLength(50);
 
-            builder.HasIndex(r => r.Name).IsUnique(); // اطمینان از یکتایی نقش‌ها
+            builder.Property(r => r.DisplayName)
+                .IsRequired()
+                .HasMaxLength(100);
 
-            // توضیحات - اختیاری
             builder.Property(r => r.Description)
-                   .HasMaxLength(200);
+                .HasMaxLength(500);
 
-            // ارتباط یک به چند: یک نقش می‌تواند چند RolePermission داشته باشد
+            builder.Property(r => r.Type)
+                .IsRequired();
+
+            builder.Property(r => r.IsActive)
+                .IsRequired();
+
+            builder.Property(r => r.IsSystem)
+                .IsRequired();
+
+            // تنظیم ایندکس‌ها
+            builder.HasIndex(r => r.Name).IsUnique();
+            builder.HasIndex(r => r.Type);
+            builder.HasIndex(r => r.IsActive);
+            builder.HasIndex(r => r.IsSystem);
+
+            // تنظیم رابطه با کاربران
+            builder.HasMany(r => r.Users)
+                .WithMany(u => u.Roles)
+                .UsingEntity(j => j.ToTable("UserRoles"));
+
+            // تنظیم رابطه با دسترسی‌ها
             builder.HasMany(r => r.RolePermissions)
-                   .WithOne(rp => rp.Role)
-                   .HasForeignKey(rp => rp.RoleId)
-                   .OnDelete(DeleteBehavior.Cascade); // حذف نقش باعث حذف RolePermission‌های مربوطه می‌شود
+                .WithOne(rp => rp.Role)
+                .HasForeignKey(rp => rp.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

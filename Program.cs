@@ -5,13 +5,21 @@ using Microsoft.AspNetCore.ResponseCompression;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using FluentValidation.AspNetCore;
 using Serilog;
 using System.Threading.RateLimiting;
 using Authorization_Login_Asp.Net.Application.Interfaces;
 using Authorization_Login_Asp.Net.Infrastructure.Services;
 using Authorization_Login_Asp.Net.API.Middlewares;
 using Authorization_Login_Asp.Net.Infrastructure.Middleware;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Authorization_Login_Asp.Net.Infrastructure.Security;
+using Authorization_Login_Asp.Net.Infrastructure.Options;
+using Authorization_Login_Asp.Net.Infrastructure.HealthChecks;
+using System.IdentityModel.Tokens.Jwt;
+using HealthChecks.UI.Client;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 // تنظیمات اصلی برنامه
 var builder = WebApplication.CreateBuilder(args);
@@ -42,41 +50,129 @@ builder.Services.AddCors(options =>
     });
 });
 
+// ثبت سرویس‌های JWT
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("AppSettings:JwtSettings"));
+builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+builder.Services.AddScoped<ILoginHistoryService, LoginHistoryService>();
+builder.Services.AddMemoryCache();
+
 // تنظیمات احراز هویت JWT
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    var jwtSettings = builder.Configuration.GetSection("AppSettings:JwtSettings").Get<JwtSettings>();
+    var key = Encoding.UTF8.GetBytes(jwtSettings.SecretKey);
+
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        options.TokenValidationParameters = new TokenValidationParameters
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = true,
+        ValidIssuer = jwtSettings.Issuer,
+        ValidateAudience = true,
+        ValidAudience = jwtSettings.Audience,
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero,
+        RequireExpirationTime = true,
+        ValidateTokenReplay = jwtSettings.RevokeOldTokens
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
-            ValidAudience = builder.Configuration["JwtSettings:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:SecretKey"]))
-        };
-    });
+            if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
+            {
+                context.Response.Headers.Add("Token-Expired", "true");
+            }
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            // اعتبارسنجی اضافی توکن
+            var jwtService = context.HttpContext.RequestServices.GetRequiredService<IJwtService>();
+            var token = context.SecurityToken as JwtSecurityToken;
+            
+            if (token != null)
+            {
+                try
+                {
+                    var claims = jwtService.ValidateToken(token.RawData);
+                    // اعتبارسنجی‌های اضافی را اینجا انجام دهید
+                }
+                catch (Exception ex)
+                {
+                    context.Fail(ex);
+                }
+            }
+            return Task.CompletedTask;
+        },
+        OnMessageReceived = context =>
+        {
+            // پشتیبانی از توکن در کوئری استرینگ
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
+});
 
 // تنظیمات Redis برای کش
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = builder.Configuration.GetConnectionString("Redis");
-    options.InstanceName = builder.Configuration["AppSettings:CacheSettings:RedisInstanceName"];
+    options.InstanceName = "Authorization.Login:";
 });
+
+// ثبت سرویس‌های برنامه
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<ISmsService, SmsService>();
+builder.Services.AddScoped<ILoggingService, LoggingService>();
+builder.Services.AddScoped<IImageService, ImageService>();
+builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
+builder.Services.AddSingleton<IMetricsService, MetricsService>();
+
+// تنظیمات AutoMapper برای نگاشت اشیاء
+builder.Services.AddAutoMapper(typeof(Program).Assembly);
+
+// تنظیمات FluentValidation برای اعتبارسنجی
+builder.Services.AddFluentValidation(fv =>
+{
+    fv.RegisterValidatorsFromAssemblyContaining<Program>();
+    fv.AutomaticValidationEnabled = true;
+});
+
+// Configure image service options
+builder.Services.Configure<ImageServiceOptions>(builder.Configuration.GetSection("ImageService"));
 
 // تنظیمات Health Checks برای نظارت بر سلامت سیستم
 builder.Services.AddHealthChecks()
-    .AddSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
-    .AddRedis(builder.Configuration.GetConnectionString("Redis"));
+    .AddDbContextCheck<AppDbContext>()
+    .AddRedis(builder.Configuration.GetConnectionString("Redis"))
+    .AddUrlGroup(new Uri(builder.Configuration["ExternalServices:ApiEndpoint"]), "External API");
 
 // تنظیمات UI برای Health Checks
 builder.Services.AddHealthChecksUI(options =>
 {
     options.SetEvaluationTimeInSeconds(15);
-    options.SetMinimumSecondsBetweenFailureNotifications(60);
-}).AddInMemoryStorage();
+    options.MaximumHistoryEntriesPerEndpoint(50);
+    options.SetApiMaxActiveRequests(1);
+    options.AddHealthCheckEndpoint("API Health", "/health");
+})
+.AddInMemoryStorage();
 
 // تنظیمات Rate Limiting برای جلوگیری از حملات
 builder.Services.AddRateLimiter(options =>
@@ -111,26 +207,17 @@ builder.WebHost.ConfigureKestrel(options =>
     options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(1);
 });
 
-// ثبت سرویس‌های برنامه
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IJwtService, JwtService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<ISmsService, SmsService>();
-builder.Services.AddScoped<ILoggingService, LoggingService>();
-builder.Services.AddScoped<IImageService, ImageService>();
-builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
-
-// تنظیمات AutoMapper برای نگاشت اشیاء
-builder.Services.AddAutoMapper(typeof(Program).Assembly);
-
-// تنظیمات FluentValidation برای اعتبارسنجی
-builder.Services.AddFluentValidation(fv => 
-{
-    fv.RegisterValidatorsFromAssemblyContaining<Program>();
-});
-
-// Configure image service options
-builder.Services.Configure<ImageServiceOptions>(builder.Configuration.GetSection("ImageService"));
+// Add OpenTelemetry
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracerProviderBuilder =>
+        tracerProviderBuilder
+            .AddSource("Authorization.Login")
+            .SetResourceBuilder(ResourceBuilder.CreateDefault()
+                .AddService("Authorization.Login"))
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddSqlClientInstrumentation()
+            .AddOtlpExporter());
 
 // ایجاد برنامه
 var app = builder.Build();
@@ -152,11 +239,35 @@ app.UseAuthorization();
 // میدلورهای لاگینگ و ردیابی
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseMiddleware<MetricsMiddleware>();
 
 // تنظیمات مسیریابی
 app.MapControllers();
-app.MapHealthChecks("/health");
-app.MapHealthChecksUI();
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var response = new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(x => new
+            {
+                name = x.Key,
+                status = x.Value.Status.ToString(),
+                description = x.Value.Description,
+                duration = x.Value.Duration.ToString()
+            })
+        };
+        await context.Response.WriteAsJsonAsync(response);
+    }
+});
+
+app.MapHealthChecksUI(options =>
+{
+    options.UIPath = "/health-ui";
+    options.ApiPath = "/health-api";
+});
 
 app.MapControllers().RequireRateLimiting("fixed");
 

@@ -8,6 +8,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Authorization_Login_Asp.Net.Infrastructure.Services
 {
+    /// <summary>
+    /// پیاده‌سازی سرویس توکن رفرش
+    /// </summary>
     public class RefreshTokenService : IRefreshTokenService
     {
         private readonly IConfiguration _configuration;
@@ -16,48 +19,53 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
         private readonly int _tokenExpirationDays;
         private readonly int _maxActiveTokensPerUser;
 
+        /// <summary>
+        /// سازنده کلاس
+        /// </summary>
         public RefreshTokenService(
             IConfiguration configuration,
             ILogger<RefreshTokenService> logger,
             IRefreshTokenRepository refreshTokenRepository)
         {
-            _configuration = configuration;
-            _logger = logger;
-            _refreshTokenRepository = refreshTokenRepository;
-            _tokenExpirationDays = int.Parse(_configuration["JwtSettings:RefreshTokenExpirationDays"]);
-            _maxActiveTokensPerUser = int.Parse(_configuration["JwtSettings:MaxActiveRefreshTokensPerUser"]);
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _refreshTokenRepository = refreshTokenRepository ?? throw new ArgumentNullException(nameof(refreshTokenRepository));
+            
+            _tokenExpirationDays = _configuration.GetValue<int>("AppSettings:JwtSettings:RefreshTokenExpiryDays", 7);
+            _maxActiveTokensPerUser = _configuration.GetValue<int>("AppSettings:JwtSettings:MaxActiveRefreshTokensPerUser", 5);
         }
 
-        public async Task<RefreshToken> GenerateRefreshTokenAsync(int userId, string ipAddress)
+        /// <inheritdoc/>
+        public async Task<string> GenerateRefreshTokenAsync(Guid userId)
         {
             try
             {
-                // Revoke all existing refresh tokens for this user if max limit reached
+                // بررسی تعداد توکن‌های فعال کاربر
                 var activeTokens = await _refreshTokenRepository.GetActiveTokensByUserIdAsync(userId);
                 if (activeTokens.Count >= _maxActiveTokensPerUser)
                 {
+                    // باطل کردن تمام توکن‌های قبلی
                     foreach (var token in activeTokens)
                     {
                         await RevokeRefreshTokenAsync(token.Token);
                     }
                 }
 
-                var token = new RefreshToken
+                var refreshToken = new RefreshToken
                 {
-                    Token = GenerateRandomToken(),
+                    Id = Guid.NewGuid(),
                     UserId = userId,
+                    Token = GenerateRandomToken(),
                     ExpiresAt = DateTime.UtcNow.AddDays(_tokenExpirationDays),
                     CreatedAt = DateTime.UtcNow,
-                    CreatedByIp = ipAddress,
-                    IsRevoked = false,
-                    ReplacedByToken = null,
-                    ReasonRevoked = null
+                    IsRevoked = false
                 };
 
-                await _refreshTokenRepository.AddAsync(token);
-                _logger.LogInformation("Generated new refresh token for user {UserId}", userId);
+                await _refreshTokenRepository.AddAsync(refreshToken);
+                await _refreshTokenRepository.SaveChangesAsync();
 
-                return token;
+                _logger.LogInformation("Generated new refresh token for user {UserId}", userId);
+                return refreshToken.Token;
             }
             catch (Exception ex)
             {
@@ -66,42 +74,56 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
             }
         }
 
-        public async Task<RefreshToken> GetRefreshTokenAsync(string token)
+        /// <inheritdoc/>
+        public async Task<string> RefreshTokenAsync(string refreshToken)
         {
             try
             {
-                var refreshToken = await _refreshTokenRepository.GetByTokenAsync(token);
-                if (refreshToken == null)
+                var token = await _refreshTokenRepository.GetByTokenAsync(refreshToken);
+                if (token == null)
                 {
                     throw new RefreshTokenServiceException("Invalid refresh token");
                 }
 
-                return refreshToken;
+                if (!token.IsValid())
+                {
+                    throw new RefreshTokenServiceException("Refresh token is no longer valid");
+                }
+
+                // تولید توکن جدید
+                var newToken = await GenerateRefreshTokenAsync(token.UserId);
+
+                // باطل کردن توکن قبلی
+                token.Revoke("Rotated", token.Id);
+                await _refreshTokenRepository.UpdateAsync(token);
+                await _refreshTokenRepository.SaveChangesAsync();
+
+                _logger.LogInformation("Refreshed token for user {UserId}", token.UserId);
+                return newToken;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to get refresh token");
-                throw new RefreshTokenServiceException("Failed to get refresh token", ex);
+                _logger.LogError(ex, "Failed to refresh token");
+                throw new RefreshTokenServiceException("Failed to refresh token", ex);
             }
         }
 
-        public async Task RevokeRefreshTokenAsync(string token, string ipAddress = null, string reason = null)
+        /// <inheritdoc/>
+        public async Task RevokeRefreshTokenAsync(string refreshToken)
         {
             try
             {
-                var refreshToken = await _refreshTokenRepository.GetByTokenAsync(token);
-                if (refreshToken == null)
+                var token = await _refreshTokenRepository.GetByTokenAsync(refreshToken);
+                if (token == null)
                 {
                     throw new RefreshTokenServiceException("Invalid refresh token");
                 }
 
-                refreshToken.IsRevoked = true;
-                refreshToken.RevokedAt = DateTime.UtcNow;
-                refreshToken.RevokedByIp = ipAddress;
-                refreshToken.ReasonRevoked = reason;
+                token.Revoke("Revoked by user");
+                await _refreshTokenRepository.UpdateAsync(token);
+                await _refreshTokenRepository.SaveChangesAsync();
 
-                await _refreshTokenRepository.UpdateAsync(refreshToken);
-                _logger.LogInformation("Revoked refresh token for user {UserId}", refreshToken.UserId);
+                _logger.LogInformation("Revoked refresh token for user {UserId}", token.UserId);
             }
             catch (Exception ex)
             {
@@ -110,15 +132,19 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
             }
         }
 
-        public async Task RevokeAllRefreshTokensForUserAsync(int userId, string ipAddress = null, string reason = null)
+        /// <inheritdoc/>
+        public async Task RevokeAllTokensForUserAsync(Guid userId)
         {
             try
             {
                 var tokens = await _refreshTokenRepository.GetActiveTokensByUserIdAsync(userId);
                 foreach (var token in tokens)
                 {
-                    await RevokeRefreshTokenAsync(token.Token, ipAddress, reason);
+                    token.Revoke("Revoked all tokens");
+                    await _refreshTokenRepository.UpdateAsync(token);
                 }
+                await _refreshTokenRepository.SaveChangesAsync();
+
                 _logger.LogInformation("Revoked all refresh tokens for user {UserId}", userId);
             }
             catch (Exception ex)
@@ -128,66 +154,9 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
             }
         }
 
-        public async Task<bool> ValidateRefreshTokenAsync(string token)
-        {
-            try
-            {
-                var refreshToken = await _refreshTokenRepository.GetByTokenAsync(token);
-                if (refreshToken == null)
-                {
-                    return false;
-                }
-
-                if (refreshToken.IsRevoked)
-                {
-                    _logger.LogWarning("Attempted to use revoked refresh token");
-                    return false;
-                }
-
-                if (refreshToken.ExpiresAt < DateTime.UtcNow)
-                {
-                    _logger.LogWarning("Attempted to use expired refresh token");
-                    return false;
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to validate refresh token");
-                return false;
-            }
-        }
-
-        public async Task RotateRefreshTokenAsync(string token, string ipAddress)
-        {
-            try
-            {
-                var refreshToken = await _refreshTokenRepository.GetByTokenAsync(token);
-                if (refreshToken == null)
-                {
-                    throw new RefreshTokenServiceException("Invalid refresh token");
-                }
-
-                // Generate new token
-                var newToken = await GenerateRefreshTokenAsync(refreshToken.UserId, ipAddress);
-
-                // Revoke old token
-                await RevokeRefreshTokenAsync(token, ipAddress, "Rotated");
-
-                // Update old token with new token reference
-                refreshToken.ReplacedByToken = newToken.Token;
-                await _refreshTokenRepository.UpdateAsync(refreshToken);
-
-                _logger.LogInformation("Rotated refresh token for user {UserId}", refreshToken.UserId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to rotate refresh token");
-                throw new RefreshTokenServiceException("Failed to rotate refresh token", ex);
-            }
-        }
-
+        /// <summary>
+        /// تولید توکن تصادفی
+        /// </summary>
         private string GenerateRandomToken()
         {
             var randomBytes = new byte[32];
@@ -197,28 +166,11 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Services
             }
             return Convert.ToBase64String(randomBytes);
         }
-
-        public Task<string> GenerateRefreshTokenAsync(Guid userId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<string> RefreshTokenAsync(string refreshToken)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task RevokeRefreshTokenAsync(string refreshToken)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task RevokeAllTokensForUserAsync(Guid userId)
-        {
-            throw new NotImplementedException();
-        }
     }
 
+    /// <summary>
+    /// استثنای مربوط به سرویس توکن رفرش
+    /// </summary>
     public class RefreshTokenServiceException : Exception
     {
         public RefreshTokenServiceException(string message) : base(message) { }

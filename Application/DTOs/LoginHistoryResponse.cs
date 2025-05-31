@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Authorization_Login_Asp.Net.Application.DTOs
 {
     /// <summary>
-    /// پاسخ تاریخچه ورود
+    /// پاسخ صفحه‌بندی شده تاریخچه ورود
     /// </summary>
     public class LoginHistoryResponse
     {
@@ -26,17 +26,17 @@ namespace Authorization_Login_Asp.Net.Application.DTOs
         /// <summary>
         /// تعداد کل صفحات
         /// </summary>
-        public int TotalPages { get; set; }
+        public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
 
         /// <summary>
         /// آیا صفحه بعدی وجود دارد
         /// </summary>
-        public bool HasNextPage { get; set; }
+        public bool HasNextPage => PageNumber < TotalPages;
 
         /// <summary>
         /// آیا صفحه قبلی وجود دارد
         /// </summary>
-        public bool HasPreviousPage { get; set; }
+        public bool HasPreviousPage => PageNumber > 1;
 
         /// <summary>
         /// لیست آیتم‌های تاریخچه ورود
@@ -70,9 +70,54 @@ namespace Authorization_Login_Asp.Net.Application.DTOs
         public string UserAgent { get; set; }
 
         /// <summary>
+        /// نام دستگاه
+        /// </summary>
+        public string DeviceName { get; set; }
+
+        /// <summary>
+        /// نوع دستگاه
+        /// </summary>
+        public string DeviceType { get; set; }
+
+        /// <summary>
+        /// سیستم عامل
+        /// </summary>
+        public string OperatingSystem { get; set; }
+
+        /// <summary>
+        /// نام مرورگر
+        /// </summary>
+        public string BrowserName { get; set; }
+
+        /// <summary>
+        /// نسخه مرورگر
+        /// </summary>
+        public string BrowserVersion { get; set; }
+
+        /// <summary>
+        /// کشور
+        /// </summary>
+        public string Country { get; set; }
+
+        /// <summary>
+        /// شهر
+        /// </summary>
+        public string City { get; set; }
+
+        /// <summary>
         /// زمان ورود
         /// </summary>
-        public System.DateTime LoginTime { get; set; }
+        public DateTime LoginTime { get; set; }
+
+        /// <summary>
+        /// زمان خروج
+        /// </summary>
+        public DateTime? LogoutTime { get; set; }
+
+        /// <summary>
+        /// مدت زمان نشست (به ثانیه)
+        /// </summary>
+        public int? SessionDuration { get; set; }
 
         /// <summary>
         /// آیا ورود موفقیت‌آمیز بود
@@ -80,8 +125,8 @@ namespace Authorization_Login_Asp.Net.Application.DTOs
         public bool IsSuccessful { get; set; }
 
         /// <summary>
-        /// پیام خطا (در صورت ناموفق بودن)
+        /// دلیل شکست (در صورت ناموفق بودن)
         /// </summary>
-        public string ErrorMessage { get; set; }
+        public string FailureReason { get; set; }
     }
 } 

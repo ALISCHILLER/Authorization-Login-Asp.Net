@@ -338,5 +338,7 @@ namespace Authorization_Login_Asp.Net.Application.Interfaces
         /// توکن رفرش
         /// </summary>
         public string RefreshToken { get; set; }
+        public DateTime AccessTokenExpiresAt { get; internal set; }
+        public DateTime RefreshTokenExpiresAt { get; internal set; }
     }
 }

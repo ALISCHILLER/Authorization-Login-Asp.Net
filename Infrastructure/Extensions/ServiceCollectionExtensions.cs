@@ -31,7 +31,7 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Extensions
             services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
             // Register security services
-            services.AddScoped<IPasswordHasher, PasswordHasher>();
+            services.AddScoped<IPasswordHasher, Security.PasswordHasher>();
             services.AddScoped<ITwoFactorAuthenticator, TwoFactorAuthenticator>();
             services.AddSingleton<RateLimiter>();
 

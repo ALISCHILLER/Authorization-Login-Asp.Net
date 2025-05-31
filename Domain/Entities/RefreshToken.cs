@@ -31,17 +31,19 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// <summary>
         /// تاریخ انقضا
         /// </summary>
+        [Required]
         public DateTime ExpiresAt { get; set; }
 
         /// <summary>
         /// تاریخ ایجاد
         /// </summary>
-        public DateTime CreatedAt { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         /// <summary>
-        /// تاریخ استفاده
+        /// آدرس IP ایجاد کننده توکن
         /// </summary>
-        public DateTime? UsedAt { get; set; }
+        [MaxLength(50)]
+        public string CreatedByIp { get; set; }
 
         /// <summary>
         /// تاریخ باطل شدن
@@ -49,33 +51,48 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         public DateTime? RevokedAt { get; set; }
 
         /// <summary>
+        /// آدرس IP باطل کننده توکن
+        /// </summary>
+        [MaxLength(50)]
+        public string RevokedByIp { get; set; }
+
+        /// <summary>
+        /// شناسه توکن جایگزین (برای چرخش توکن)
+        /// </summary>
+        public Guid? ReplacedByTokenId { get; set; }
+
+        /// <summary>
         /// دلیل باطل شدن
         /// </summary>
         [MaxLength(200)]
-        public string RevokedReason { get; set; }
+        public string ReasonRevoked { get; set; }
 
         /// <summary>
-        /// آدرس IP
+        /// وضعیت انقضا
         /// </summary>
-        [MaxLength(45)]
-        public string IpAddress { get; set; }
+        public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
 
         /// <summary>
-        /// اطلاعات دستگاه
+        /// وضعیت باطل شدن
         /// </summary>
-        [MaxLength(200)]
-        public string DeviceInfo { get; set; }
+        public bool IsRevoked => RevokedAt != null;
 
         /// <summary>
         /// وضعیت فعال بودن
         /// </summary>
-        public bool IsActive { get; set; } = true;
+        public bool IsActive => !IsRevoked && !IsExpired;
 
         /// <summary>
         /// کاربر
         /// </summary>
         [ForeignKey(nameof(UserId))]
         public virtual User User { get; set; }
+
+        /// <summary>
+        /// توکن جایگزین (برای چرخش توکن)
+        /// </summary>
+        [ForeignKey(nameof(ReplacedByTokenId))]
+        public virtual RefreshToken ReplacedByToken { get; set; }
 
         /// <summary>
         /// بررسی معتبر بودن توکن
@@ -89,11 +106,12 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         /// باطل کردن توکن
         /// </summary>
         /// <param name="reason">دلیل باطل شدن</param>
-        public void Revoke(string reason = null)
+        /// <param name="replacedByTokenId">شناسه توکن جایگزین (اختیاری)</param>
+        public void Revoke(string reason = null, Guid? replacedByTokenId = null)
         {
             RevokedAt = DateTime.UtcNow;
-            RevokedReason = reason;
-            IsActive = false;
+            ReasonRevoked = reason;
+            ReplacedByTokenId = replacedByTokenId;
         }
     }
 }

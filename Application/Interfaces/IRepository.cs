@@ -6,69 +6,70 @@ using System.Threading.Tasks;
 namespace Authorization_Login_Asp.Net.Application.Interfaces
 {
     /// <summary>
-    /// اینترفیس عمومی مخزن (Repository) برای انجام عملیات پایه CRUD روی موجودیت‌ها
-    /// با قابلیت کار با انواع مختلف موجودیت‌ها (Generic)
+    /// اینترفیس پایه برای ریپازیتوری‌ها؛ این کلاس متدهای عمومی (مثلا افزودن، حذف، به‌روزرسانی، بازیابی و فیلتر کردن موجودیت‌ها) را تعریف می‌کند.
     /// </summary>
-    /// <typeparam name="T">نوع موجودیت (Entity) که این ریپازیتوری برای آن کار می‌کند</typeparam>
+    /// <typeparam name="T">نوع موجودیت (مثلا User، Role و غیره)</typeparam>
     public interface IRepository<T> where T : class
     {
         /// <summary>
-        /// دریافت همه رکوردهای موجودیت به صورت لیست
+        /// افزودن یک موجودیت جدید به مخزن (با ذخیره‌سازی ناهمگام)؛ این متد یک موجودیت را به مخزن اضافه می‌کند و در صورت موفقیت، موجودیت (با شناسه‌های تولید شده) را برمی‌گرداند.
         /// </summary>
-        /// <returns>لیست تمام رکوردهای موجودیت</returns>
-        Task<IEnumerable<T>> GetAllAsync();
+        /// <param name="entity">موجودیت مورد نظر</param>
+        /// <returns>موجودیت افزوده شده (با شناسه‌های تولید شده)</returns>
+        Task<T> AddAsync(T entity);
 
         /// <summary>
-        /// دریافت یک رکورد موجودیت بر اساس شناسه یکتا (Id)
+        /// حذف یک موجودیت از مخزن (با ذخیره‌سازی ناهمگام)؛ این متد یک موجودیت را از مخزن حذف می‌کند و وضعیت حذف (موفق یا ناموفق) را برمی‌گرداند.
         /// </summary>
-        /// <param name="id">شناسه یکتا (معمولاً Guid یا کلید اصلی)</param>
-        /// <returns>رکورد موجودیت یا null در صورت عدم وجود</returns>
+        /// <param name="entity">موجودیت مورد نظر</param>
+        /// <returns>وضعیت حذف (موفق یا ناموفق)</returns>
+        Task<bool> RemoveAsync(T entity);
+
+        /// <summary>
+        /// به‌روزرسانی یک موجودیت در مخزن (با ذخیره‌سازی ناهمگام)؛ این متد یک موجودیت را با مقادیر به‌روز شده در مخزن به‌روزرسانی می‌کند و وضعیت به‌روزرسانی (موفق یا ناموفق) را برمی‌گرداند.
+        /// </summary>
+        /// <param name="entity">موجودیت مورد نظر (با مقادیر به‌روز شده)</param>
+        /// <returns>وضعیت به‌روزرسانی (موفق یا ناموفق)</returns>
+        Task<bool> UpdateAsync(T entity);
+
+        /// <summary>
+        /// بازیابی یک موجودیت بر اساس شناسه (با ذخیره‌سازی ناهمگام)؛ این متد یک موجودیت را بر اساس شناسه (GUID) بازیابی می‌کند و در صورت عدم وجود، مقدار null را برمی‌گرداند.
+        /// </summary>
+        /// <param name="id">شناسه (GUID) موجودیت</param>
+        /// <returns>موجودیت مورد نظر (یا null در صورت عدم وجود)</returns>
         Task<T> GetByIdAsync(Guid id);
 
         /// <summary>
-        /// جستجو و دریافت لیستی از موجودیت‌ها بر اساس شرط دلخواه
+        /// بازیابی تمام موجودیت‌ها (با ذخیره‌سازی ناهمگام)؛ این متد لیست تمام موجودیت‌های موجود در مخزن را برمی‌گرداند.
         /// </summary>
-        /// <param name="predicate">عبارت شرطی (Expression) برای فیلتر کردن رکوردها</param>
-        /// <returns>لیستی از رکوردهای مطابق شرط</returns>
-        Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
+        /// <returns>لیست تمام موجودیت‌ها</returns>
+        Task<IEnumerable<T>> GetAllAsync();
 
         /// <summary>
-        /// افزودن موجودیت جدید به مخزن (برای ذخیره‌سازی بعدی در دیتابیس)
+        /// بازیابی موجودیت‌ها بر اساس یک شرط (با ذخیره‌سازی ناهمگام)؛ این متد لیست موجودیت‌هایی را که با شرط (به صورت Expression) مطابقت دارند، برمی‌گرداند.
         /// </summary>
-        /// <param name="entity">موجودیت جدید برای افزودن</param>
-        /// <returns>تسک اجرای عملیات</returns>
-        Task AddAsync(T entity);
+        /// <param name="predicate">شرط (به صورت Expression) برای فیلتر کردن موجودیت‌ها</param>
+        /// <returns>لیست موجودیت‌های مطابق شرط</returns>
+        Task<IEnumerable<T>> GetAsync(Expression<Func<T, bool>> predicate);
 
         /// <summary>
-        /// افزودن چند موجودیت به صورت گروهی
+        /// بازیابی یک موجودیت بر اساس شرط (با ذخیره‌سازی ناهمگام)؛ این متد اولین موجودیتی را که با شرط (به صورت Expression) مطابقت دارد، برمی‌گرداند و در صورت عدم وجود، مقدار null را برمی‌گرداند.
         /// </summary>
-        /// <param name="entities">لیست موجودیت‌ها برای افزودن</param>
-        /// <returns>تسک اجرای عملیات</returns>
-        Task AddRangeAsync(IEnumerable<T> entities);
+        /// <param name="predicate">شرط (به صورت Expression) برای فیلتر کردن موجودیت‌ها</param>
+        /// <returns>موجودیت مورد نظر (یا null در صورت عدم وجود)</returns>
+        Task<T> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate);
 
         /// <summary>
-        /// حذف موجودیت از مخزن (نشانه‌گذاری برای حذف در دیتابیس)
+        /// بررسی وجود یک موجودیت بر اساس شرط (با ذخیره‌سازی ناهمگام)؛ این متد وضعیت وجود (بله یا خیر) را بر اساس شرط (به صورت Expression) برمی‌گرداند.
         /// </summary>
-        /// <param name="entity">موجودیتی که باید حذف شود</param>
-        void Remove(T entity);
+        /// <param name="predicate">شرط (به صورت Expression) برای بررسی وجود موجودیت</param>
+        /// <returns>وضعیت وجود (بله یا خیر)</returns>
+        Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate);
 
         /// <summary>
-        /// حذف گروهی چند موجودیت از مخزن
+        /// ذخیره‌سازی تغییرات (با ذخیره‌سازی ناهمگام)؛ این متد معمولاً در انتهای عملیات‌های چند مرحله‌ای فراخوانی می‌شود و وضعیت ذخیره‌سازی (موفق یا ناموفق) را برمی‌گرداند.
         /// </summary>
-        /// <param name="entities">لیست موجودیت‌هایی که باید حذف شوند</param>
-        void RemoveRange(IEnumerable<T> entities);
-
-        /// <summary>
-        /// به‌روزرسانی اطلاعات موجودیت موجود
-        /// </summary>
-        /// <param name="entity">موجودیت با اطلاعات به‌روز شده</param>
-        void Update(T entity);
-
-        /// <summary>
-        /// ذخیره نهایی تغییرات انجام شده در دیتابیس
-        /// این متد معمولاً باید پس از افزودن، حذف یا به‌روزرسانی فراخوانی شود
-        /// </summary>
-        /// <returns>تعداد رکوردهای تغییر یافته در دیتابیس</returns>
-        Task<int> SaveChangesAsync();
+        /// <returns>وضعیت ذخیره‌سازی (موفق یا ناموفق)</returns>
+        Task<bool> SaveChangesAsync();
     }
 }

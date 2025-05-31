@@ -35,6 +35,11 @@ namespace Authorization_Login_Asp.Net.Domain.Entities
         public string Description { get; set; }
 
         /// <summary>
+        /// زمان ایجاد رکورد
+        /// </summary>
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
         /// Navigation Property به Role
         /// </summary>
         [ForeignKey(nameof(RoleId))]

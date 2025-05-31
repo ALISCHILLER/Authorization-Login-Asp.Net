@@ -1,29 +1,58 @@
 ﻿namespace Authorization_Login_Asp.Net.Domain.Enums
 {
     /// <summary>
-    /// نوع یا دسته‌بندی پرمیشن‌ها برای سازماندهی بهتر
-    /// مثلا: پرمیشن‌های مرتبط با کاربر، محتوا، گزارش و ...
+    /// انواع دسترسی‌ها (پرمیشن‌ها) در سیستم
     /// </summary>
     public enum PermissionType
     {
         /// <summary>
-        /// مدیریت کاربران
+        /// دسترسی به خواندن اطلاعات
         /// </summary>
-        UserManagement,
+        Read = 1,
 
         /// <summary>
-        /// مدیریت محتوا
+        /// دسترسی به ایجاد اطلاعات جدید
         /// </summary>
-        ContentManagement,
+        Create = 2,
 
         /// <summary>
-        /// مدیریت گزارش‌ها
+        /// دسترسی به ویرایش اطلاعات
         /// </summary>
-        Reporting,
+        Update = 3,
 
         /// <summary>
-        /// تنظیمات سیستم
+        /// دسترسی به حذف اطلاعات
         /// </summary>
-        Settings
+        Delete = 4,
+
+        /// <summary>
+        /// دسترسی به مدیریت کاربران
+        /// </summary>
+        ManageUsers = 5,
+
+        /// <summary>
+        /// دسترسی به مدیریت نقش‌ها
+        /// </summary>
+        ManageRoles = 6,
+
+        /// <summary>
+        /// دسترسی به مدیریت دسترسی‌ها
+        /// </summary>
+        ManagePermissions = 7,
+
+        /// <summary>
+        /// دسترسی به تنظیمات سیستم
+        /// </summary>
+        ManageSettings = 8,
+
+        /// <summary>
+        /// دسترسی به گزارش‌گیری
+        /// </summary>
+        GenerateReports = 9,
+
+        /// <summary>
+        /// دسترسی به مدیریت لاگ‌ها
+        /// </summary>
+        ManageLogs = 10
     }
 }

@@ -5,80 +5,235 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Authorization_Login_Asp.Net.Infrastructure.Repositories
 {
     /// <summary>
-    /// پیاده‌سازی مخزن (Repository) ارتباط نقش و پرمیشن با استفاده از Entity Framework Core
+    /// پیاده‌سازی مخزن ارتباط نقش-دسترسی
+    /// این کلاس عملیات مربوط به ارتباط بین نقش‌ها و دسترسی‌ها را در پایگاه داده پیاده‌سازی می‌کند
     /// </summary>
-    public class RolePermissionRepository : IRolePermissionRepository
+    public class RolePermissionRepository : Repository<RolePermission>, IRolePermissionRepository
     {
-        private readonly AppDbContext _context;
-        private readonly DbSet<RolePermission> _rolePermissions;
-
-        public RolePermissionRepository(AppDbContext context)
+        /// <summary>
+        /// سازنده کلاس مخزن ارتباط نقش-دسترسی
+        /// </summary>
+        /// <param name="context">کانتکست پایگاه داده</param>
+        public RolePermissionRepository(AppDbContext context) : base(context)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
-            _rolePermissions = _context.Set<RolePermission>();
         }
 
-        public async Task<IEnumerable<RolePermission>> GetAllAsync()
+        /// <summary>
+        /// دریافت تمام ارتباطات نقش-دسترسی
+        /// </summary>
+        /// <param name="cancellationToken">امکان لغو عملیات</param>
+        /// <returns>لیست تمام ارتباطات نقش-دسترسی</returns>
+        public async Task<IEnumerable<RolePermission>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            return await _rolePermissions
+            return await _dbSet
                 .Include(rp => rp.Role)
                 .Include(rp => rp.Permission)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
         }
 
-        public async Task<RolePermission> GetByIdAsync(Guid id)
+        /// <summary>
+        /// دریافت ارتباطات یک نقش
+        /// </summary>
+        /// <param name="roleId">شناسه نقش</param>
+        /// <param name="cancellationToken">امکان لغو عملیات</param>
+        /// <returns>لیست ارتباطات نقش مورد نظر</returns>
+        public async Task<IEnumerable<RolePermission>> GetByRoleIdAsync(Guid roleId, CancellationToken cancellationToken = default)
         {
-            return await _rolePermissions
+            return await _dbSet
                 .Include(rp => rp.Role)
-                .Include(rp => rp.Permission)
-                .FirstOrDefaultAsync(rp => rp.Id == id);
-        }
-
-        public async Task<IEnumerable<RolePermission>> GetByRoleIdAsync(Guid roleId)
-        {
-            return await _rolePermissions
                 .Include(rp => rp.Permission)
                 .Where(rp => rp.RoleId == roleId)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
         }
 
-        public async Task<IEnumerable<RolePermission>> GetByPermissionIdAsync(Guid permissionId)
+        /// <summary>
+        /// دریافت ارتباطات یک دسترسی
+        /// </summary>
+        /// <param name="permissionId">شناسه دسترسی</param>
+        /// <param name="cancellationToken">امکان لغو عملیات</param>
+        /// <returns>لیست ارتباطات دسترسی مورد نظر</returns>
+        public async Task<IEnumerable<RolePermission>> GetByPermissionIdAsync(Guid permissionId, CancellationToken cancellationToken = default)
         {
-            return await _rolePermissions
+            return await _dbSet
                 .Include(rp => rp.Role)
+                .Include(rp => rp.Permission)
                 .Where(rp => rp.PermissionId == permissionId)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
         }
 
-        public async Task AddAsync(RolePermission rolePermission)
+        /// <summary>
+        /// بررسی وجود ارتباط بین نقش و دسترسی
+        /// </summary>
+        /// <param name="roleId">شناسه نقش</param>
+        /// <param name="permissionId">شناسه دسترسی</param>
+        /// <param name="cancellationToken">امکان لغو عملیات</param>
+        /// <returns>درست اگر ارتباط وجود داشته باشد</returns>
+        public async Task<bool> ExistsAsync(Guid roleId, Guid permissionId, CancellationToken cancellationToken = default)
         {
+            return await _dbSet
+                .AnyAsync(rp => rp.RoleId == roleId && rp.PermissionId == permissionId, cancellationToken);
+        }
+
+        /// <summary>
+        /// افزودن دسترسی به نقش
+        /// </summary>
+        /// <param name="roleId">شناسه نقش</param>
+        /// <param name="permissionId">شناسه دسترسی</param>
+        /// <param name="cancellationToken">امکان لغو عملیات</param>
+        /// <returns>ارتباط ایجاد شده</returns>
+        /// <exception cref="InvalidOperationException">در صورت وجود ارتباط تکراری</exception>
+        public async Task<RolePermission> AddPermissionToRoleAsync(Guid roleId, Guid permissionId, CancellationToken cancellationToken = default)
+        {
+            if (await ExistsAsync(roleId, permissionId, cancellationToken))
+                throw new InvalidOperationException("این دسترسی قبلاً به نقش اضافه شده است");
+
+            var rolePermission = new RolePermission
+            {
+                RoleId = roleId,
+                PermissionId = permissionId
+            };
+
+            await _dbSet.AddAsync(rolePermission, cancellationToken);
+            await SaveChangesAsync(cancellationToken);
+
+            return await _dbSet
+                .Include(rp => rp.Role)
+                .Include(rp => rp.Permission)
+                .FirstOrDefaultAsync(rp => rp.RoleId == roleId && rp.PermissionId == permissionId, cancellationToken);
+        }
+
+        /// <summary>
+        /// حذف دسترسی از نقش
+        /// </summary>
+        /// <param name="roleId">شناسه نقش</param>
+        /// <param name="permissionId">شناسه دسترسی</param>
+        /// <param name="cancellationToken">امکان لغو عملیات</param>
+        /// <returns>درست اگر عملیات موفقیت‌آمیز باشد</returns>
+        public async Task<bool> RemovePermissionFromRoleAsync(Guid roleId, Guid permissionId, CancellationToken cancellationToken = default)
+        {
+            var rolePermission = await _dbSet
+                .FirstOrDefaultAsync(rp => rp.RoleId == roleId && rp.PermissionId == permissionId, cancellationToken);
+
             if (rolePermission == null)
-                throw new ArgumentNullException(nameof(rolePermission));
-            await _rolePermissions.AddAsync(rolePermission);
+                return false;
+
+            _dbSet.Remove(rolePermission);
+            return await SaveChangesAsync(cancellationToken) > 0;
         }
 
-        public void Remove(RolePermission rolePermission)
+        /// <summary>
+        /// حذف تمام دسترسی‌های یک نقش
+        /// </summary>
+        /// <param name="roleId">شناسه نقش</param>
+        /// <param name="cancellationToken">امکان لغو عملیات</param>
+        /// <returns>تعداد دسترسی‌های حذف شده</returns>
+        public async Task<int> RemoveAllPermissionsFromRoleAsync(Guid roleId, CancellationToken cancellationToken = default)
         {
-            if (rolePermission == null)
-                throw new ArgumentNullException(nameof(rolePermission));
-            _rolePermissions.Remove(rolePermission);
+            var rolePermissions = await _dbSet
+                .Where(rp => rp.RoleId == roleId)
+                .ToListAsync(cancellationToken);
+
+            if (!rolePermissions.Any())
+                return 0;
+
+            _dbSet.RemoveRange(rolePermissions);
+            return await SaveChangesAsync(cancellationToken);
         }
 
-        public void Update(RolePermission rolePermission)
+        /// <summary>
+        /// افزودن چند دسترسی به نقش
+        /// </summary>
+        /// <param name="roleId">شناسه نقش</param>
+        /// <param name="permissionIds">شناسه‌های دسترسی‌ها</param>
+        /// <param name="cancellationToken">امکان لغو عملیات</param>
+        /// <returns>لیست ارتباطات ایجاد شده</returns>
+        /// <exception cref="InvalidOperationException">در صورت وجود دسترسی تکراری</exception>
+        public async Task<IEnumerable<RolePermission>> AddPermissionsToRoleAsync(Guid roleId, IEnumerable<Guid> permissionIds, CancellationToken cancellationToken = default)
         {
-            if (rolePermission == null)
-                throw new ArgumentNullException(nameof(rolePermission));
-            _context.Entry(rolePermission).State = EntityState.Modified;
+            if (permissionIds == null || !permissionIds.Any())
+                throw new ArgumentException("لیست دسترسی‌ها نمی‌تواند خالی باشد", nameof(permissionIds));
+
+            var existingPermissions = await _dbSet
+                .Where(rp => rp.RoleId == roleId && permissionIds.Contains(rp.PermissionId))
+                .Select(rp => rp.PermissionId)
+                .ToListAsync(cancellationToken);
+
+            if (existingPermissions.Any())
+                throw new InvalidOperationException($"دسترسی‌های زیر قبلاً به نقش اضافه شده‌اند: {string.Join(", ", existingPermissions)}");
+
+            var rolePermissions = permissionIds.Select(permissionId => new RolePermission
+            {
+                RoleId = roleId,
+                PermissionId = permissionId
+            }).ToList();
+
+            await _dbSet.AddRangeAsync(rolePermissions, cancellationToken);
+            await SaveChangesAsync(cancellationToken);
+
+            return await _dbSet
+                .Include(rp => rp.Role)
+                .Include(rp => rp.Permission)
+                .Where(rp => rp.RoleId == roleId && permissionIds.Contains(rp.PermissionId))
+                .ToListAsync(cancellationToken);
         }
 
-        public async Task<bool> ExistsAsync(Guid roleId, Guid permissionId)
+        /// <summary>
+        /// حذف چند دسترسی از نقش
+        /// </summary>
+        /// <param name="roleId">شناسه نقش</param>
+        /// <param name="permissionIds">شناسه‌های دسترسی‌ها</param>
+        /// <param name="cancellationToken">امکان لغو عملیات</param>
+        /// <returns>تعداد دسترسی‌های حذف شده</returns>
+        public async Task<int> RemovePermissionsFromRoleAsync(Guid roleId, IEnumerable<Guid> permissionIds, CancellationToken cancellationToken = default)
         {
-            return await _rolePermissions.AnyAsync(rp => rp.RoleId == roleId && rp.PermissionId == permissionId);
+            if (permissionIds == null || !permissionIds.Any())
+                throw new ArgumentException("لیست دسترسی‌ها نمی‌تواند خالی باشد", nameof(permissionIds));
+
+            var rolePermissions = await _dbSet
+                .Where(rp => rp.RoleId == roleId && permissionIds.Contains(rp.PermissionId))
+                .ToListAsync(cancellationToken);
+
+            if (!rolePermissions.Any())
+                return 0;
+
+            _dbSet.RemoveRange(rolePermissions);
+            return await SaveChangesAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// دریافت دسترسی‌های یک نقش
+        /// </summary>
+        /// <param name="roleId">شناسه نقش</param>
+        /// <param name="cancellationToken">امکان لغو عملیات</param>
+        /// <returns>لیست دسترسی‌های نقش مورد نظر</returns>
+        public async Task<IEnumerable<Permission>> GetRolePermissionsAsync(Guid roleId, CancellationToken cancellationToken = default)
+        {
+            return await _dbSet
+                .Where(rp => rp.RoleId == roleId)
+                .Include(rp => rp.Permission)
+                .Select(rp => rp.Permission)
+                .ToListAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// دریافت نقش‌های یک دسترسی
+        /// </summary>
+        /// <param name="permissionId">شناسه دسترسی</param>
+        /// <param name="cancellationToken">امکان لغو عملیات</param>
+        /// <returns>لیست نقش‌های دسترسی مورد نظر</returns>
+        public async Task<IEnumerable<Role>> GetPermissionRolesAsync(Guid permissionId, CancellationToken cancellationToken = default)
+        {
+            return await _dbSet
+                .Where(rp => rp.PermissionId == permissionId)
+                .Include(rp => rp.Role)
+                .Select(rp => rp.Role)
+                .ToListAsync(cancellationToken);
         }
     }
 }

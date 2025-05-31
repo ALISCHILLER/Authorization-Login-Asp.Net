@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Threading.Tasks;
 using Authorization_Login_Asp.Net.Application.Interfaces;
 using Authorization_Login_Asp.Net.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
+using Authorization_Login_Asp.Net.Infrastructure.Options;
 
 namespace Authorization_Login_Asp.Net.Infrastructure.Security
 {
@@ -17,23 +20,24 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Security
     /// </summary>
     public class JwtTokenGenerator : IJwtTokenGenerator
     {
-        private readonly IConfiguration _configuration;
         private readonly ILogger<JwtTokenGenerator> _logger;
-        private readonly JwtSettings _jwtSettings;
+        private readonly JwtOptions _jwtOptions;
         private readonly IRefreshTokenService _refreshTokenService;
         private readonly IMemoryCache _cache;
 
+        /// <summary>
+        /// سازنده کلاس
+        /// </summary>
         public JwtTokenGenerator(
-            IConfiguration configuration,
+            IOptions<JwtOptions> jwtOptions,
             ILogger<JwtTokenGenerator> logger,
             IRefreshTokenService refreshTokenService,
             IMemoryCache cache)
         {
-            _configuration = configuration;
-            _logger = logger;
-            _refreshTokenService = refreshTokenService;
-            _cache = cache;
-            _jwtSettings = _configuration.GetSection("JwtSettings").Get<JwtSettings>();
+            _jwtOptions = jwtOptions?.Value ?? throw new ArgumentNullException(nameof(jwtOptions));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _refreshTokenService = refreshTokenService ?? throw new ArgumentNullException(nameof(refreshTokenService));
+            _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         }
 
         /// <summary>
@@ -44,13 +48,18 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Security
         /// <returns>توکن JWT و توکن بازیابی</returns>
         public async Task<(string Token, string RefreshToken)> GenerateTokensAsync(User user, string ipAddress)
         {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+            if (string.IsNullOrWhiteSpace(ipAddress))
+                throw new ArgumentNullException(nameof(ipAddress));
+
             try
             {
                 var token = GenerateToken(user);
-                var refreshToken = await _refreshTokenService.GenerateRefreshTokenAsync(user.Id, ipAddress);
+                var refreshToken = await _refreshTokenService.GenerateRefreshTokenAsync(user.Id);
 
                 _logger.LogInformation("Generated new tokens for user {UserId}", user.Id);
-                return (token, refreshToken.Token);
+                return (token, refreshToken);
             }
             catch (Exception ex)
             {
@@ -66,28 +75,48 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Security
         /// <returns>توکن JWT</returns>
         public string GenerateToken(User user)
         {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+
             try
             {
-                var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
+                var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SecretKey));
                 var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
                 var claims = new List<Claim>
                 {
                     new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                    new Claim(JwtRegisteredClaimNames.Email, user.Email.Value),
+                    new Claim(JwtRegisteredClaimNames.Email, user.Email.ToString()),
                     new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                     new Claim(ClaimTypes.Name, user.Username),
-                    new Claim(ClaimTypes.Role, user.Role.ToString()),
-                    new Claim("email_verified", user.EmailVerified.ToString().ToLower()),
+                    new Claim("email_verified", user.IsEmailVerified.ToString().ToLower()),
                     new Claim("two_factor_enabled", user.TwoFactorEnabled.ToString().ToLower()),
                     new Claim("token_type", "access_token")
                 };
 
+                // اضافه کردن نقش کاربر
+                if (user.Role != null)
+                {
+                    claims.Add(new Claim(ClaimTypes.Role, user.Role.Name));
+
+                    // اضافه کردن دسترسی‌های کاربر از طریق نقش
+                    if (user.Role.Permissions != null)
+                    {
+                        foreach (var permission in user.Role.Permissions)
+                        {
+                            if (permission.IsActive)
+                            {
+                                claims.Add(new Claim("Permission", permission.Name));
+                            }
+                        }
+                    }
+                }
+
                 var token = new JwtSecurityToken(
-                    issuer: _jwtSettings.Issuer,
-                    audience: _jwtSettings.Audience,
+                    issuer: _jwtOptions.Issuer,
+                    audience: _jwtOptions.Audience,
                     claims: claims,
-                    expires: DateTime.UtcNow.AddMinutes(_jwtSettings.ExpirationInMinutes),
+                    expires: DateTime.UtcNow.AddMinutes(_jwtOptions.ExpiryMinutes),
                     signingCredentials: credentials
                 );
 
@@ -107,6 +136,9 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Security
         /// <returns>نتیجه اعتبارسنجی</returns>
         public bool ValidateToken(string token)
         {
+            if (string.IsNullOrWhiteSpace(token))
+                throw new ArgumentNullException(nameof(token));
+
             try
             {
                 // بررسی وجود توکن در لیست توکن‌های لغو شده
@@ -117,21 +149,21 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Security
                 }
 
                 var tokenHandler = new JwtSecurityTokenHandler();
-                var key = Encoding.UTF8.GetBytes(_jwtSettings.SecretKey);
+                var key = Encoding.UTF8.GetBytes(_jwtOptions.SecretKey);
 
                 var validationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ValidateIssuer = true,
-                    ValidIssuer = _jwtSettings.Issuer,
+                    ValidIssuer = _jwtOptions.Issuer,
                     ValidateAudience = true,
-                    ValidAudience = _jwtSettings.Audience,
+                    ValidAudience = _jwtOptions.Audience,
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero
                 };
 
-                tokenHandler.ValidateToken(token, validationParameters, out SecurityToken validatedToken);
+                tokenHandler.ValidateToken(token, validationParameters, out _);
                 return true;
             }
             catch (Exception ex)
@@ -148,24 +180,34 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Security
         /// <returns>اطلاعات کاربر</returns>
         public ClaimsPrincipal GetPrincipalFromToken(string token)
         {
+            if (string.IsNullOrWhiteSpace(token))
+                throw new ArgumentNullException(nameof(token));
+
             try
             {
                 var tokenHandler = new JwtSecurityTokenHandler();
-                var key = Encoding.UTF8.GetBytes(_jwtSettings.SecretKey);
+                var key = Encoding.UTF8.GetBytes(_jwtOptions.SecretKey);
 
                 var validationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ValidateIssuer = true,
-                    ValidIssuer = _jwtSettings.Issuer,
+                    ValidIssuer = _jwtOptions.Issuer,
                     ValidateAudience = true,
-                    ValidAudience = _jwtSettings.Audience,
+                    ValidAudience = _jwtOptions.Audience,
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero
                 };
 
                 var principal = tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);
+                var jwtToken = validatedToken as JwtSecurityToken;
+
+                if (jwtToken == null || !jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    throw new SecurityTokenException("توکن نامعتبر است");
+                }
+
                 return principal;
             }
             catch (Exception ex)
@@ -181,13 +223,16 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Security
         /// <param name="token">توکن JWT</param>
         public void RevokeToken(string token)
         {
+            if (string.IsNullOrWhiteSpace(token))
+                throw new ArgumentNullException(nameof(token));
+
             try
             {
                 var jti = GetTokenId(token);
                 if (!string.IsNullOrEmpty(jti))
                 {
                     var cacheKey = $"revoked_token_{jti}";
-                    _cache.Set(cacheKey, true, TimeSpan.FromMinutes(_jwtSettings.ExpirationInMinutes));
+                    _cache.Set(cacheKey, true, TimeSpan.FromMinutes(_jwtOptions.ExpiryMinutes));
                     _logger.LogInformation("Token revoked: {TokenId}", jti);
                 }
             }
@@ -205,6 +250,9 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Security
         /// <returns>نتیجه بررسی</returns>
         public bool IsTokenRevoked(string token)
         {
+            if (string.IsNullOrWhiteSpace(token))
+                return true;
+
             try
             {
                 var jti = GetTokenId(token);
@@ -224,8 +272,6 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Security
         /// <summary>
         /// دریافت شناسه توکن JWT
         /// </summary>
-        /// <param name="token">توکن JWT</param>
-        /// <returns>شناسه توکن</returns>
         private string GetTokenId(string token)
         {
             try
@@ -241,6 +287,9 @@ namespace Authorization_Login_Asp.Net.Infrastructure.Security
         }
     }
 
+    /// <summary>
+    /// استثنای مربوط به توکن JWT
+    /// </summary>
     public class JwtTokenException : Exception
     {
         public JwtTokenException(string message) : base(message) { }

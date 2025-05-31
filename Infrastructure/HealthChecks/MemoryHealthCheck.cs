@@ -1,11 +1,15 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Authorization_Login_Asp.Net.Infrastructure.HealthChecks
 {
+    /// <summary>
+    /// بررسی وضعیت حافظه سیستم
+    /// </summary>
     public class MemoryHealthCheck : IHealthCheck
     {
         private readonly ILogger<MemoryHealthCheck> _logger;
@@ -26,32 +30,44 @@ namespace Authorization_Login_Asp.Net.Infrastructure.HealthChecks
                 var maxMemory = memoryInfo.TotalAvailableMemoryBytes;
                 var memoryUsage = (double)totalMemory / maxMemory;
 
-                var data = new
+                var data = new Dictionary<string, object>
                 {
-                    TotalMemory = totalMemory,
-                    MaxMemory = maxMemory,
-                    MemoryUsage = memoryUsage,
-                    GCCollectionCount = GC.CollectionCount(0)
+                    { "TotalMemory", totalMemory },
+                    { "MaxMemory", maxMemory },
+                    { "MemoryUsage", memoryUsage },
+                    { "GCCollectionCount", GC.CollectionCount(0) }
                 };
 
                 if (memoryUsage >= _criticalThreshold)
                 {
                     _logger.LogWarning("استفاده از حافظه در سطح بحرانی: {MemoryUsage:P2}", memoryUsage);
-                    return Task.FromResult(HealthCheckResult.Unhealthy("استفاده از حافظه در سطح بحرانی", data));
+                    return Task.FromResult(new HealthCheckResult(
+                        status: HealthStatus.Unhealthy,
+                        description: "استفاده از حافظه در سطح بحرانی",
+                        data: data));
                 }
 
                 if (memoryUsage >= _warningThreshold)
                 {
                     _logger.LogWarning("استفاده از حافظه در سطح هشدار: {MemoryUsage:P2}", memoryUsage);
-                    return Task.FromResult(HealthCheckResult.Degraded("استفاده از حافظه در سطح هشدار", data));
+                    return Task.FromResult(new HealthCheckResult(
+                        status: HealthStatus.Degraded,
+                        description: "استفاده از حافظه در سطح هشدار",
+                        data: data));
                 }
 
-                return Task.FromResult(HealthCheckResult.Healthy("وضعیت حافظه مناسب است", data));
+                return Task.FromResult(new HealthCheckResult(
+                    status: HealthStatus.Healthy,
+                    description: "وضعیت حافظه مناسب است",
+                    data: data));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "خطا در بررسی وضعیت حافظه");
-                return Task.FromResult(HealthCheckResult.Unhealthy("خطا در بررسی وضعیت حافظه", ex));
+                return Task.FromResult(new HealthCheckResult(
+                    status: HealthStatus.Unhealthy,
+                    description: "خطا در بررسی وضعیت حافظه",
+                    exception: ex));
             }
         }
     }

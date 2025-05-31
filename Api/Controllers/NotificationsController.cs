@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Authorization_Login_Asp.Net.Infrastructure.Services;
 using Authorization_Login_Asp.Net.Application.DTOs;
+using System;
 using System.Threading.Tasks;
+using Authorization_Login_Asp.Net.Domain.Entities;
 
 namespace Authorization_Login_Asp.Net.Api.Controllers
 {
@@ -133,8 +135,17 @@ namespace Authorization_Login_Asp.Net.Api.Controllers
         {
             try
             {
-                await _notificationService.MarkAsReadAsync(id);
+                if (!Guid.TryParse(id, out var notificationId))
+                {
+                    return BadRequest("شناسه اعلان نامعتبر است");
+                }
+
+                await _notificationService.MarkAsReadAsync(notificationId);
                 return Ok();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
             }
             catch (Exception ex)
             {
@@ -148,8 +159,17 @@ namespace Authorization_Login_Asp.Net.Api.Controllers
         {
             try
             {
-                await _notificationService.DeleteNotificationAsync(id);
+                if (!Guid.TryParse(id, out var notificationId))
+                {
+                    return BadRequest("شناسه اعلان نامعتبر است");
+                }
+
+                await _notificationService.DeleteNotificationAsync(notificationId);
                 return Ok();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
             }
             catch (Exception ex)
             {
