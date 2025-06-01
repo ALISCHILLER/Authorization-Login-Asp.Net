@@ -1,11 +1,3 @@
-E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.csproj.AssemblyReference.cache
-E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.GeneratedMSBuildEditorConfig.editorconfig
-E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.AssemblyInfoInputs.cache
-E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.AssemblyInfo.cs
-E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.csproj.CoreCompileInputs.cache
-E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.MvcApplicationPartsAssemblyInfo.cs
-E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.MvcApplicationPartsAssemblyInfo.cache
-E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.sourcelink.json
 F:\projct2025\asp.net\Authorization-Login-Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.csproj.AssemblyReference.cache
 F:\projct2025\asp.net\Authorization-Login-Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.GeneratedMSBuildEditorConfig.editorconfig
 F:\projct2025\asp.net\Authorization-Login-Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.AssemblyInfoInputs.cache
@@ -14,3 +6,11 @@ F:\projct2025\asp.net\Authorization-Login-Asp.Net\obj\Debug\net9.0\Authorization
 F:\projct2025\asp.net\Authorization-Login-Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.MvcApplicationPartsAssemblyInfo.cs
 F:\projct2025\asp.net\Authorization-Login-Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.MvcApplicationPartsAssemblyInfo.cache
 F:\projct2025\asp.net\Authorization-Login-Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.sourcelink.json
+E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.csproj.AssemblyReference.cache
+E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.GeneratedMSBuildEditorConfig.editorconfig
+E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.AssemblyInfoInputs.cache
+E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.AssemblyInfo.cs
+E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.csproj.CoreCompileInputs.cache
+E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.MvcApplicationPartsAssemblyInfo.cs
+E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.MvcApplicationPartsAssemblyInfo.cache
+E:\project-zar\custom\.net\Authorization Login Asp.Net\obj\Debug\net9.0\Authorization Login Asp.Net.sourcelink.json

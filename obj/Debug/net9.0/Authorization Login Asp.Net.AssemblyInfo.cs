@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Authorization Login Asp.Net")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+162e334e6b4bab29cc948c2920dd1555d0991aa7")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+41a28a6eaf7bc23f0691de825b4437e81acc6f6d")]
 [assembly: System.Reflection.AssemblyProductAttribute("Authorization Login Asp.Net")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Authorization Login Asp.Net")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

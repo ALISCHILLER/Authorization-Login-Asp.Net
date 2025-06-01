@@ -7,15 +7,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using System.Threading.RateLimiting;
-using Authorization_Login_Asp.Net.Application.Interfaces;
-using Authorization_Login_Asp.Net.Infrastructure.Services;
-using Authorization_Login_Asp.Net.API.Middlewares;
-using Authorization_Login_Asp.Net.Infrastructure.Middleware;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Authorization_Login_Asp.Net.Infrastructure.Security;
-using Authorization_Login_Asp.Net.Infrastructure.Options;
-using Authorization_Login_Asp.Net.Infrastructure.HealthChecks;
 using System.IdentityModel.Tokens.Jwt;
 using HealthChecks.UI.Client;
 using OpenTelemetry.Resources;
@@ -23,17 +16,24 @@ using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Exporter;
-using System.Diagnostics;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Authorization_Login_Asp.Net.Infrastructure.Data;
-using FluentValidation.AspNetCore;
 using AspNetCoreRateLimit;
 using System;
-using Authorization_Login_Asp.Net.Infrastructure.Configurations;
-using Authorization_Login_Asp.Net.Application.Validators;
 using System.Linq;
+using Microsoft.Extensions.Configuration;
+using StackExchange.Redis;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
+using Authorization_Login_Asp.Net.Core.Application.Interfaces;
+using Authorization_Login_Asp.Net.Core.Application.Validators;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Configurations;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Data;
+using Authorization_Login_Asp.Net.Core.Infrastructure.HealthChecks;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Middleware;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Options;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Security;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Services;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Telemetry;
+using Authorization_Login_Asp.Net.Presentation.Api.Middleware;
 
 // تنظیمات اصلی برنامه
 var builder = WebApplication.CreateBuilder(args);
@@ -151,7 +151,17 @@ builder.Services.AddAuthentication(options =>
 // تنظیمات Redis برای کش
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+    var redisConfig = builder.Configuration.GetConnectionString("Redis");
+    options.ConfigurationOptions = new ConfigurationOptions
+    {
+        EndPoints = { redisConfig },
+        Ssl = true,
+        SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | 
+                      System.Security.Authentication.SslProtocols.Tls13,
+        AbortOnConnectFail = false,
+        ConnectTimeout = 5000,
+        SyncTimeout = 5000
+    };
     options.InstanceName = "Authorization.Login:";
 });
 
@@ -227,6 +237,12 @@ builder.WebHost.ConfigureKestrel(options =>
     options.Limits.MaxConcurrentConnections = 100;
     options.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // 10 MB
     options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(1);
+    
+    options.ConfigureHttpsDefaults(https =>
+    {
+        https.SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | 
+                            System.Security.Authentication.SslProtocols.Tls13;
+    });
 });
 
 // Configure OpenTelemetry
@@ -251,56 +267,88 @@ if (tracingSettings != null && tracingSettings.EnableTracing)
             .AddHttpClientInstrumentation());
 }
 
+// Add security headers middleware
+builder.Services.AddSecurityHeaders(policies =>
+    policies
+        .AddDefaultSecurityHeaders()
+        .AddStrictTransportSecurityMaxAgeIncludeSubDomains()
+        .RemoveServerHeader()
+        .AddContentSecurityPolicy(csp =>
+        {
+            csp.DefaultSources(s => s.Self());
+            csp.ScriptSources(s => s.Self().UnsafeInline().UnsafeEval());
+            csp.StyleSources(s => s.Self().UnsafeInline());
+            csp.ImageSources(s => s.Self().Data());
+            csp.FontSources(s => s.Self());
+            csp.ConnectSources(s => s.Self());
+            csp.FrameSources(s => s.None());
+            csp.ObjectSources(s => s.None());
+        }));
+
+// Add Prometheus metrics
+builder.Services.AddMetrics();
+builder.Services.AddPrometheusGatewayPublisher(options =>
+{
+    options.Endpoint = new Uri(builder.Configuration["Metrics:PrometheusEndpoint"] ?? "http://localhost:9091");
+    options.Job = "auth-service";
+});
+
 var app = builder.Build();
 
-// تنظیمات میدلورها در محیط توسعه
+// Initialize ServiceLocator
+ServiceLocator.Initialize(app.Services);
+
+// Proper middleware ordering
 if (app.Environment.IsDevelopment())
 {
+    app.UseDeveloperExceptionPage();
     app.UseSwagger();
     app.UseSwaggerUI();
-    app.UseDeveloperExceptionPage();
 }
 
-// میدلورهای امنیتی و پایه
+// Security and monitoring middleware
+app.UseSecurityHeaders();
+app.UseHsts();
 app.UseHttpsRedirection();
+
+// Exception handling first
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// Then logging
+app.UseMiddleware<RequestLoggingMiddleware>();
+
+// Then metrics
+app.UseMiddleware<MetricsMiddleware>();
+
+// Then rate limiting
+app.UseRateLimiter();
+
+// Then CORS with validation
+var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>();
+if (allowedOrigins == null || !allowedOrigins.Any())
+{
+    throw new InvalidOperationException("No allowed origins configured for CORS.");
+}
 app.UseCors("DefaultCorsPolicy");
+
+// Then authentication and authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
-// میدلورهای لاگینگ و ردیابی
-app.UseMiddleware<RequestLoggingMiddleware>();
-app.UseMiddleware<ExceptionHandlingMiddleware>();
-app.UseMiddleware<MetricsMiddleware>();
+// Then compression
+app.UseResponseCompression();
 
-// تنظیمات مسیریابی
+// Then endpoints
 app.MapControllers();
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
-    ResponseWriter = async (context, report) =>
-    {
-        context.Response.ContentType = "application/json";
-        var response = new
-        {
-            status = report.Status.ToString(),
-            checks = report.Entries.Select(x => new
-            {
-                name = x.Key,
-                status = x.Value.Status.ToString(),
-                description = x.Value.Description,
-                duration = x.Value.Duration.ToString()
-            })
-        };
-        await context.Response.WriteAsJsonAsync(response);
-    }
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 });
-
 app.MapHealthChecksUI(options =>
 {
     options.UIPath = "/health-ui";
     options.ApiPath = "/health-api";
 });
-
-app.MapControllers().RequireRateLimiting("fixed");
 
 // اجرای برنامه
 app.Run();
