@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
-using Authorization_Login_Asp.Net.Domain.Common;
 using Authorization_Login_Asp.Net.Core.Domain.Entities;
 using Authorization_Login_Asp.Net.Core.Application.DTOs;
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;

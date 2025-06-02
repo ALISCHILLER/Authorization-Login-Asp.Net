@@ -1,45 +1,28 @@
 ﻿using System;
 using System.Collections.Generic;
+using FluentValidation.Results;
 
 namespace Authorization_Login_Asp.Net.Core.Application.Exceptions
 {
     /// <summary>
-    /// استثنا برای خطاهای اعتبارسنجی که ممکن است شامل چندین پیام خطا باشد
+    /// استثنای اعتبارسنجی
     /// </summary>
     public class ValidationException : Exception
     {
-        /// <summary>
-        /// لیست پیام‌های خطای اعتبارسنجی
-        /// </summary>
-        public List<string> Errors { get; }
-
-        /// <summary>
-        /// سازنده پیش‌فرض
-        /// </summary>
         public ValidationException()
-            : base("خطاهای اعتبارسنجی رخ داده است.")
+            : base("یک یا چند خطای اعتبارسنجی رخ داده است.")
         {
-            Errors = new List<string>();
+            Errors = new Dictionary<string, string[]>();
         }
 
-        /// <summary>
-        /// سازنده با لیست خطاها
-        /// </summary>
-        /// <param name="errors">لیست پیام‌های خطا</param>
-        public ValidationException(List<string> errors)
-            : base("خطاهای اعتبارسنجی رخ داده است.")
+        public ValidationException(IEnumerable<ValidationFailure> failures)
+            : this()
         {
-            Errors = errors;
+            Errors = failures
+                .GroupBy(e => e.PropertyName, e => e.ErrorMessage)
+                .ToDictionary(failureGroup => failureGroup.Key, failureGroup => failureGroup.ToArray());
         }
 
-        /// <summary>
-        /// سازنده با پیام خطا
-        /// </summary>
-        /// <param name="message">پیام خطا</param>
-        public ValidationException(string message)
-            : base(message)
-        {
-            Errors = new List<string> { message };
-        }
+        public IDictionary<string, string[]> Errors { get; }
     }
 }

@@ -1,24 +1,29 @@
-﻿namespace Authorization_Login_Asp.Net.Core.Domain.Enums
+﻿using System.ComponentModel;
+
+namespace Authorization_Login_Asp.Net.Core.Domain.Enums
 {
     /// <summary>
-    /// وضعیت توکن رفرش برای مدیریت اعتبار و انقضا
-    /// این enum برای کنترل وضعیت توکن‌های رفرش استفاده می‌شود
+    /// وضعیت‌های مختلف توکن بازنشانی
+    /// این enum برای مدیریت وضعیت توکن‌های بازنشانی استفاده می‌شود
     /// </summary>
     public enum RefreshTokenStatus
     {
         /// <summary>
         /// توکن فعال و قابل استفاده است
         /// </summary>
-        Active,         // فعال و قابل استفاده
+        [Description("فعال")]
+        Active = 1,
 
         /// <summary>
-        /// توکن لغو شده است (مثلاً در صورت سوءاستفاده یا درخواست کاربر)
+        /// توکن لغو شده است (به صورت دستی یا خودکار)
         /// </summary>
-        Revoked,        // لغو شده (مثلاً در صورت سوءاستفاده)
+        [Description("لغو شده")]
+        Revoked = 2,
 
         /// <summary>
-        /// توکن منقضی شده و دیگر قابل استفاده نیست
+        /// توکن منقضی شده است
         /// </summary>
-        Expired         // منقضی شده
+        [Description("منقضی شده")]
+        Expired = 3
     }
 }

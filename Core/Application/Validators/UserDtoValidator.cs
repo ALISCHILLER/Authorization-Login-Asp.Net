@@ -1,5 +1,4 @@
 using FluentValidation;
-using Authorization_Login_Asp.Net.Domain.Enums;
 using Authorization_Login_Asp.Net.Core.Application.DTOs;
 
 namespace Authorization_Login_Asp.Net.Core.Application.Validators

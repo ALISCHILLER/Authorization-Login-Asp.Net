@@ -42,7 +42,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
 // تنظیمات کنترلرها و JSON
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ValidationFilter>();
+    options.Filters.Add<ValidationExceptionFilter>();
+})
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -293,6 +297,14 @@ builder.Services.AddPrometheusGatewayPublisher(options =>
     options.Job = "auth-service";
 });
 
+// Register services
+builder.Services.AddScoped<IRoleManagementService, RoleManagementService>();
+builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+builder.Services.AddScoped<ITwoFactorService, TwoFactorService>();
+builder.Services.AddScoped<IPasswordService, PasswordService>();
+builder.Services.AddScoped<IDeviceManagementService, DeviceManagementService>();
+builder.Services.AddScoped<ILoggingService, LoggingService>();
+
 var app = builder.Build();
 
 // Initialize ServiceLocator
@@ -337,6 +349,9 @@ app.UseAuthorization();
 
 // Then compression
 app.UseResponseCompression();
+
+// Then error handling
+app.UseMiddleware<ErrorHandlingMiddleware>();
 
 // Then endpoints
 app.MapControllers();

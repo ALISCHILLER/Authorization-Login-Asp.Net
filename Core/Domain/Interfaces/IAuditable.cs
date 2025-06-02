@@ -15,7 +15,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Interfaces
         /// <summary>
         /// شناسه کاربر ایجاد کننده
         /// </summary>
-        int? CreatedBy { get; set; }
+        Guid? CreatedBy { get; set; }
 
         /// <summary>
         /// تاریخ آخرین به‌روزرسانی
@@ -25,6 +25,6 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Interfaces
         /// <summary>
         /// شناسه کاربر به‌روزرسانی کننده
         /// </summary>
-        int? UpdatedBy { get; set; }
+        Guid? UpdatedBy { get; set; }
     }
 }

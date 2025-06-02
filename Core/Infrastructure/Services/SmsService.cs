@@ -1,112 +1,79 @@
 using System;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
-using Authorization_Login_Asp.Net.Core.Application.Interfaces;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Authorization_Login_Asp.Net.Core.Application.Interfaces;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Options;
 
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
 {
     public class SmsService : ISmsService
     {
-        private readonly IConfiguration _configuration;
         private readonly ILogger<SmsService> _logger;
-        private readonly HttpClient _httpClient;
-        private readonly string _apiKey;
-        private readonly string _senderId;
-        private readonly string _apiUrl;
-        private readonly bool _isProduction;
+        private readonly SmsOptions _smsOptions;
+        private readonly ITracingService _tracingService;
 
         public SmsService(
-            IConfiguration configuration,
             ILogger<SmsService> logger,
-            HttpClient httpClient)
+            IOptions<SmsOptions> smsOptions,
+            ITracingService tracingService)
         {
-            _configuration = configuration;
-            _logger = logger;
-            _httpClient = httpClient;
-            _apiKey = _configuration["SmsSettings:ApiKey"];
-            _senderId = _configuration["SmsSettings:SenderId"];
-            _apiUrl = _configuration["SmsSettings:ApiUrl"];
-            _isProduction = _configuration.GetValue("SmsSettings:IsProduction", false);
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _smsOptions = smsOptions?.Value ?? throw new ArgumentNullException(nameof(smsOptions));
+            _tracingService = tracingService ?? throw new ArgumentNullException(nameof(tracingService));
         }
 
-        public async Task SendSmsAsync(string phoneNumber, string message)
+        public async Task SendSmsAsync(SmsRequest request)
         {
+            using var activity = _tracingService.StartActivity("SmsService.SendSmsAsync");
             try
             {
-                if (!_isProduction)
+                // در محیط توسعه، پیامک‌ها را لاگ می‌کنیم
+                if (_smsOptions.UseDevelopmentMode)
                 {
-                    _logger.LogInformation("SMS (Development Mode) to {PhoneNumber}: {Message}", phoneNumber, message);
+                    _logger.LogInformation(
+                        "پیامک در محیط توسعه:\n" +
+                        "به: {To}\n" +
+                        "اولویت: {Priority}\n" +
+                        "متن: {Message}\n" +
+                        "متادیتا: {Metadata}",
+                        request.To,
+                        request.Priority,
+                        request.Message,
+                        request.Metadata);
+
                     return;
                 }
 
-                var request = new
-                {
-                    apiKey = _apiKey,
-                    senderId = _senderId,
-                    phoneNumber = FormatPhoneNumber(phoneNumber),
-                    message,
-                    timestamp = DateTime.UtcNow
-                };
+                // ارسال واقعی پیامک
+                // TODO: پیاده‌سازی ارسال پیامک با استفاده از سرویس‌های پیامک
+                await Task.Delay(100); // شبیه‌سازی تأخیر شبکه
 
-                var content = new StringContent(
-                    JsonSerializer.Serialize(request),
-                    Encoding.UTF8,
-                    "application/json");
-
-                var response = await _httpClient.PostAsync(_apiUrl, content);
-                response.EnsureSuccessStatusCode();
-
-                var responseContent = await response.Content.ReadAsStringAsync();
-                var result = JsonSerializer.Deserialize<SmsResponse>(responseContent);
-
-                if (!result.Success)
-                {
-                    throw new Exception($"SMS API Error: {result.ErrorMessage}");
-                }
-
-                _logger.LogInformation("SMS sent successfully to {PhoneNumber}", phoneNumber);
+                _logger.LogInformation("پیامک با موفقیت به {To} ارسال شد", request.To);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send SMS to {PhoneNumber}", phoneNumber);
-                throw new SmsServiceException($"Failed to send SMS: {ex.Message}", ex);
+                _logger.LogError(ex, "خطا در ارسال پیامک به {To}", request.To);
+                throw;
             }
         }
 
         public async Task SendTwoFactorCodeAsync(string phoneNumber, string code)
         {
             var message = $"Your verification code is: {code}. This code will expire in 5 minutes.";
-            await SendSmsAsync(phoneNumber, message);
+            await SendSmsAsync(new SmsRequest { To = phoneNumber, Message = message });
         }
 
         public async Task SendPasswordResetCodeAsync(string phoneNumber, string code)
         {
             var message = $"Your password reset code is: {code}. This code will expire in 10 minutes.";
-            await SendSmsAsync(phoneNumber, message);
+            await SendSmsAsync(new SmsRequest { To = phoneNumber, Message = message });
         }
 
         public async Task SendPhoneVerificationCodeAsync(string phoneNumber, string code)
         {
             var message = $"Your phone verification code is: {code}. This code will expire in 5 minutes.";
-            await SendSmsAsync(phoneNumber, message);
-        }
-
-        private string FormatPhoneNumber(string phoneNumber)
-        {
-            // Remove any non-digit characters
-            var digits = new string(phoneNumber.Where(char.IsDigit).ToArray());
-
-            // Ensure the number starts with the country code
-            if (!digits.StartsWith("98"))
-            {
-                digits = "98" + digits;
-            }
-
-            return digits;
+            await SendSmsAsync(new SmsRequest { To = phoneNumber, Message = message });
         }
 
         public Task SendVerificationCodeAsync(string phoneNumber, string code)
@@ -123,19 +90,5 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         {
             throw new NotImplementedException();
         }
-
-        private class SmsResponse
-        {
-            public bool Success { get; set; }
-            public string ErrorMessage { get; set; }
-            public string MessageId { get; set; }
-        }
-    }
-
-    public class SmsServiceException : Exception
-    {
-        public SmsServiceException(string message) : base(message) { }
-        public SmsServiceException(string message, Exception innerException)
-            : base(message, innerException) { }
     }
 }

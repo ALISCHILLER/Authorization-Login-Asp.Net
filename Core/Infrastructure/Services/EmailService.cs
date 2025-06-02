@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Configurations;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Options;
 
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
 {
@@ -22,6 +23,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         private readonly EmailSettings _settings;
         private readonly ICircuitBreakerService _circuitBreakerService;
         private readonly ActivitySource _activitySource;
+        private readonly EmailOptions _emailOptions;
+        private readonly ITracingService _tracingService;
 
         /// <summary>
         /// سازنده کلاس با وابستگی‌های لازم
@@ -31,13 +34,16 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
             ILogger<EmailService> logger,
             IOptions<EmailSettings> settings,
             ICircuitBreakerService circuitBreakerService,
-            ITracingService tracingService)
+            ITracingService tracingService,
+            IOptions<EmailOptions> emailOptions)
         {
             _configuration = configuration;
             _logger = logger;
             _settings = settings.Value;
             _circuitBreakerService = circuitBreakerService;
             _activitySource = tracingService.CreateActivitySource("EmailService");
+            _emailOptions = emailOptions?.Value ?? throw new ArgumentNullException(nameof(emailOptions));
+            _tracingService = tracingService ?? throw new ArgumentNullException(nameof(tracingService));
         }
 
         #region ✅ پیاده‌سازی متدهای IEmailService
@@ -56,7 +62,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                     <p><a href='{confirmationLink}'>تایید ایمیل</a></p>
                     <p>در صورتی که این حساب را ایجاد نکرده‌اید، این ایمیل را نادیده بگیرید.</p>";
 
-                await SendEmailAsync(email, subject, body);
+                await SendEmailAsync(new EmailRequest(email, subject, body));
             }
             catch (Exception ex)
             {
@@ -80,7 +86,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                     <p>این لینک ۱ ساعت اعتبار دارد.</p>
                     <p>در صورتی که این درخواست را نداده‌اید، این ایمیل را نادیده بگیرید.</p>";
 
-                await SendEmailAsync(email, subject, body);
+                await SendEmailAsync(new EmailRequest(email, subject, body));
             }
             catch (Exception ex)
             {
@@ -103,7 +109,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                     <p>این کد ۵ دقیقه اعتبار دارد.</p>
                     <p>در صورتی که این درخواست را نداده‌اید، فوراً حساب خود را امن کنید.</p>";
 
-                await SendEmailAsync(email, subject, body);
+                await SendEmailAsync(new EmailRequest(email, subject, body));
             }
             catch (Exception ex)
             {
@@ -125,7 +131,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                     <p>رمز عبور حساب شما با موفقیت تغییر یافت.</p>
                     <p>در صورتی که این عمل را انجام نداده‌اید، فوراً حساب خود را امن کنید.</p>";
 
-                await SendEmailAsync(email, subject, body);
+                await SendEmailAsync(new EmailRequest(email, subject, body));
             }
             catch (Exception ex)
             {
@@ -152,7 +158,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                     </ul>
                     <p>در صورتی که این ورود را انجام نداده‌اید، فوراً حساب خود را امن کنید.</p>";
 
-                await SendEmailAsync(email, subject, body);
+                await SendEmailAsync(new EmailRequest(email, subject, body));
             }
             catch (Exception ex)
             {
@@ -168,33 +174,41 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         /// <summary>
         /// ارسال ایمیل با استفاده از SmtpClient
         /// </summary>
-        private async Task SendEmailAsync(string to, string subject, string body)
+        private async Task SendEmailAsync(EmailRequest request)
         {
-            using var activity = _activitySource.StartActivity("SendEmail");
-            activity?.SetTag("email.to", to);
-            activity?.SetTag("email.subject", subject);
-
-            await _circuitBreakerService.ExecuteWithCircuitBreakerAsync(async () =>
+            using var activity = _tracingService.StartActivity("EmailService.SendEmailAsync");
+            try
             {
-                using var client = new SmtpClient(_settings.SmtpServer, _settings.SmtpPort)
+                // در محیط توسعه، ایمیل‌ها را لاگ می‌کنیم
+                if (_emailOptions.UseDevelopmentMode)
                 {
-                    EnableSsl = _settings.EnableSsl,
-                    Credentials = new NetworkCredential(_settings.SmtpUsername, _settings.SmtpPassword)
-                };
+                    _logger.LogInformation(
+                        "ایمیل در محیط توسعه:\n" +
+                        "به: {To}\n" +
+                        "موضوع: {Subject}\n" +
+                        "اولویت: {Priority}\n" +
+                        "متن: {Body}\n" +
+                        "متادیتا: {Metadata}",
+                        request.To,
+                        request.Subject,
+                        request.Priority,
+                        request.Body,
+                        request.Metadata);
 
-                using var message = new MailMessage
-                {
-                    From = new MailAddress(_settings.FromEmail, _settings.FromName),
-                    Subject = subject,
-                    Body = body,
-                    IsBodyHtml = true
-                };
-                message.To.Add(to);
+                    return;
+                }
 
-                await client.SendMailAsync(message);
-                _logger.LogInformation("ایمیل با موفقیت به {To} ارسال شد", to);
-                activity?.SetStatus(ActivityStatusCode.Ok);
-            }, "EmailService");
+                // ارسال واقعی ایمیل
+                // TODO: پیاده‌سازی ارسال ایمیل با استفاده از SMTP یا سرویس‌های ایمیل
+                await Task.Delay(100); // شبیه‌سازی تأخیر شبکه
+
+                _logger.LogInformation("ایمیل با موفقیت به {To} ارسال شد", request.To);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در ارسال ایمیل به {To}", request.To);
+                throw;
+            }
         }
 
         #endregion

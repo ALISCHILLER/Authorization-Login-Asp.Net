@@ -10,16 +10,16 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Interfaces
         /// <summary>
         /// وضعیت حذف شده بودن
         /// </summary>
-        bool IsDeleted { get; set; }
+        bool IsDeleted { get; }
 
         /// <summary>
         /// تاریخ حذف
         /// </summary>
-        DateTime? DeletedAt { get; set; }
+        DateTime? DeletedAt { get; }
 
         /// <summary>
         /// شناسه کاربر حذف کننده
         /// </summary>
-        int? DeletedBy { get; set; }
+        Guid? DeletedBy { get; }
     }
 }

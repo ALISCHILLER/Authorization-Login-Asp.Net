@@ -1,44 +1,63 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
-using Authorization_Login_Asp.Net.Core.Application.DTOs;
 using Authorization_Login_Asp.Net.Core.Domain.Entities;
 
 namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
 {
     /// <summary>
-    /// رابط دسترسی به داده‌های اعلان‌ها
+    /// رابط مخزن اعلان‌ها
     /// </summary>
     public interface INotificationRepository
     {
         /// <summary>
-        /// افزودن اعلان جدید
+        /// دریافت اعلان‌های کاربر با فیلتر
         /// </summary>
-        Task<Notification> AddAsync(Notification notification);
-
-        /// <summary>
-        /// به‌روزرسانی اعلان
-        /// </summary>
-        Task UpdateAsync(Notification notification);
-
-        /// <summary>
-        /// حذف اعلان
-        /// </summary>
-        Task DeleteAsync(Notification notification);
+        Task<(IEnumerable<Notification> Notifications, int TotalCount)> GetUserNotificationsAsync(
+            Guid userId,
+            NotificationType? type = null,
+            AlertSeverity? severity = null,
+            bool? isRead = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
+            int pageNumber = 1,
+            int pageSize = 10,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// دریافت اعلان با شناسه
         /// </summary>
-        Task<Notification?> GetByIdAsync(Guid id);
+        Task<Notification?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// دریافت لیست اعلان‌ها با فیلتر
+        /// افزودن اعلان جدید
         /// </summary>
-        Task<IEnumerable<Notification>> GetNotificationsAsync(NotificationFilter filter);
+        Task<Notification> AddAsync(Notification notification, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// دریافت اعلان‌های منقضی شده
+        /// به‌روزرسانی اعلان
         /// </summary>
-        Task<IEnumerable<Notification>> GetExpiredNotificationsAsync();
+        Task UpdateAsync(Notification notification, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// حذف اعلان
+        /// </summary>
+        Task DeleteAsync(Notification notification, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// حذف اعلان‌های منقضی شده
+        /// </summary>
+        Task<int> DeleteExpiredNotificationsAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// علامت‌گذاری اعلان به عنوان خوانده شده
+        /// </summary>
+        Task MarkAsReadAsync(Guid notificationId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// دریافت تعداد اعلان‌های خوانده نشده کاربر
+        /// </summary>
+        Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default);
     }
 }

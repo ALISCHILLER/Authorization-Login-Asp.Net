@@ -5,6 +5,7 @@ using System.Linq;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Threading.Tasks;
 using BCrypt.Net;
+using Authorization_Login_Asp.Net.Core.Domain.Common;
 using Authorization_Login_Asp.Net.Core.Domain.Enums;
 using Authorization_Login_Asp.Net.Core.Domain.ValueObjects;
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
@@ -13,159 +14,120 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
 {
     /// <summary>
     /// مدل کاربر سیستم
-    /// نماینده جدول Users در دیتابیس
+    /// این کلاس نماینده جدول Users در دیتابیس است و شامل اطلاعات و رفتارهای مرتبط با کاربر است
     /// </summary>
-    public class User
+    public class User : AggregateRoot
     {
-        /// <summary>
-        /// کلید اصلی (Primary Key)
-        /// </summary>
-        [Key]
-        public Guid Id { get; set; }
-
         /// <summary>
         /// نام کاربری یکتا برای ورود به سیستم
         /// </summary>
         [Required]
         [MaxLength(50)]
-        public string Username { get; set; }
+        public string Username { get; private set; }
 
         /// <summary>
-        /// ایمیل کاربر به صورت Value Object (مقدار پیچیده)
-        /// برای ذخیره‌سازی باید در کانفیگ EF Core به عنوان Owned Entity تعریف شود
+        /// ایمیل کاربر به صورت Value Object
         /// </summary>
         [Required]
-        public Email Email { get; set; }
+        public Email Email { get; private set; }
 
         /// <summary>
         /// هش شده رمز عبور برای نگهداری امن در دیتابیس
-        /// هیچ‌گاه رمز عبور به صورت متن ساده ذخیره نمی‌شود
         /// </summary>
         [Required]
         [MaxLength(100)]
-        public string PasswordHash { get; set; }
+        public string PasswordHash { get; private set; }
 
         /// <summary>
-        /// نام کامل کاربر (نمایشی در پنل یا گزارش‌ها)
+        /// نام کامل کاربر
         /// </summary>
         [Required]
         [MaxLength(100)]
-        public string FullName { get; set; }
-
-        /// <summary>
-        /// تاریخ ایجاد حساب کاربری (ثبت‌نام)
-        /// ذخیره به صورت UTC برای یکپارچگی زمانی
-        /// </summary>
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-        /// <summary>
-        /// وضعیت فعال بودن حساب کاربری
-        /// </summary>
-        public bool IsActive { get; set; } = true;
-
-        /// <summary>
-        /// شماره تلفن کاربر
-        /// </summary>
-        [Required]
-        [MaxLength(15)]
-        public string PhoneNumber { get; set; }
-
-        /// <summary>
-        /// تاریخ آخرین ورود کاربر
-        /// </summary>
-        public DateTime? LastLoginAt { get; set; }
-
-        /// <summary>
-        /// آدرس تصویر پروفایل کاربر
-        /// </summary>
-        [Required]
-        [MaxLength(500)]
-        public string ProfileImageUrl { get; set; }
-
-        /// <summary>
-        /// وضعیت تأیید ایمیل کاربر
-        /// </summary>
-        public bool IsEmailVerified { get; set; }
-
-        /// <summary>
-        /// وضعیت تأیید شماره تلفن کاربر
-        /// </summary>
-        public bool IsPhoneVerified { get; set; }
-
-        /// <summary>
-        /// تنظیمات امنیتی کاربر
-        /// </summary>
-        public UserSecuritySettings SecuritySettings { get; set; }
-
-        /// <summary>
-        /// دستگاه‌های متصل کاربر
-        /// </summary>
-        public virtual ICollection<UserDevice> UserDevices { get; private set; }
-
-        /// <summary>
-        /// لیست توکن‌های رفرش کاربر
-        /// </summary>
-        public virtual ICollection<RefreshToken> RefreshTokens { get; private set; } = new List<RefreshToken>();
-
-        /// <summary>
-        /// آخرین توکن رفرش کاربر
-        /// </summary>
-        public RefreshToken RefreshToken => RefreshTokens?.OrderByDescending(rt => rt.CreatedAt).FirstOrDefault();
-
-        /// <summary>
-        /// فعال بودن احراز هویت دو مرحله‌ای
-        /// </summary>
-        public bool TwoFactorEnabled { get; set; }
-
-        /// <summary>
-        /// تاریخ آخرین تغییر رمز عبور
-        /// </summary>
-        public DateTime? LastPasswordChange { get; set; }
-
-        /// <summary>
-        /// تعداد تلاش‌های ناموفق ورود
-        /// </summary>
-        public int FailedLoginAttempts { get; set; }
-
-        /// <summary>
-        /// زمان پایان قفل شدن حساب (در صورت قفل شدن)
-        /// </summary>
-        public DateTime? AccountLockoutEnd { get; set; }
-
-        /// <summary>
-        /// روش احراز هویت دو مرحله‌ای (ایمیل، پیامک، اپلیکیشن)
-        /// </summary>
-        public TwoFactorType? TwoFactorType { get; set; }
-
-        /// <summary>
-        /// کلید مخفی برای احراز هویت دو مرحله‌ای
-        /// </summary>
-        [Required]
-        public string TwoFactorSecret { get; set; }
-
-        /// <summary>
-        /// لیست کدهای بازیابی برای احراز هویت دو مرحله‌ای
-        /// </summary>
-        public virtual ICollection<TwoFactorRecoveryCode> RecoveryCodes { get; private set; }
-
-        /// <summary>
-        /// لیست تاریخچه ورودهای کاربر
-        /// </summary>
-        public virtual ICollection<LoginHistory> LoginHistory { get; private set; }
+        public string FullName { get; private set; }
 
         /// <summary>
         /// نام کاربر
         /// </summary>
         [Required]
         [MaxLength(50)]
-        public string FirstName { get; set; }
+        public string FirstName { get; private set; }
 
         /// <summary>
         /// نام خانوادگی کاربر
         /// </summary>
         [Required]
         [MaxLength(50)]
-        public string LastName { get; set; }
+        public string LastName { get; private set; }
+
+        /// <summary>
+        /// شماره تلفن کاربر
+        /// </summary>
+        [Required]
+        [MaxLength(15)]
+        public string PhoneNumber { get; private set; }
+
+        /// <summary>
+        /// آدرس تصویر پروفایل کاربر
+        /// </summary>
+        [Required]
+        [MaxLength(500)]
+        public string ProfileImageUrl { get; private set; }
+
+        /// <summary>
+        /// وضعیت فعال بودن حساب کاربری
+        /// </summary>
+        public bool IsActive { get; private set; } = true;
+
+        /// <summary>
+        /// وضعیت تأیید ایمیل کاربر
+        /// </summary>
+        public bool IsEmailVerified { get; private set; }
+
+        /// <summary>
+        /// وضعیت تأیید شماره تلفن کاربر
+        /// </summary>
+        public bool IsPhoneVerified { get; private set; }
+
+        /// <summary>
+        /// تاریخ آخرین ورود کاربر
+        /// </summary>
+        public DateTime? LastLoginAt { get; private set; }
+
+        /// <summary>
+        /// تاریخ آخرین تغییر رمز عبور
+        /// </summary>
+        public DateTime? LastPasswordChange { get; private set; }
+
+        /// <summary>
+        /// تعداد تلاش‌های ناموفق ورود
+        /// </summary>
+        public int FailedLoginAttempts { get; private set; }
+
+        /// <summary>
+        /// زمان پایان قفل شدن حساب
+        /// </summary>
+        public DateTime? AccountLockoutEnd { get; private set; }
+
+        /// <summary>
+        /// فعال بودن احراز هویت دو مرحله‌ای
+        /// </summary>
+        public bool TwoFactorEnabled { get; private set; }
+
+        /// <summary>
+        /// روش احراز هویت دو مرحله‌ای
+        /// </summary>
+        public TwoFactorType? TwoFactorType { get; private set; }
+
+        /// <summary>
+        /// کلید مخفی برای احراز هویت دو مرحله‌ای
+        /// </summary>
+        [Required]
+        public string TwoFactorSecret { get; private set; }
+
+        /// <summary>
+        /// تنظیمات امنیتی کاربر
+        /// </summary>
+        public UserSecuritySettings SecuritySettings { get; private set; }
 
         /// <summary>
         /// وضعیت قفل بودن حساب
@@ -175,49 +137,68 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// <summary>
         /// نقش اصلی کاربر
         /// </summary>
-        public RoleType Role { get; set; }
+        public RoleType Role { get; private set; }
+
+        /// <summary>
+        /// ارتباط‌های این کاربر با نقش‌ها
+        /// </summary>
+        private readonly List<UserRole> _userRoles = new();
+        public virtual IReadOnlyCollection<UserRole> UserRoles => _userRoles.AsReadOnly();
 
         /// <summary>
         /// نقش‌های کاربر
         /// </summary>
-        public virtual ICollection<UserRole> UserRoles { get; private set; } = new List<UserRole>();
-
-        /// <summary>
-        /// نقش‌های کاربر
-        /// </summary>
-        public virtual ICollection<Role> Roles => UserRoles?.Select(ur => ur.Role).ToList() ?? new List<Role>();
+        public virtual IReadOnlyCollection<Role> Roles => _userRoles.Select(ur => ur.Role).ToList().AsReadOnly();
 
         /// <summary>
         /// نقش اصلی کاربر
         /// </summary>
-        public Role PrimaryRole => UserRoles?.OrderBy(ur => ur.CreatedAt).FirstOrDefault()?.Role;
+        public virtual Role PrimaryRole => _userRoles.OrderBy(ur => ur.CreatedAt).FirstOrDefault()?.Role;
 
         /// <summary>
-        /// سازنده بدون پارامتر برای EF Core
+        /// دستگاه‌های متصل کاربر
         /// </summary>
-        public User()
-        {
-            Id = Guid.NewGuid();
-            Username = "default";
-            Email = new Email("default@example.com");
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("DefaultPassword123!");
-            FullName = "Default User";
-            PhoneNumber = "00000000000";
-            ProfileImageUrl = "/images/default-profile.png";
-            TwoFactorSecret = Guid.NewGuid().ToString("N");
-            FirstName = "Default";
-            LastName = "User";
-            CreatedAt = DateTime.UtcNow;
-            IsActive = true;
-            RefreshTokens = new List<RefreshToken>();
-            UserDevices = new List<UserDevice>();
-            SecuritySettings = new UserSecuritySettings();
-            RecoveryCodes = new List<TwoFactorRecoveryCode>();
-            LoginHistory = new List<LoginHistory>();
-            UserRoles = new List<UserRole>();
-            Role = RoleType.User;
-        }
+        private readonly List<UserDevice> _userDevices = new();
+        public virtual IReadOnlyCollection<UserDevice> UserDevices => _userDevices.AsReadOnly();
 
+        /// <summary>
+        /// توکن‌های رفرش کاربر
+        /// </summary>
+        private readonly List<RefreshToken> _refreshTokens = new();
+        public virtual IReadOnlyCollection<RefreshToken> RefreshTokens => _refreshTokens.AsReadOnly();
+
+        /// <summary>
+        /// آخرین توکن رفرش کاربر
+        /// </summary>
+        public virtual RefreshToken LastRefreshToken => _refreshTokens.OrderByDescending(rt => rt.CreatedAt).FirstOrDefault();
+
+        /// <summary>
+        /// کدهای بازیابی برای احراز هویت دو مرحله‌ای
+        /// </summary>
+        private readonly List<TwoFactorRecoveryCode> _recoveryCodes = new();
+        public virtual IReadOnlyCollection<TwoFactorRecoveryCode> RecoveryCodes => _recoveryCodes.AsReadOnly();
+
+        /// <summary>
+        /// تاریخچه ورودهای کاربر
+        /// </summary>
+        private readonly List<LoginHistory> _loginHistory = new();
+        public virtual IReadOnlyCollection<LoginHistory> LoginHistory => _loginHistory.AsReadOnly();
+
+        /// <summary>
+        /// سازنده پیش‌فرض برای EF Core
+        /// </summary>
+        protected User() { }
+
+        /// <summary>
+        /// ایجاد کاربر جدید
+        /// </summary>
+        /// <param name="username">نام کاربری</param>
+        /// <param name="email">ایمیل</param>
+        /// <param name="firstName">نام</param>
+        /// <param name="lastName">نام خانوادگی</param>
+        /// <param name="phoneNumber">شماره تلفن</param>
+        /// <param name="password">رمز عبور</param>
+        /// <returns>نمونه جدید از User</returns>
         public static User Create(
             string username,
             string email,
@@ -226,271 +207,223 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             string phoneNumber,
             string password)
         {
+            if (string.IsNullOrWhiteSpace(username))
+                throw new ArgumentException("نام کاربری نمی‌تواند خالی باشد", nameof(username));
+            if (string.IsNullOrWhiteSpace(email))
+                throw new ArgumentException("ایمیل نمی‌تواند خالی باشد", nameof(email));
+            if (string.IsNullOrWhiteSpace(firstName))
+                throw new ArgumentException("نام نمی‌تواند خالی باشد", nameof(firstName));
+            if (string.IsNullOrWhiteSpace(lastName))
+                throw new ArgumentException("نام خانوادگی نمی‌تواند خالی باشد", nameof(lastName));
+            if (string.IsNullOrWhiteSpace(phoneNumber))
+                throw new ArgumentException("شماره تلفن نمی‌تواند خالی باشد", nameof(phoneNumber));
             if (string.IsNullOrWhiteSpace(password))
-                throw new ArgumentNullException(nameof(password));
+                throw new ArgumentException("رمز عبور نمی‌تواند خالی باشد", nameof(password));
 
-            return new User
+            var user = new User
             {
-                Username = username,
-                Email = new Email(email),
-                FirstName = firstName,
-                LastName = lastName,
-                FullName = $"{firstName} {lastName}",
-                PhoneNumber = phoneNumber,
+                Id = Guid.NewGuid(),
+                Username = username.Trim(),
+                Email = new Email(email.Trim()),
+                FirstName = firstName.Trim(),
+                LastName = lastName.Trim(),
+                FullName = $"{firstName.Trim()} {lastName.Trim()}",
+                PhoneNumber = phoneNumber.Trim(),
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
                 ProfileImageUrl = "/images/default-profile.png",
-                TwoFactorSecret = Guid.NewGuid().ToString("N")
+                TwoFactorSecret = Guid.NewGuid().ToString("N"),
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true,
+                Role = RoleType.User,
+                SecuritySettings = new UserSecuritySettings()
             };
+
+            return user;
         }
 
-        // Helper methods for security management
-        public bool IsAccountLocked()
+        /// <summary>
+        /// به‌روزرسانی اطلاعات کاربر
+        /// </summary>
+        /// <param name="firstName">نام جدید</param>
+        /// <param name="lastName">نام خانوادگی جدید</param>
+        /// <param name="phoneNumber">شماره تلفن جدید</param>
+        /// <param name="profileImageUrl">آدرس تصویر پروفایل جدید</param>
+        public void UpdateProfile(string firstName, string lastName, string profileImageUrl = null)
         {
-            return AccountLockoutEnd.HasValue && AccountLockoutEnd.Value > DateTime.UtcNow;
+            if (string.IsNullOrWhiteSpace(firstName))
+                throw new ArgumentException("نام نمی‌تواند خالی باشد", nameof(firstName));
+            if (string.IsNullOrWhiteSpace(lastName))
+                throw new ArgumentException("نام خانوادگی نمی‌تواند خالی باشد", nameof(lastName));
+            if (string.IsNullOrWhiteSpace(phoneNumber))
+                throw new ArgumentException("شماره تلفن نمی‌تواند خالی باشد", nameof(phoneNumber));
+
+            FirstName = firstName.Trim();
+            LastName = lastName.Trim();
+            FullName = $"{firstName.Trim()} {lastName.Trim()}";
+            PhoneNumber = phoneNumber.Trim();
+            if (!string.IsNullOrWhiteSpace(profileImageUrl))
+                ProfileImageUrl = profileImageUrl.Trim();
+
+            Update();
         }
 
-        public void IncrementFailedLoginAttempts()
+        /// <summary>
+        /// به‌روزرسانی ایمیل کاربر
+        /// </summary>
+        /// <param name="email">ایمیل جدید</param>
+        public void UpdateEmail(string email)
         {
-            FailedLoginAttempts++;
-            if (FailedLoginAttempts >= SecuritySettings.MaxFailedLoginAttempts)
-            {
-                LockAccount(SecuritySettings.AccountLockoutDurationMinutes);
-            }
+            if (string.IsNullOrWhiteSpace(email))
+                throw new ArgumentException("ایمیل نمی‌تواند خالی باشد", nameof(email));
+
+            Email = new Email(email.Trim());
+            IsEmailVerified = false;
+            Update();
         }
 
-        public void ResetFailedLoginAttempts()
+        /// <summary>
+        /// تأیید ایمیل کاربر
+        /// </summary>
+        public void VerifyEmail()
         {
+            IsEmailVerified = true;
+            Update();
+        }
+
+        /// <summary>
+        /// تأیید شماره تلفن کاربر
+        /// </summary>
+        public void VerifyPhone()
+        {
+            IsPhoneVerified = true;
+            Update();
+        }
+
+        /// <summary>
+        /// تغییر وضعیت فعال/غیرفعال کاربر
+        /// </summary>
+        /// <param name="isActive">وضعیت جدید</param>
+        public void SetActive(bool isActive)
+        {
+            IsActive = isActive;
+            Update();
+        }
+
+        /// <summary>
+        /// ثبت ورود موفق کاربر
+        /// </summary>
+        /// <param name="deviceInfo">اطلاعات دستگاه</param>
+        public void RecordSuccessfulLogin(string deviceInfo)
+        {
+            LastLoginAt = DateTime.UtcNow;
             FailedLoginAttempts = 0;
             AccountLockoutEnd = null;
+
+            var loginHistory = LoginHistory.Create(Id, deviceInfo, true);
+            _loginHistory.Add(loginHistory);
+
+            Update();
         }
 
+        /// <summary>
+        /// ثبت تلاش ناموفق ورود
+        /// </summary>
+        /// <param name="deviceInfo">اطلاعات دستگاه</param>
+        public void RecordFailedLogin(string deviceInfo)
+        {
+            FailedLoginAttempts++;
+            var loginHistory = LoginHistory.Create(Id, deviceInfo, false);
+            _loginHistory.Add(loginHistory);
+
+            if (FailedLoginAttempts >= SecuritySettings.MaxFailedLoginAttempts)
+            {
+                LockAccount(SecuritySettings.LockoutDurationMinutes);
+            }
+
+            Update();
+        }
+
+        /// <summary>
+        /// قفل کردن حساب کاربری
+        /// </summary>
+        /// <param name="durationMinutes">مدت زمان قفل شدن به دقیقه</param>
         public void LockAccount(int durationMinutes)
         {
+            if (durationMinutes <= 0)
+                throw new ArgumentException("مدت زمان قفل شدن باید بزرگتر از صفر باشد", nameof(durationMinutes));
+
             AccountLockoutEnd = DateTime.UtcNow.AddMinutes(durationMinutes);
+            LockStatus = AccountLockStatus.CreateLocked("تعداد تلاش‌های ناموفق بیش از حد مجاز");
+            Update();
         }
 
-        public bool IsPasswordExpired()
+        /// <summary>
+        /// باز کردن قفل حساب کاربری
+        /// </summary>
+        public void UnlockAccount()
         {
-            if (!LastPasswordChange.HasValue || !SecuritySettings.PasswordExpiryDate.HasValue)
-                return false;
-
-            return DateTime.UtcNow >= SecuritySettings.PasswordExpiryDate.Value;
+            AccountLockoutEnd = null;
+            FailedLoginAttempts = 0;
+            LockStatus = AccountLockStatus.CreateUnlocked();
+            Update();
         }
 
-        public bool RequiresPasswordChange()
-        {
-            return SecuritySettings.RequirePasswordChange || IsPasswordExpired();
-        }
-
-        // Helper methods for device management
-        public void AddDevice(UserDevice device)
-        {
-            if (device == null)
-                throw new ArgumentNullException(nameof(device));
-
-            device.UserId = Id;
-            device.CreatedAt = DateTime.UtcNow;
-            device.LastUsedAt = DateTime.UtcNow;
-            device.IsActive = true;
-
-            UserDevices.Add(device);
-        }
-
-        public void RemoveDevice(Guid deviceId)
-        {
-            var device = UserDevices.FirstOrDefault(d => d.Id == deviceId);
-            if (device != null)
-            {
-                device.IsActive = false;
-                device.LastUsedAt = DateTime.UtcNow;
-            }
-        }
-
-        public void UpdateDeviceLastUsed(Guid deviceId)
-        {
-            var device = UserDevices.FirstOrDefault(d => d.Id == deviceId);
-            if (device != null)
-            {
-                device.LastUsedAt = DateTime.UtcNow;
-            }
-        }
-
-        public IEnumerable<UserDevice> GetActiveDevices()
-        {
-            return UserDevices.Where(d => d.IsActive);
-        }
-
-        // Helper methods for two-factor authentication
+        /// <summary>
+        /// فعال کردن احراز هویت دو مرحله‌ای
+        /// </summary>
+        /// <param name="type">نوع احراز هویت</param>
+        /// <param name="secret">کلید مخفی</param>
         public void EnableTwoFactor(TwoFactorType type, string secret)
         {
+            if (string.IsNullOrWhiteSpace(secret))
+                throw new ArgumentException("کلید مخفی نمی‌تواند خالی باشد", nameof(secret));
+
             TwoFactorEnabled = true;
             TwoFactorType = type;
             TwoFactorSecret = secret;
+            Update();
         }
 
+        /// <summary>
+        /// غیرفعال کردن احراز هویت دو مرحله‌ای
+        /// </summary>
         public void DisableTwoFactor()
         {
             TwoFactorEnabled = false;
             TwoFactorType = null;
-            TwoFactorSecret = null;
-            RecoveryCodes.Clear();
+            TwoFactorSecret = Guid.NewGuid().ToString("N");
+            _recoveryCodes.Clear();
+            Update();
         }
 
+        /// <summary>
+        /// افزودن کد بازیابی
+        /// </summary>
+        /// <param name="code">کد بازیابی</param>
+        /// <param name="expiresAt">تاریخ انقضا</param>
         public void AddRecoveryCode(string code, DateTime expiresAt)
         {
-            var recoveryCode = new TwoFactorRecoveryCode
-            {
-                UserId = Id,
-                Code = code,
-                ExpiresAt = expiresAt,
-                CreatedAt = DateTime.UtcNow,
-                IsActive = true
-            };
-            RecoveryCodes.Add(recoveryCode);
-        }
+            if (string.IsNullOrWhiteSpace(code))
+                throw new ArgumentException("کد بازیابی نمی‌تواند خالی باشد", nameof(code));
+            if (expiresAt <= DateTime.UtcNow)
+                throw new ArgumentException("تاریخ انقضا باید در آینده باشد", nameof(expiresAt));
 
-        public bool ValidateRecoveryCode(string code)
-        {
-            var recoveryCode = RecoveryCodes.FirstOrDefault(rc => rc.Code == code && !rc.IsUsed && rc.ExpiresAt > DateTime.UtcNow);
-            if (recoveryCode != null)
-            {
-                recoveryCode.IsUsed = true;
-                recoveryCode.UsedAt = DateTime.UtcNow;
-                return true;
-            }
-            return false;
-        }
-
-        public void InvalidateRefreshToken()
-        {
-            RefreshTokens.Clear();
-        }
-
-        public void SetLockStatus(AccountLockStatus status)
-        {
-            LockStatus = status;
-            if (status == AccountLockStatus.Locked)
-            {
-                AccountLockoutEnd = DateTime.UtcNow.AddMinutes(SecuritySettings.AccountLockoutDurationMinutes);
-            }
-            else
-            {
-                AccountLockoutEnd = null;
-            }
+            var recoveryCode = TwoFactorRecoveryCode.Create(Id, code, expiresAt);
+            _recoveryCodes.Add(recoveryCode);
+            Update();
         }
 
         /// <summary>
-        /// تنظیم رمز عبور
+        /// استفاده از کد بازیابی
         /// </summary>
-        /// <param name="password">رمز عبور جدید</param>
-        /// <param name="passwordHasher">سرویس هش کردن رمز عبور</param>
-        public async Task SetPasswordAsync(string password, IPasswordHasher passwordHasher)
-        {
-            if (string.IsNullOrWhiteSpace(password))
-                throw new ArgumentNullException(nameof(password));
-            if (passwordHasher == null)
-                throw new ArgumentNullException(nameof(passwordHasher));
-
-            var (hash, salt) = await passwordHasher.HashPasswordAsync(password);
-            PasswordHash = hash;
-            SecuritySettings.PasswordSalt = salt;
-            LastPasswordChange = DateTime.UtcNow;
-        }
-
-        /// <summary>
-        /// بررسی صحت رمز عبور
-        /// </summary>
-        /// <param name="password">رمز عبور</param>
-        /// <param name="passwordHasher">سرویس هش کردن رمز عبور</param>
-        /// <returns>نتیجه بررسی</returns>
-        public async Task<bool> VerifyPasswordAsync(string password, IPasswordHasher passwordHasher)
-        {
-            if (string.IsNullOrWhiteSpace(password))
-                return false;
-            if (passwordHasher == null)
-                throw new ArgumentNullException(nameof(passwordHasher));
-
-            return await passwordHasher.VerifyPasswordAsync(password, PasswordHash, SecuritySettings.PasswordSalt);
-        }
-
-        /// <summary>
-        /// تنظیم کلید محرمانه احراز هویت دو مرحله‌ای
-        /// </summary>
-        /// <param name="secret">کلید محرمانه</param>
-        public void SetTwoFactorSecret(string secret)
-        {
-            TwoFactorSecret = secret;
-            TwoFactorEnabled = true;
-        }
-
-        /// <summary>
-        /// تنظیم کدهای بازیابی
-        /// </summary>
-        /// <param name="codes">کدهای بازیابی</param>
-        public void SetRecoveryCodes(IEnumerable<string> codes)
-        {
-            RecoveryCodes.Clear();
-            foreach (var code in codes)
-            {
-                AddRecoveryCode(code, DateTime.UtcNow.AddDays(30));
-            }
-        }
-
-        /// <summary>
-        /// افزودن نقش به کاربر
-        /// </summary>
-        public void AddRole(Role role)
-        {
-            if (role == null)
-                throw new ArgumentNullException(nameof(role));
-
-            if (UserRoles.Any(ur => ur.RoleId == role.Id))
-                return;
-
-            UserRoles.Add(new UserRole
-            {
-                UserId = Id,
-                RoleId = role.Id,
-                CreatedAt = DateTime.UtcNow
-            });
-        }
-
-        /// <summary>
-        /// حذف نقش از کاربر
-        /// </summary>
-        public void RemoveRole(Role role)
-        {
-            if (role == null)
-                throw new ArgumentNullException(nameof(role));
-
-            var userRole = UserRoles.FirstOrDefault(ur => ur.RoleId == role.Id);
-            if (userRole != null)
-            {
-                UserRoles.Remove(userRole);
-            }
-        }
-
-        /// <summary>
-        /// بررسی داشتن نقش
-        /// </summary>
-        public bool HasRole(string roleName)
-        {
-            return UserRoles.Any(ur =>
-                ur.Role != null &&
-                ur.Role.Name.Equals(roleName, StringComparison.OrdinalIgnoreCase));
-        }
-
-        /// <summary>
-        /// بررسی داشتن نقش
-        /// </summary>
-        public bool HasRole(Role role)
-        {
-            return role != null && UserRoles.Any(ur => ur.RoleId == role.Id);
-        }
-
+        /// <param name="code">کد بازیابی</param>
+        /// <returns>آیا کد معتبر و استفاده نشده بود؟</returns>
         public bool UseRecoveryCode(string code)
         {
-            var recoveryCode = RecoveryCodes.FirstOrDefault(rc =>
+            if (string.IsNullOrWhiteSpace(code))
+                throw new ArgumentException("کد بازیابی نمی‌تواند خالی باشد", nameof(code));
+
+            var recoveryCode = _recoveryCodes.FirstOrDefault(rc =>
                 rc.Code == code &&
                 !rc.IsUsed &&
                 rc.ExpiresAt > DateTime.UtcNow);
@@ -498,58 +431,201 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             if (recoveryCode == null)
                 return false;
 
-            recoveryCode.IsUsed = true;
-            recoveryCode.UsedAt = DateTime.UtcNow;
+            recoveryCode.Use();
+            Update();
             return true;
         }
 
+        /// <summary>
+        /// افزودن دستگاه جدید
+        /// </summary>
+        /// <param name="device">اطلاعات دستگاه</param>
+        public void AddDevice(UserDevice device)
+        {
+            if (device == null)
+                throw new ArgumentNullException(nameof(device));
+
+            if (!_userDevices.Any(d => d.DeviceId == device.DeviceId))
+            {
+                device.UserId = Id;
+                _userDevices.Add(device);
+                Update();
+            }
+        }
+
+        /// <summary>
+        /// حذف دستگاه
+        /// </summary>
+        /// <param name="deviceId">شناسه دستگاه</param>
+        public void RemoveDevice(Guid deviceId)
+        {
+            var device = _userDevices.FirstOrDefault(d => d.DeviceId == deviceId);
+            if (device != null)
+            {
+                _userDevices.Remove(device);
+                Update();
+            }
+        }
+
+        /// <summary>
+        /// به‌روزرسانی آخرین استفاده از دستگاه
+        /// </summary>
+        /// <param name="deviceId">شناسه دستگاه</param>
+        public void UpdateDeviceLastUsed(Guid deviceId)
+        {
+            var device = _userDevices.FirstOrDefault(d => d.DeviceId == deviceId);
+            if (device != null)
+            {
+                device.UpdateLastUsed();
+                Update();
+            }
+        }
+
+        /// <summary>
+        /// دریافت دستگاه‌های فعال
+        /// </summary>
+        /// <returns>لیست دستگاه‌های فعال</returns>
+        public IEnumerable<UserDevice> GetActiveDevices()
+        {
+            return _userDevices.Where(d => d.IsActive).ToList();
+        }
+
+        /// <summary>
+        /// افزودن توکن رفرش
+        /// </summary>
+        /// <param name="refreshToken">توکن رفرش</param>
         public void AddRefreshToken(RefreshToken refreshToken)
         {
             if (refreshToken == null)
                 throw new ArgumentNullException(nameof(refreshToken));
 
-            RefreshTokens.Add(refreshToken);
+            refreshToken.UserId = Id;
+            _refreshTokens.Add(refreshToken);
+            Update();
         }
 
+        /// <summary>
+        /// حذف توکن رفرش
+        /// </summary>
+        /// <param name="refreshToken">توکن رفرش</param>
         public void RemoveRefreshToken(RefreshToken refreshToken)
         {
             if (refreshToken == null)
                 throw new ArgumentNullException(nameof(refreshToken));
 
-            RefreshTokens.Remove(refreshToken);
+            _refreshTokens.Remove(refreshToken);
+            Update();
         }
 
+        /// <summary>
+        /// باطل کردن همه توکن‌های رفرش
+        /// </summary>
         public void RevokeAllRefreshTokens()
         {
-            foreach (var token in RefreshTokens.Where(rt => !rt.IsRevoked))
+            foreach (var token in _refreshTokens)
             {
-                token.RevokedAt = DateTime.UtcNow;
-                token.RevokedReason = "User revoked all tokens";
+                token.Revoke();
             }
+            Update();
         }
 
+        /// <summary>
+        /// تغییر رمز عبور
+        /// </summary>
+        /// <param name="password">رمز عبور جدید</param>
         public void SetPassword(string password)
         {
             if (string.IsNullOrWhiteSpace(password))
-                throw new ArgumentNullException(nameof(password));
+                throw new ArgumentException("رمز عبور نمی‌تواند خالی باشد", nameof(password));
 
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
             LastPasswordChange = DateTime.UtcNow;
+            Update();
         }
 
+        /// <summary>
+        /// بررسی رمز عبور
+        /// </summary>
+        /// <param name="password">رمز عبور</param>
+        /// <returns>آیا رمز عبور صحیح است؟</returns>
         public bool VerifyPassword(string password)
         {
             if (string.IsNullOrWhiteSpace(password))
-                return false;
+                throw new ArgumentException("رمز عبور نمی‌تواند خالی باشد", nameof(password));
 
             return BCrypt.Net.BCrypt.Verify(password, PasswordHash);
         }
 
-        public void ClearRoles()
+        /// <summary>
+        /// افزودن نقش به کاربر
+        /// </summary>
+        /// <param name="role">نقش مورد نظر</param>
+        public void AddRole(Role role)
         {
-            UserRoles.Clear();
+            if (role == null)
+                throw new ArgumentNullException(nameof(role));
+
+            if (!_userRoles.Any(ur => ur.RoleId == role.Id))
+            {
+                var userRole = UserRole.Create(Id, role.Id);
+                _userRoles.Add(userRole);
+                Update();
+            }
         }
 
+        /// <summary>
+        /// حذف نقش از کاربر
+        /// </summary>
+        /// <param name="role">نقش مورد نظر</param>
+        public void RemoveRole(Role role)
+        {
+            if (role == null)
+                throw new ArgumentNullException(nameof(role));
+
+            var userRole = _userRoles.FirstOrDefault(ur => ur.RoleId == role.Id);
+            if (userRole != null)
+            {
+                _userRoles.Remove(userRole);
+                Update();
+            }
+        }
+
+        /// <summary>
+        /// بررسی وجود نقش در کاربر
+        /// </summary>
+        /// <param name="roleName">نام نقش</param>
+        /// <returns>آیا کاربر دارای این نقش است؟</returns>
+        public bool HasRole(string roleName)
+        {
+            if (string.IsNullOrWhiteSpace(roleName))
+                throw new ArgumentException("نام نقش نمی‌تواند خالی باشد", nameof(roleName));
+
+            return _userRoles.Any(ur => ur.Role.Name.Equals(roleName.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// بررسی وجود نقش در کاربر
+        /// </summary>
+        /// <param name="role">نقش مورد نظر</param>
+        /// <returns>آیا کاربر دارای این نقش است؟</returns>
+        public bool HasRole(Role role)
+        {
+            return role != null && _userRoles.Any(ur => ur.RoleId == role.Id);
+        }
+
+        /// <summary>
+        /// پاک کردن همه نقش‌های کاربر
+        /// </summary>
+        public void ClearRoles()
+        {
+            _userRoles.Clear();
+            Update();
+        }
+
+        /// <summary>
+        /// افزودن چند نقش به کاربر
+        /// </summary>
+        /// <param name="roles">نقش‌های مورد نظر</param>
         public void AddRoles(IEnumerable<Role> roles)
         {
             if (roles == null)
@@ -561,22 +637,13 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             }
         }
 
+        /// <summary>
+        /// دریافت همه نقش‌های کاربر
+        /// </summary>
+        /// <returns>لیست نقش‌های کاربر</returns>
         public IEnumerable<Role> GetRoles()
         {
-            return UserRoles?.Select(ur => ur.Role).ToList() ?? new List<Role>();
-        }
-
-        public void LockAccount(string reason)
-        {
-            LockStatus = AccountLockStatus.Locked;
-            AccountLockoutEnd = DateTime.UtcNow.AddMinutes(SecuritySettings.AccountLockoutDurationMinutes);
-        }
-
-        public void UnlockAccount()
-        {
-            LockStatus = AccountLockStatus.Unlocked;
-            AccountLockoutEnd = null;
-            FailedLoginAttempts = 0;
+            return _userRoles.Select(ur => ur.Role).ToList();
         }
     }
 }

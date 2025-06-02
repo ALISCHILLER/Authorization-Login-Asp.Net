@@ -125,8 +125,6 @@
   <ItemGroup>
     <Folder Include="Core\Application\Features\" />
     <Folder Include="Core\Application\Common\" />
-    <Folder Include="Core\Infrastructure\Authentication\" />
-    <Folder Include="Core\Infrastructure\Persistence\" />
   </ItemGroup>
 
 </Project>

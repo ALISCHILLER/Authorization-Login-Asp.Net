@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Authorization_Login_Asp.Net.Application.DTOs;
 
 namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
 {

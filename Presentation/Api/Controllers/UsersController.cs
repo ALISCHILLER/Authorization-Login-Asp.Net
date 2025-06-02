@@ -1,9 +1,14 @@
+using Authorization_Login_Asp.Net.Core.Application.Features.Users.Commands;
+using Authorization_Login_Asp.Net.Core.Application.Features.Users.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 using Authorization_Login_Asp.Net.Core.Application.DTOs;
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
+using System.Collections.Generic;
 
 namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
 {
@@ -13,19 +18,24 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    public class UsersController : ControllerBase
+    [Produces("application/json")]
+    public class UsersController : BaseApiController
     {
-        private readonly IUserService _userService;
+        private readonly IMediator _mediator;
 
         /// <summary>
         /// سازنده کنترلر
         /// </summary>
-        /// <param name="userService">سرویس مدیریت کاربران</param>
-        public UsersController(IUserService userService)
+        /// <param name="mediator">مدیتور</param>
+        /// <param name="logger">لاگر</param>
+        public UsersController(
+            IMediator mediator,
+            ILogger<UsersController> logger) : base(logger)
         {
-            _userService = userService;
+            _mediator = mediator;
         }
 
+        #region مدیریت کاربران
         /// <summary>
         /// دریافت اطلاعات کاربر با شناسه
         /// </summary>
@@ -35,21 +45,16 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         /// <response code="400">شناسه کاربر نامعتبر است</response>
         /// <response code="404">کاربر یافت نشد</response>
         [HttpGet("{id}")]
-        [ProducesResponseType(200)]
+        [ProducesResponseType(typeof(UserResponse), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetUserById(string id)
         {
             if (!Guid.TryParse(id, out Guid userId))
-            {
-                return BadRequest("شناسه کاربر نامعتبر است");
-            }
+                return Error("شناسه کاربر نامعتبر است");
 
-            var user = await _userService.GetUserByIdAsync(userId);
-            if (user == null)
-                return NotFound();
-
-            return Ok(user);
+            var result = await _mediator.Send(new GetUserByIdQuery { UserId = userId });
+            return Success(result);
         }
 
         /// <summary>
@@ -58,66 +63,63 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         /// <returns>لیست کاربران</returns>
         /// <response code="200">دریافت موفق لیست کاربران</response>
         [HttpGet]
-        [ProducesResponseType(200)]
-        public async Task<IActionResult> GetAllUsers()
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        [ProducesResponseType(typeof(PaginatedList<UserResponse>), 200)]
+        public async Task<IActionResult> GetAllUsers([FromQuery] GetUsersQuery query)
         {
-            var users = await _userService.GetAllUsersAsync();
-            return Ok(users);
+            var result = await _mediator.Send(query);
+            return Success(result);
         }
 
         /// <summary>
         /// ایجاد کاربر جدید
         /// </summary>
-        /// <param name="request">اطلاعات کاربر جدید</param>
+        /// <param name="command">اطلاعات کاربر جدید</param>
         /// <returns>اطلاعات کاربر ایجاد شده</returns>
         /// <response code="201">کاربر با موفقیت ایجاد شد</response>
         /// <response code="400">اطلاعات کاربر نامعتبر است</response>
         /// <response code="401">دسترسی غیرمجاز</response>
         [HttpPost]
-        [Authorize(Roles = "Admin")]
-        [ProducesResponseType(201)]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        [ProducesResponseType(typeof(UserResponse), 201)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
-        public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
+        public async Task<IActionResult> CreateUser([FromBody] CreateUserCommand command)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var user = await _userService.CreateUserAsync(request);
-            return CreatedAtAction(nameof(GetUserById), new { id = user.Id }, user);
+            var result = await _mediator.Send(command);
+            return CreatedAtAction(nameof(GetUserById), new { id = result.Id }, result);
         }
 
         /// <summary>
         /// به‌روزرسانی اطلاعات کاربر
         /// </summary>
         /// <param name="id">شناسه کاربر</param>
-        /// <param name="request">اطلاعات جدید کاربر</param>
+        /// <param name="command">اطلاعات جدید کاربر</param>
         /// <returns>اطلاعات به‌روز شده کاربر</returns>
         /// <response code="200">به‌روزرسانی موفق اطلاعات کاربر</response>
         /// <response code="400">اطلاعات نامعتبر است</response>
         /// <response code="401">دسترسی غیرمجاز</response>
         /// <response code="404">کاربر یافت نشد</response>
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
-        [ProducesResponseType(200)]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        [ProducesResponseType(typeof(UserResponse), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateUserRequest request)
+        public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateUserCommand command)
         {
             if (!Guid.TryParse(id, out Guid userId))
-            {
-                return BadRequest("شناسه کاربر نامعتبر است");
-            }
+                return Error("شناسه کاربر نامعتبر است");
 
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var user = await _userService.UpdateUserAsync(userId, request);
-            if (user == null)
-                return NotFound();
-
-            return Ok(user);
+            command.UserId = userId;
+            var result = await _mediator.Send(command);
+            return Success(result);
         }
 
         /// <summary>
@@ -130,7 +132,7 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         /// <response code="401">دسترسی غیرمجاز</response>
         /// <response code="404">کاربر یافت نشد</response>
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -138,15 +140,55 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         public async Task<IActionResult> DeleteUser(string id)
         {
             if (!Guid.TryParse(id, out Guid userId))
-            {
-                return BadRequest("شناسه کاربر نامعتبر است");
-            }
+                return Error("شناسه کاربر نامعتبر است");
 
-            var result = await _userService.DeleteUserAsync(userId);
-            if (!result)
-                return NotFound();
-
+            await _mediator.Send(new DeleteUserCommand { UserId = userId });
             return NoContent();
         }
+
+        /// <summary>
+        /// فعال‌سازی حساب کاربری
+        /// </summary>
+        /// <param name="id">شناسه کاربر</param>
+        /// <returns>نتیجه عملیات</returns>
+        /// <response code="200">حساب کاربری با موفقیت فعال شد</response>
+        /// <response code="400">شناسه کاربر نامعتبر است</response>
+        /// <response code="404">کاربر یافت نشد</response>
+        [HttpPost("{id}/activate")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> ActivateAccount(string id)
+        {
+            if (!Guid.TryParse(id, out Guid userId))
+                return Error("شناسه کاربر نامعتبر است");
+
+            await _mediator.Send(new ActivateUserCommand { UserId = userId });
+            return Success("حساب کاربری با موفقیت فعال شد");
+        }
+
+        /// <summary>
+        /// غیرفعال‌سازی حساب کاربری
+        /// </summary>
+        /// <param name="id">شناسه کاربر</param>
+        /// <returns>نتیجه عملیات</returns>
+        /// <response code="200">حساب کاربری با موفقیت غیرفعال شد</response>
+        /// <response code="400">شناسه کاربر نامعتبر است</response>
+        /// <response code="404">کاربر یافت نشد</response>
+        [HttpPost("{id}/deactivate")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> DeactivateAccount(string id)
+        {
+            if (!Guid.TryParse(id, out Guid userId))
+                return Error("شناسه کاربر نامعتبر است");
+
+            await _mediator.Send(new DeactivateUserCommand { UserId = userId });
+            return Success("حساب کاربری با موفقیت غیرفعال شد");
+        }
+        #endregion
     }
 }

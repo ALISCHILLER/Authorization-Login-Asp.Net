@@ -1,7 +1,6 @@
 ﻿using Authorization_Login_Asp.Net.Core.Application.Interfaces;
 using Authorization_Login_Asp.Net.Core.Domain.Entities;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Data;
-using Authorization_Login_Asp.Net.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;

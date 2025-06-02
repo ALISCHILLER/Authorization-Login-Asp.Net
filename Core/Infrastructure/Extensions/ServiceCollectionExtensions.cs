@@ -18,37 +18,38 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Extensions
         /// </summary>
         public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // Register repositories
+            // ثبت ریپوزیتوری‌ها
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<IPermissionRepository, PermissionRepository>();
-            services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
-            services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+            services.AddScoped<ILoginHistoryRepository, LoginHistoryRepository>();
 
-            // Register application services
-            services.AddScoped<IUserService, UserService>();
-            services.AddScoped<IPermissionService, PermissionService>();
-            services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+            // ثبت سرویس‌های امنیتی
+            services.AddScoped<IJwtService, JwtService>();
+            services.AddScoped<IUserService, AuthenticationService>();
+            services.AddScoped<ILoginHistoryService, AuthenticationService>();
 
-            // Register security services
-            services.AddScoped<IPasswordHasher, PasswordHasher>();
-            services.AddScoped<ITwoFactorAuthenticator, TwoFactorAuthenticator>();
-            services.AddSingleton<RateLimiter>();
-
-            // Register communication services
+            // ثبت سرویس‌های ارتباطی
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<ISmsService, SmsService>();
+            services.AddScoped<INotificationService, NotificationService>();
 
-            // Register logging services
-            services.AddScoped<ILoggingService, LoggingService>();
-            services.AddScoped<ISecurityLogger, SecurityLogger>();
-            services.AddLogging();
+            // ثبت سرویس‌های پشتیبانی
+            services.AddScoped<ILoggingService, LoggingAndErrorHandlingService>();
+            services.AddScoped<IErrorHandlingService, LoggingAndErrorHandlingService>();
+            services.AddScoped<IImageService, ImageService>();
+            services.AddScoped<ITracingService, TracingService>();
+            services.AddScoped<IMetricsService, MetricsService>();
 
-            // Register caching service
-            services.AddSingleton<ICacheService, RedisCacheService>();
+            // ثبت سرویس‌های کش
+            services.AddMemoryCache();
+            services.AddScoped<ICacheService, CacheService>();
 
-            // Register JWT service
-            services.AddScoped<IJwtService, JwtService>();
+            // ثبت سرویس‌های مانیتورینگ
+            services.AddHealthChecks()
+                .AddDbContextCheck<ApplicationDbContext>()
+                .AddCheck<ExternalServiceHealthCheck>("External Services")
+                .AddCheck<DatabaseHealthCheck>("Database");
 
             return services;
         }

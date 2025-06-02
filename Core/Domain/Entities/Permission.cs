@@ -1,15 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using Authorization_Login_Asp.Net.Domain.Enums;
+using System.Linq;
+using Authorization_Login_Asp.Net.Core.Domain.Common;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Entities
 {
     /// <summary>
-    /// مدل پرمیشن‌ها (دسترسی‌ها)
-    /// این کلاس نماینده جدول Permissions در دیتابیس است.
+    /// مدل دسترسی‌ها (Permissions)
+    /// این کلاس نماینده جدول Permissions در دیتابیس است و تعریف کننده دسترسی‌های سیستم است
     /// </summary>
-    public class Permission
+    public class Permission : BaseEntity
     {
         /// <summary>
         /// کلید اصلی پرمیشن
@@ -18,24 +19,24 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         public Guid Id { get; set; }
 
         /// <summary>
-        /// نام یکتا و کوتاه پرمیشن (مثلاً "CanEdit", "CanDelete")
+        /// نام یکتا و کوتاه دسترسی (مثلاً "CanEdit", "CanDelete")
         /// </summary>
         [Required]
         [MaxLength(100)]
-        public string Name { get; set; }
+        public string Name { get; private set; }
 
         /// <summary>
-        /// توضیح کامل‌تر یا اختیاری درباره عملکرد این پرمیشن
+        /// توضیح کامل‌تر یا اختیاری درباره عملکرد این دسترسی
         /// </summary>
         [MaxLength(200)]
-        public string Description { get; set; }
+        public string Description { get; private set; }
 
         /// <summary>
-        /// نام سامانه‌ای که این پرمیشن به آن تعلق دارد
+        /// نام سامانه‌ای که این دسترسی به آن تعلق دارد
         /// </summary>
         [Required]
         [MaxLength(100)]
-        public string SystemName { get; set; }
+        public string SystemName { get; private set; }
 
         /// <summary>
         /// تاریخ ایجاد پرمیشن
@@ -43,75 +44,123 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         /// <summary>
-        /// وضعیت فعال یا غیرفعال بودن پرمیشن
+        /// وضعیت فعال یا غیرفعال بودن دسترسی
         /// </summary>
-        public bool IsActive { get; set; } = true;
+        public bool IsActive { get; private set; } = true;
 
         /// <summary>
-        /// نقش‌هایی که این پرمیشن را دارند
+        /// ارتباط‌های این دسترسی با نقش‌ها
         /// </summary>
-        public virtual ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
+        private readonly List<RolePermission> _rolePermissions = new();
+        public virtual IReadOnlyCollection<RolePermission> RolePermissions => _rolePermissions.AsReadOnly();
 
         /// <summary>
-        /// نقش‌هایی که این پرمیشن را دارند
+        /// نقش‌های مرتبط با این دسترسی
         /// </summary>
-        public virtual ICollection<Role> Roles => RolePermissions?.Select(rp => rp.Role).ToList() ?? new List<Role>();
+        public virtual IReadOnlyCollection<Role> Roles => _rolePermissions.Select(rp => rp.Role).ToList().AsReadOnly();
 
         /// <summary>
-        /// نقش‌هایی که این پرمیشن را دارند
+        /// سازنده پیش‌فرض برای EF Core
         /// </summary>
-        public virtual Role Role { get; set; }
+        protected Permission() { }
 
         /// <summary>
-        /// نقش‌هایی که این پرمیشن را دارند
+        /// ایجاد دسترسی جدید
         /// </summary>
-        public Guid RoleId { get; set; }
+        /// <param name="name">نام دسترسی</param>
+        /// <param name="systemName">نام سامانه</param>
+        /// <param name="description">توضیح اختیاری</param>
+        /// <returns>نمونه جدید از Permission</returns>
+        public static Permission Create(string name, string systemName, string description = null)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("نام دسترسی نمی‌تواند خالی باشد", nameof(name));
+            if (string.IsNullOrWhiteSpace(systemName))
+                throw new ArgumentException("نام سامانه نمی‌تواند خالی باشد", nameof(systemName));
+
+            return new Permission
+            {
+                Id = Guid.NewGuid(),
+                Name = name.Trim(),
+                SystemName = systemName.Trim(),
+                Description = description?.Trim(),
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true
+            };
+        }
 
         /// <summary>
-        /// افزودن پرمیشن به نقش
+        /// به‌روزرسانی اطلاعات دسترسی
         /// </summary>
-        public void AddToRole(Role role)
+        /// <param name="name">نام جدید</param>
+        /// <param name="systemName">نام سامانه جدید</param>
+        /// <param name="description">توضیح جدید</param>
+        public void Update(string name, string systemName, string description = null)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("نام دسترسی نمی‌تواند خالی باشد", nameof(name));
+            if (string.IsNullOrWhiteSpace(systemName))
+                throw new ArgumentException("نام سامانه نمی‌تواند خالی باشد", nameof(systemName));
+
+            Name = name.Trim();
+            SystemName = systemName.Trim();
+            Description = description?.Trim();
+            Update();
+        }
+
+        /// <summary>
+        /// تغییر وضعیت فعال/غیرفعال دسترسی
+        /// </summary>
+        /// <param name="isActive">وضعیت جدید</param>
+        public void SetActive(bool isActive)
+        {
+            IsActive = isActive;
+            Update();
+        }
+
+        /// <summary>
+        /// افزودن دسترسی به نقش
+        /// </summary>
+        /// <param name="role">نقش مورد نظر</param>
+        /// <param name="description">توضیح اختیاری برای ارتباط</param>
+        public void AddToRole(Role role, string description = null)
         {
             if (role == null)
                 throw new ArgumentNullException(nameof(role));
 
-            if (!RolePermissions.Any(rp => rp.RoleId == role.Id))
+            if (!_rolePermissions.Any(rp => rp.RoleId == role.Id))
             {
-                RolePermissions.Add(new RolePermission
-                {
-                    PermissionId = Id,
-                    RoleId = role.Id
-                });
+                var rolePermission = RolePermission.Create(role.Id, Id, description);
+                _rolePermissions.Add(rolePermission);
+                Update();
             }
         }
 
         /// <summary>
-        /// حذف پرمیشن از نقش
+        /// حذف دسترسی از نقش
         /// </summary>
+        /// <param name="role">نقش مورد نظر</param>
         public void RemoveFromRole(Role role)
         {
             if (role == null)
                 throw new ArgumentNullException(nameof(role));
 
-            var rolePermission = RolePermissions.FirstOrDefault(rp => rp.RoleId == role.Id);
+            var rolePermission = _rolePermissions.FirstOrDefault(rp => rp.RoleId == role.Id);
             if (rolePermission != null)
             {
-                RolePermissions.Remove(rolePermission);
+                _rolePermissions.Remove(rolePermission);
+                Update();
             }
         }
 
         /// <summary>
-        /// بررسی وجود پرمیشن در نقش
+        /// بررسی وجود دسترسی در نقش
         /// </summary>
+        /// <param name="role">نقش مورد نظر</param>
+        /// <returns>آیا دسترسی در نقش وجود دارد؟</returns>
         public bool IsInRole(Role role)
         {
-            return role != null && RolePermissions.Any(rp => rp.RoleId == role.Id);
-        }
-
-        public Permission()
-        {
-            Id = Guid.NewGuid();
-            RolePermissions = new List<RolePermission>();
+            return role != null && _rolePermissions.Any(rp => rp.RoleId == role.Id);
         }
     }
 }

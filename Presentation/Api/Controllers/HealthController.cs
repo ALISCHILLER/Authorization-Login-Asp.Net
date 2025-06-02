@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
 {
@@ -11,71 +12,71 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
     {
         private readonly HealthCheckService _healthCheckService;
 
-        public HealthController(HealthCheckService healthCheckService)
+        public HealthController(IServiceProvider serviceProvider)
         {
-            _healthCheckService = healthCheckService;
+            _healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
         }
 
         /// <summary>
-        /// Get overall health status of the application
+        /// دریافت وضعیت کلی سلامت برنامه
         /// </summary>
         [HttpGet]
         [ProducesResponseType(typeof(HealthReport), 200)]
         [ProducesResponseType(typeof(HealthReport), 503)]
         public async Task<IActionResult> GetHealth()
         {
-            var report = await _healthCheckService.CheckHealthAsync();
+            var report = await _healthCheckService.CheckHealthAsync(reg => reg.Tags.Contains("ready"));
 
             return report.Status == HealthStatus.Healthy
-                ? Ok(report)
-                : StatusCode(503, report);
+                ? Ok(new { status = "سالم", details = report })
+                : StatusCode(503, new { status = "ناسالم", details = report });
         }
 
         /// <summary>
-        /// Check if the application is alive
+        /// بررسی زنده بودن برنامه
         /// </summary>
         [HttpGet("liveness")]
         [ProducesResponseType(typeof(string), 200)]
         public IActionResult GetLiveness()
         {
-            return Ok("زنده");
+            return Ok(new { status = "زنده", timestamp = DateTime.UtcNow });
         }
 
         /// <summary>
-        /// Check if the application is ready to handle requests
+        /// بررسی آمادگی برنامه برای پردازش درخواست‌ها
         /// </summary>
         [HttpGet("readiness")]
-        [ProducesResponseType(typeof(string), 200)]
-        [ProducesResponseType(typeof(string), 503)]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(object), 503)]
         public async Task<IActionResult> GetReadiness()
         {
-            var report = await _healthCheckService.CheckHealthAsync();
+            var report = await _healthCheckService.CheckHealthAsync(reg => reg.Tags.Contains("ready"));
 
             return report.Status == HealthStatus.Healthy
-                ? Ok("آماده")
-                : StatusCode(503, "غیر آماده");
+                ? Ok(new { status = "آماده", timestamp = DateTime.UtcNow })
+                : StatusCode(503, new { status = "غیر آماده", timestamp = DateTime.UtcNow, details = report });
         }
 
         /// <summary>
-        /// Get detailed health check results
+        /// دریافت جزئیات وضعیت سلامت
         /// </summary>
         [HttpGet("details")]
         [ProducesResponseType(typeof(HealthReport), 200)]
         public async Task<IActionResult> GetHealthDetails()
         {
             var report = await _healthCheckService.CheckHealthAsync();
-            return Ok(report);
+            return Ok(new { status = report.Status.ToString(), details = report });
         }
 
         /// <summary>
-        /// Get health check results for specific components
+        /// دریافت وضعیت سلامت اجزای خاص
         /// </summary>
         [HttpGet("components")]
         [ProducesResponseType(typeof(HealthReport), 200)]
         public async Task<IActionResult> GetComponentHealth()
         {
             var report = await _healthCheckService.CheckHealthAsync(reg => reg.Tags.Contains("component"));
-            return Ok(report);
+            return Ok(new { status = report.Status.ToString(), components = report });
         }
     }
 }

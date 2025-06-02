@@ -3,15 +3,6 @@ using Authorization_Login_Asp.Net.Core.Application.Interfaces;
 using Authorization_Login_Asp.Net.Core.Domain.Entities;
 using Authorization_Login_Asp.Net.Core.Domain.Enums;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Data;
-
-
-
-
-// استفاده از موجودیت‌های تعریف شده در لایه دامنه
-using Authorization_Login_Asp.Net.Domain.Entities;
-// استفاده از شمارشی‌های تعریف شده در لایه دامنه
-using Authorization_Login_Asp.Net.Domain.Enums;
-
 // استفاده از کلاس‌های پایگاه داده در لایه زیرساخت
 // استفاده از Entity Framework Core برای عملیات پایگاه داده
 using Microsoft.EntityFrameworkCore;
