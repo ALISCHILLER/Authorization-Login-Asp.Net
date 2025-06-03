@@ -3,6 +3,7 @@ using Authorization_Login_Asp.Net.Core.Application.Interfaces;
 using Authorization_Login_Asp.Net.Core.Domain.Entities;
 using Authorization_Login_Asp.Net.Core.Domain.Enums;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Data;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Cache;
 // استفاده از کلاس‌های پایگاه داده در لایه زیرساخت
 // استفاده از Entity Framework Core برای عملیات پایگاه داده
 using Microsoft.EntityFrameworkCore;
@@ -16,169 +17,164 @@ using System.Linq;
 using System.Threading;
 // استفاده از کلاس‌های عملیات ناهمگام
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Authorization_Login_Asp.Net.Core.Domain.Interfaces;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Repositories.Base;
 
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
 {
     /// <summary>
-    /// پیاده‌سازی مخزن نقش‌ها
-    /// این کلاس عملیات مربوط به نقش‌ها را در پایگاه داده پیاده‌سازی می‌کند
-    /// شامل عملیات‌های CRUD و جستجوی نقش‌ها، مدیریت دسترسی‌ها و بررسی نقش‌های کاربران
+    /// پیاده‌سازی مخزن نقش برای انجام عملیات روی مدل Role
     /// </summary>
-    public class RoleRepository : Repository<Role>, IRoleRepository
+    public class RoleRepository : CachedRepository<Role>, IRoleRepository
     {
-        private readonly AppDbContext _context;
-
-        /// <summary>
-        /// سازنده کلاس مخزن نقش‌ها
-        /// </summary>
-        /// <param name="context">کانتکست پایگاه داده</param>
-        public RoleRepository(AppDbContext context) : base(context)
+        public RoleRepository(
+            ApplicationDbContext context,
+            ICacheService cacheService,
+            ILogger<RoleRepository> logger) : base(context, cacheService, logger)
         {
-            _context = context;
         }
 
         /// <summary>
-        /// دریافت تمام نقش‌ها به صورت لیست
+        /// دریافت همه نقش‌ها
         /// </summary>
-        /// <param name="cancellationToken">امکان لغو عملیات</param>
-        /// <returns>لیست نقش‌ها</returns>
         public async Task<IEnumerable<Role>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            return await _dbSet
-                .Include(r => r.Permissions)
-                .ToListAsync(cancellationToken);
+            var cacheKey = CacheKeys.AllRoles();
+            return await _cacheService.GetOrCreateAsync(
+                cacheKey,
+                async () =>
+                {
+                    var roles = await _dbSet
+                        .Include(r => r.Permissions)
+                        .Include(r => r.Users)
+                        .Where(r => !r.IsDeleted)
+                        .ToListAsync(cancellationToken);
+
+                    _logger.LogInformation("تعداد {Count} نقش بازیابی شد", roles.Count);
+                    return roles;
+                },
+                _defaultCacheDuration,
+                cancellationToken);
         }
 
         /// <summary>
-        /// دریافت یک نقش بر اساس آی‌دی
+        /// دریافت نقش بر اساس شناسه
         /// </summary>
-        /// <param name="id">آی‌دی نقش</param>
-        /// <param name="cancellationToken">امکان لغو عملیات</param>
-        /// <returns>نقش یا null اگر یافت نشد</returns>
         public async Task<Role> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            return await _dbSet
-                .Include(r => r.Permissions)
-                .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
+            ValidateId(id, nameof(id));
+            return await GetCachedAsync(
+                id,
+                async (roleId) => await _dbSet
+                    .Include(r => r.Permissions)
+                    .Include(r => r.Users)
+                    .FirstOrDefaultAsync(r => r.Id == roleId && !r.IsDeleted, cancellationToken),
+                CacheKeys.Role,
+                cancellationToken);
         }
 
         /// <summary>
-        /// دریافت نقش با نام مشخص
+        /// دریافت نقش بر اساس نام
         /// </summary>
-        /// <param name="name">نام نقش</param>
-        /// <param name="cancellationToken">توکن لغو عملیات</param>
-        /// <returns>نقش مورد نظر در صورت وجود</returns>
         public async Task<Role> GetByNameAsync(string name, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("نام نقش نمی‌تواند خالی باشد", nameof(name));
-
-            return await _dbSet
-                .Include(r => r.Permissions)
-                .FirstOrDefaultAsync(r => r.Name == name, cancellationToken);
+            ValidateName(name, nameof(name));
+            return await GetCachedAsync(
+                name,
+                async (roleName) => await _dbSet
+                    .Include(r => r.Permissions)
+                    .Include(r => r.Users)
+                    .FirstOrDefaultAsync(r => r.Name == roleName && !r.IsDeleted, cancellationToken),
+                CacheKeys.RoleByName,
+                cancellationToken);
         }
 
         /// <summary>
-        /// افزودن یک نقش جدید
+        /// بررسی وجود نقش با نام مشخص
         /// </summary>
-        /// <param name="role">شیء نقش</param>
-        /// <param name="cancellationToken">امکان لغو عملیات</param>
-        /// <returns>تسک غیرهمزمان</returns>
-        public async Task AddAsync(Role role, CancellationToken cancellationToken = default)
+        public async Task<bool> ExistsByNameAsync(string name, CancellationToken cancellationToken = default)
         {
-            if (role == null)
-                throw new ArgumentNullException(nameof(role));
-
-            await _dbSet.AddAsync(role, cancellationToken);
-            await SaveChangesAsync(cancellationToken);
+            ValidateName(name, nameof(name));
+            var cacheKey = $"role:exists:name:{name}";
+            return await _cacheService.GetOrCreateAsync(
+                cacheKey,
+                async () => await _dbSet.AnyAsync(r => r.Name == name && !r.IsDeleted, cancellationToken),
+                _defaultCacheDuration,
+                cancellationToken);
         }
 
         /// <summary>
         /// حذف نقش
         /// </summary>
-        /// <param name="role">شیء نقش</param>
-        /// <param name="cancellationToken">امکان لغو عملیات</param>
-        /// <returns>تسک غیرهمزمان</returns>
-        public async Task DeleteAsync(Role role, CancellationToken cancellationToken = default)
+        public override async Task DeleteAsync(Role role, CancellationToken cancellationToken = default)
         {
             if (role == null)
-                throw new ArgumentNullException(nameof(role));
+                throw new ArgumentNullException(nameof(role), "نقش نمی‌تواند خالی باشد");
 
-            _dbSet.Remove(role);
-            await SaveChangesAsync(cancellationToken);
+            role.IsDeleted = true;
+            role.DeletedAt = DateTime.UtcNow;
+            await _dbSet.Update(role).ReloadAsync(cancellationToken);
+
+            // حذف کش‌های مرتبط
+            await _cacheService.RemoveAsync(CacheKeys.Role(role.Id), cancellationToken);
+            await _cacheService.RemoveAsync(CacheKeys.RoleByName(role.Name), cancellationToken);
+            await _cacheService.RemoveAsync(CacheKeys.RolePermissions(role.Id), cancellationToken);
+            await _cacheService.RemoveAsync(CacheKeys.AllRoles(), cancellationToken);
+            await _cacheService.RemoveAsync(CacheKeys.ActiveRoles(), cancellationToken);
+            await _cacheService.RemoveAsync(CacheKeys.SystemRoles(), cancellationToken);
+            await _cacheService.RemoveAsync(CacheKeys.UserRoles(), cancellationToken);
+
+            _logger.LogInformation("نقش با شناسه {RoleId} با موفقیت حذف شد", role.Id);
         }
 
         /// <summary>
-        /// بروزرسانی اطلاعات نقش
+        /// فعال‌سازی نقش
         /// </summary>
-        /// <param name="role">شیء نقش</param>
-        /// <param name="cancellationToken">امکان لغو عملیات</param>
-        /// <returns>تسک غیرهمزمان</returns>
-        public async Task UpdateAsync(Role role, CancellationToken cancellationToken = default)
+        public async Task ActivateAsync(Role role, CancellationToken cancellationToken = default)
+        {
+            ValidateEntity(role, nameof(role));
+            role.IsActive = true;
+            role.UpdatedAt = DateTime.UtcNow;
+            await _dbSet.Update(role).ReloadAsync(cancellationToken);
+            await InvalidateEntityCacheAsync(role, cancellationToken);
+            _logger.LogInformation("نقش با شناسه {RoleId} با موفقیت فعال شد", role.Id);
+        }
+
+        /// <summary>
+        /// غیرفعال‌سازی نقش
+        /// </summary>
+        public async Task DeactivateAsync(Role role, CancellationToken cancellationToken = default)
+        {
+            ValidateEntity(role, nameof(role));
+            role.IsActive = false;
+            role.UpdatedAt = DateTime.UtcNow;
+            await _dbSet.Update(role).ReloadAsync(cancellationToken);
+            await InvalidateEntityCacheAsync(role, cancellationToken);
+            _logger.LogInformation("نقش با شناسه {RoleId} با موفقیت غیرفعال شد", role.Id);
+        }
+
+        /// <summary>
+        /// به‌روزرسانی اطلاعات نقش
+        /// </summary>
+        public override async Task UpdateAsync(Role role, CancellationToken cancellationToken = default)
         {
             if (role == null)
-                throw new ArgumentNullException(nameof(role));
+                throw new ArgumentNullException(nameof(role), "نقش نمی‌تواند خالی باشد");
 
-            _context.Entry(role).State = EntityState.Modified;
-            await SaveChangesAsync(cancellationToken);
-        }
+            role.UpdatedAt = DateTime.UtcNow;
+            await _dbSet.Update(role).ReloadAsync(cancellationToken);
 
-        /// <summary>
-        /// حذف نقش بر اساس آی‌دی
-        /// </summary>
-        /// <param name="id">آی‌دی نقش</param>
-        /// <param name="cancellationToken">امکان لغو عملیات</param>
-        /// <returns>تسک غیرهمزمان</returns>
-        public async Task DeleteByIdAsync(Guid id, CancellationToken cancellationToken = default)
-        {
-            var role = await GetByIdAsync(id, cancellationToken);
-            if (role != null)
-            {
-                await DeleteAsync(role, cancellationToken);
-            }
-        }
+            // به‌روزرسانی کش‌های مرتبط
+            await _cacheService.RemoveAsync(CacheKeys.Role(role.Id), cancellationToken);
+            await _cacheService.RemoveAsync(CacheKeys.RoleByName(role.Name), cancellationToken);
+            await _cacheService.RemoveAsync(CacheKeys.RolePermissions(role.Id), cancellationToken);
+            await _cacheService.RemoveAsync(CacheKeys.AllRoles(), cancellationToken);
+            await _cacheService.RemoveAsync(CacheKeys.ActiveRoles(), cancellationToken);
+            await _cacheService.RemoveAsync(CacheKeys.SystemRoles(), cancellationToken);
+            await _cacheService.RemoveAsync(CacheKeys.UserRoles(), cancellationToken);
 
-        /// <summary>
-        /// بررسی وجود نقش بر اساس نام
-        /// </summary>
-        /// <param name="name">نام نقش</param>
-        /// <param name="cancellationToken">امکان لغو عملیات</param>
-        /// <returns>درست اگر نقش وجود داشته باشد</returns>
-        public async Task<bool> ExistsByNameAsync(string name, CancellationToken cancellationToken = default)
-        {
-            if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("نام نقش نمی‌تواند خالی باشد", nameof(name));
-
-            return await _dbSet.AnyAsync(r => r.Name == name, cancellationToken);
-        }
-
-        /// <summary>
-        /// ذخیره تغییرات
-        /// </summary>
-        /// <param name="cancellationToken">امکان لغو عملیات</param>
-        /// <returns>تعداد رکوردهای تغییر یافته</returns>
-        public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                return await _context.SaveChangesAsync(cancellationToken);
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                foreach (var entry in _context.ChangeTracker.Entries())
-                {
-                    entry.State = EntityState.Detached;
-                }
-                throw;
-            }
-            catch (DbUpdateException)
-            {
-                foreach (var entry in _context.ChangeTracker.Entries())
-                {
-                    entry.State = EntityState.Detached;
-                }
-                throw;
-            }
+            _logger.LogInformation("نقش با شناسه {RoleId} با موفقیت به‌روزرسانی شد", role.Id);
         }
 
         /// <summary>
@@ -210,12 +206,23 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
         /// </summary>
         /// <param name="cancellationToken">توکن لغو عملیات</param>
         /// <returns>لیست نقش‌های فعال</returns>
-        public async Task<IEnumerable<Role>> GetActiveAsync(CancellationToken cancellationToken = default)
+        public async Task<IEnumerable<Role>> GetActiveRolesAsync(CancellationToken cancellationToken = default)
         {
-            return await _dbSet
-                .Include(r => r.Permissions)
-                .Where(r => r.IsActive)
-                .ToListAsync(cancellationToken);
+            var cacheKey = CacheKeys.ActiveRoles();
+            return await _cacheService.GetOrCreateAsync(
+                cacheKey,
+                async () =>
+                {
+                    var roles = await _dbSet
+                        .Include(r => r.Permissions)
+                        .Where(r => !r.IsDeleted && r.IsActive)
+                        .ToListAsync(cancellationToken);
+
+                    _logger.LogInformation("تعداد {Count} نقش فعال بازیابی شد", roles.Count);
+                    return roles;
+                },
+                _defaultCacheDuration,
+                cancellationToken);
         }
 
         /// <summary>
@@ -224,12 +231,22 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
         /// <param name="userId">شناسه کاربر</param>
         /// <param name="cancellationToken">توکن لغو عملیات</param>
         /// <returns>لیست نقش‌های کاربر مورد نظر</returns>
-        public async Task<IEnumerable<Role>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+        public async Task<IEnumerable<Role>> GetByUserAsync(Guid userId, CancellationToken cancellationToken = default)
         {
-            return await _dbSet
-                .Include(r => r.Permissions)
-                .Where(r => r.Users.Any(u => u.Id == userId))
-                .ToListAsync(cancellationToken);
+            ValidateId(userId, nameof(userId));
+            var cacheKey = CacheKeys.UserRoles(userId);
+            return await _cacheService.GetOrCreateAsync(
+                cacheKey,
+                async () =>
+                {
+                    var user = await _context.Users
+                        .Include(u => u.Roles)
+                        .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted, cancellationToken);
+
+                    return user?.Roles ?? new List<Role>();
+                },
+                _defaultCacheDuration,
+                cancellationToken);
         }
 
         /// <summary>
@@ -264,10 +281,21 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
         /// <returns>لیست نقش‌های سیستمی</returns>
         public async Task<IEnumerable<Role>> GetSystemRolesAsync(CancellationToken cancellationToken = default)
         {
-            return await _dbSet
-                .Include(r => r.Permissions)
-                .Where(r => r.Name == "Admin" || r.Name == "Operator")
-                .ToListAsync(cancellationToken);
+            var cacheKey = CacheKeys.SystemRoles();
+            return await _cacheService.GetOrCreateAsync(
+                cacheKey,
+                async () =>
+                {
+                    var roles = await _dbSet
+                        .Include(r => r.Permissions)
+                        .Where(r => !r.IsDeleted && r.IsSystem)
+                        .ToListAsync(cancellationToken);
+
+                    _logger.LogInformation("تعداد {Count} نقش سیستمی بازیابی شد", roles.Count);
+                    return roles;
+                },
+                _defaultCacheDuration,
+                cancellationToken);
         }
 
         /// <summary>
@@ -277,10 +305,21 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
         /// <returns>لیست نقش‌های کاربری</returns>
         public async Task<IEnumerable<Role>> GetUserRolesAsync(CancellationToken cancellationToken = default)
         {
-            return await _dbSet
-                .Include(r => r.Permissions)
-                .Where(r => r.Name == "User" || r.Name == "ContentManager" || r.Name == "Support")
-                .ToListAsync(cancellationToken);
+            var cacheKey = CacheKeys.UserRoles();
+            return await _cacheService.GetOrCreateAsync(
+                cacheKey,
+                async () =>
+                {
+                    var roles = await _dbSet
+                        .Include(r => r.Permissions)
+                        .Where(r => !r.IsDeleted && !r.IsSystem)
+                        .ToListAsync(cancellationToken);
+
+                    _logger.LogInformation("تعداد {Count} نقش کاربری بازیابی شد", roles.Count);
+                    return roles;
+                },
+                _defaultCacheDuration,
+                cancellationToken);
         }
 
         /// <summary>
@@ -312,8 +351,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
         /// <returns>درست اگر کاربر به نقش تعلق داشته باشد</returns>
         public async Task<bool> IsUserInRoleAsync(Guid userId, string roleName, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(roleName))
-                throw new ArgumentException("نام نقش نمی‌تواند خالی باشد", nameof(roleName));
+            ValidateId(userId, nameof(userId));
+            ValidateName(roleName, nameof(roleName));
 
             return await _dbSet
                 .AnyAsync(r => r.Name == roleName && r.Users.Any(u => u.Id == userId), cancellationToken);
@@ -328,6 +367,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
         /// <returns>درست اگر کاربر به همه نقش‌ها تعلق داشته باشد</returns>
         public async Task<bool> IsUserInAllRolesAsync(Guid userId, IEnumerable<string> roleNames, CancellationToken cancellationToken = default)
         {
+            ValidateId(userId, nameof(userId));
             if (roleNames == null || !roleNames.Any())
                 throw new ArgumentException("لیست نقش‌ها نمی‌تواند خالی باشد", nameof(roleNames));
 
@@ -348,6 +388,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
         /// <returns>درست اگر کاربر به حداقل یکی از نقش‌ها تعلق داشته باشد</returns>
         public async Task<bool> IsUserInAnyRoleAsync(Guid userId, IEnumerable<string> roleNames, CancellationToken cancellationToken = default)
         {
+            ValidateId(userId, nameof(userId));
             if (roleNames == null || !roleNames.Any())
                 throw new ArgumentException("لیست نقش‌ها نمی‌تواند خالی باشد", nameof(roleNames));
 
@@ -355,10 +396,13 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
                 .AnyAsync(r => roleNames.Contains(r.Name) && r.Users.Any(u => u.Id == userId), cancellationToken);
         }
 
+        /// <summary>
+        /// افزودن کاربر به نقش
+        /// </summary>
         public async Task AddUserToRoleAsync(Guid userId, string roleName)
         {
-            if (string.IsNullOrWhiteSpace(roleName))
-                throw new ArgumentException("نام نقش نمی‌تواند خالی باشد", nameof(roleName));
+            ValidateId(userId, nameof(userId));
+            ValidateName(roleName, nameof(roleName));
 
             var role = await GetByNameAsync(roleName);
             if (role == null)
@@ -378,13 +422,17 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
                 };
                 await _context.UserRoles.AddAsync(userRole);
                 await _context.SaveChangesAsync();
+                await InvalidateEntityCacheAsync(role);
             }
         }
 
+        /// <summary>
+        /// حذف کاربر از نقش
+        /// </summary>
         public async Task RemoveUserFromRoleAsync(Guid userId, string roleName)
         {
-            if (string.IsNullOrWhiteSpace(roleName))
-                throw new ArgumentException("نام نقش نمی‌تواند خالی باشد", nameof(roleName));
+            ValidateId(userId, nameof(userId));
+            ValidateName(roleName, nameof(roleName));
 
             var role = await GetByNameAsync(roleName);
             if (role == null)
@@ -397,7 +445,145 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             {
                 _context.UserRoles.Remove(userRole);
                 await _context.SaveChangesAsync();
+                await InvalidateEntityCacheAsync(role);
             }
+        }
+
+        /// <summary>
+        /// بررسی یکتا بودن نام نقش
+        /// </summary>
+        public async Task<bool> IsNameUniqueAsync(string name, Guid? excludeRoleId = null, CancellationToken cancellationToken = default)
+        {
+            ValidateName(name, nameof(name));
+            return !await _dbSet.AnyAsync(r => 
+                r.Name == name && 
+                !r.IsDeleted && 
+                (!excludeRoleId.HasValue || r.Id != excludeRoleId.Value), 
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// افزودن دسترسی به نقش
+        /// </summary>
+        public async Task<bool> AddPermissionAsync(Guid roleId, Guid permissionId, CancellationToken cancellationToken = default)
+        {
+            ValidateId(roleId, nameof(roleId));
+            ValidateId(permissionId, nameof(permissionId));
+
+            var role = await _dbSet
+                .Include(r => r.Permissions)
+                .FirstOrDefaultAsync(r => r.Id == roleId && !r.IsDeleted, cancellationToken);
+
+            if (role == null)
+                return false;
+
+            var permission = await _context.Permissions.FindAsync(new object[] { permissionId }, cancellationToken);
+            if (permission == null)
+                return false;
+
+            if (!role.Permissions.Any(p => p.Id == permissionId))
+            {
+                role.Permissions.Add(permission);
+                var result = await _context.SaveChangesAsync(cancellationToken) > 0;
+                if (result)
+                {
+                    await InvalidateEntityCacheAsync(role, cancellationToken);
+                }
+                return result;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// حذف دسترسی از نقش
+        /// </summary>
+        public async Task<bool> RemovePermissionAsync(Guid roleId, Guid permissionId, CancellationToken cancellationToken = default)
+        {
+            ValidateId(roleId, nameof(roleId));
+            ValidateId(permissionId, nameof(permissionId));
+
+            var role = await _dbSet
+                .Include(r => r.Permissions)
+                .FirstOrDefaultAsync(r => r.Id == roleId && !r.IsDeleted, cancellationToken);
+
+            if (role == null)
+                return false;
+
+            var permission = role.Permissions.FirstOrDefault(p => p.Id == permissionId);
+            if (permission != null)
+            {
+                role.Permissions.Remove(permission);
+                var result = await _context.SaveChangesAsync(cancellationToken) > 0;
+                if (result)
+                {
+                    await InvalidateEntityCacheAsync(role, cancellationToken);
+                }
+                return result;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// دریافت دسترسی‌های نقش
+        /// </summary>
+        public async Task<IEnumerable<Permission>> GetRolePermissionsAsync(Guid roleId, CancellationToken cancellationToken = default)
+        {
+            ValidateId(roleId, nameof(roleId));
+            var cacheKey = CacheKeys.RolePermissions(roleId);
+            return await _cacheService.GetOrCreateAsync(
+                cacheKey,
+                async () =>
+                {
+                    var role = await _dbSet
+                        .Include(r => r.Permissions)
+                        .FirstOrDefaultAsync(r => r.Id == roleId && !r.IsDeleted, cancellationToken);
+
+                    return role?.Permissions ?? new List<Permission>();
+                },
+                _defaultCacheDuration,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// بررسی دسترسی نقش
+        /// </summary>
+        public async Task<bool> HasPermissionAsync(Guid roleId, string permissionName, CancellationToken cancellationToken = default)
+        {
+            ValidateId(roleId, nameof(roleId));
+            ValidateName(permissionName, nameof(permissionName));
+
+            return await _dbSet
+                .Include(r => r.Permissions)
+                .AnyAsync(r => 
+                    r.Id == roleId && 
+                    !r.IsDeleted && 
+                    r.Permissions.Any(p => 
+                        p.Name == permissionName && 
+                        p.IsActive), 
+                    cancellationToken);
+        }
+
+        /// <summary>
+        /// دریافت نقش‌های دارای یک دسترسی
+        /// </summary>
+        public async Task<IEnumerable<Role>> GetByPermissionAsync(Guid permissionId, CancellationToken cancellationToken = default)
+        {
+            ValidateId(permissionId, nameof(permissionId));
+            return await _dbSet
+                .Include(r => r.Permissions)
+                .Where(r => r.Permissions.Any(p => p.Id == permissionId) && !r.IsDeleted)
+                .ToListAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// باطل کردن کش‌های مرتبط با نقش
+        /// </summary>
+        protected override async Task InvalidateEntityCacheAsync(Role role, CancellationToken cancellationToken = default)
+        {
+            var cacheKeys = CacheKeyHelper.GetEntityCacheKeys<Role>(role.Id, role.Name);
+            await InvalidateCacheAsync(cacheKeys, cancellationToken);
         }
     }
 }

@@ -5,10 +5,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Authorization_Login_Asp.Net.Core.Domain.Entities;
 using Authorization_Login_Asp.Net.Core.Application.DTOs;
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Data;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Repositories.Base;
 
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
 {
@@ -16,17 +18,342 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
     /// پیاده‌سازی مخزن تاریخچه ورود
     /// این کلاس عملیات مربوط به تاریخچه ورود کاربران را در پایگاه داده پیاده‌سازی می‌کند
     /// </summary>
-    public class LoginHistoryRepository : ILoginHistoryRepository
+    public class LoginHistoryRepository : BaseRepository<LoginHistory>, ILoginHistoryRepository
     {
-        private readonly AppDbContext _context;
+        public LoginHistoryRepository(
+            ApplicationDbContext context,
+            ILogger<LoginHistoryRepository> logger) : base(context, logger)
+        {
+        }
 
         /// <summary>
-        /// سازنده کلاس مخزن تاریخچه ورود
+        /// دریافت تاریخچه ورود کاربر
         /// </summary>
-        /// <param name="context">کانتکست پایگاه داده</param>
-        public LoginHistoryRepository(AppDbContext context)
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="limit">تعداد رکوردهای مورد نظر</param>
+        /// <param name="cancellationToken">توکن لغو عملیات</param>
+        /// <returns>لیست تاریخچه ورود کاربر</returns>
+        public async Task<IEnumerable<LoginHistory>> GetByUserAsync(
+            Guid userId, 
+            int? limit = null, 
+            CancellationToken cancellationToken = default)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
+            try
+            {
+                var query = _dbSet
+                    .Where(lh => lh.UserId == userId && !lh.IsDeleted)
+                    .OrderByDescending(lh => lh.LoginTime);
+
+                if (limit.HasValue)
+                {
+                    query = query.Take(limit.Value);
+                }
+
+                return await query.ToListAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در دریافت تاریخچه ورود کاربر {UserId}", userId);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// دریافت تاریخچه ورود کاربر در بازه زمانی مشخص
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="startDate">تاریخ شروع</param>
+        /// <param name="endDate">تاریخ پایان</param>
+        /// <param name="cancellationToken">توکن لغو عملیات</param>
+        /// <returns>لیست تاریخچه ورود کاربر در بازه زمانی</returns>
+        public async Task<IEnumerable<LoginHistory>> GetByUserAndDateRangeAsync(
+            Guid userId,
+            DateTime startDate,
+            DateTime endDate,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await _dbSet
+                    .Where(lh => lh.UserId == userId && 
+                                !lh.IsDeleted && 
+                                lh.LoginTime >= startDate && 
+                                lh.LoginTime <= endDate)
+                    .OrderByDescending(lh => lh.LoginTime)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در دریافت تاریخچه ورود کاربر {UserId} در بازه زمانی", userId);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// دریافت تاریخچه ورود کاربر با دستگاه مشخص
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="deviceId">شناسه دستگاه</param>
+        /// <param name="cancellationToken">توکن لغو عملیات</param>
+        /// <returns>لیست تاریخچه ورود کاربر با دستگاه مشخص</returns>
+        public async Task<IEnumerable<LoginHistory>> GetByUserAndDeviceAsync(
+            Guid userId,
+            Guid deviceId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await _dbSet
+                    .Where(lh => lh.UserId == userId && 
+                                lh.DeviceId == deviceId && 
+                                !lh.IsDeleted)
+                    .OrderByDescending(lh => lh.LoginTime)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در دریافت تاریخچه ورود کاربر {UserId} با دستگاه {DeviceId}", userId, deviceId);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// دریافت آخرین ورود کاربر
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="cancellationToken">توکن لغو عملیات</param>
+        /// <returns>آخرین رکورد ورود کاربر</returns>
+        public async Task<LoginHistory> GetLastLoginAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await _dbSet
+                    .Where(lh => lh.UserId == userId && !lh.IsDeleted)
+                    .OrderByDescending(lh => lh.LoginTime)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در دریافت آخرین ورود کاربر {UserId}", userId);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// دریافت تعداد ورودهای ناموفق کاربر
+        /// </summary>
+        /// <param name="userId">شناسه کاربر</param>
+        /// <param name="timeWindow">بازه زمانی (به دقیقه)</param>
+        /// <param name="cancellationToken">توکن لغو عملیات</param>
+        /// <returns>تعداد ورودهای ناموفق</returns>
+        public async Task<int> GetFailedLoginCountAsync(
+            Guid userId,
+            int timeWindow = 30,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var cutoffTime = DateTime.UtcNow.AddMinutes(-timeWindow);
+                return await _dbSet
+                    .CountAsync(lh => lh.UserId == userId && 
+                                     !lh.IsDeleted && 
+                                     !lh.IsSuccessful && 
+                                     lh.LoginTime >= cutoffTime,
+                               cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در دریافت تعداد ورودهای ناموفق کاربر {UserId}", userId);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// پاکسازی تاریخچه ورودهای قدیمی
+        /// </summary>
+        /// <param name="olderThan">تاریخ مرجع برای حذف</param>
+        /// <param name="cancellationToken">توکن لغو عملیات</param>
+        /// <returns>تعداد رکوردهای حذف شده</returns>
+        public async Task<int> CleanupOldLoginHistoryAsync(
+            DateTime olderThan,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var oldRecords = await _dbSet
+                    .Where(lh => lh.LoginTime < olderThan && !lh.IsDeleted)
+                    .ToListAsync(cancellationToken);
+
+                if (!oldRecords.Any())
+                    return 0;
+
+                foreach (var record in oldRecords)
+                {
+                    record.IsDeleted = true;
+                    record.DeletedAt = DateTime.UtcNow;
+                }
+
+                return await _context.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در پاکسازی تاریخچه ورودهای قدیمی");
+                throw;
+            }
+        }
+
+        public async Task<IEnumerable<LoginHistory>> GetByDateRangeAsync(
+            DateTime startDate,
+            DateTime endDate,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await _dbSet
+                    .Include(lh => lh.User)
+                    .Where(lh => 
+                        lh.LoginTime >= startDate && 
+                        lh.LoginTime <= endDate && 
+                        !lh.IsDeleted)
+                    .OrderByDescending(lh => lh.LoginTime)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در دریافت تاریخچه ورود در بازه زمانی {StartDate} تا {EndDate}", startDate, endDate);
+                throw;
+            }
+        }
+
+        public async Task<IEnumerable<LoginHistory>> GetFailedLoginsAsync(
+            DateTime? startDate = null,
+            DateTime? endDate = null,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var query = _dbSet
+                    .Include(lh => lh.User)
+                    .Where(lh => !lh.IsSuccessful && !lh.IsDeleted);
+
+                if (startDate.HasValue)
+                {
+                    query = query.Where(lh => lh.LoginTime >= startDate.Value);
+                }
+
+                if (endDate.HasValue)
+                {
+                    query = query.Where(lh => lh.LoginTime <= endDate.Value);
+                }
+
+                return await query
+                    .OrderByDescending(lh => lh.LoginTime)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در دریافت ورودهای ناموفق");
+                throw;
+            }
+        }
+
+        public async Task<bool> HasRecentFailedLoginsAsync(
+            Guid userId,
+            int maxAttempts,
+            TimeSpan timeWindow,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var cutoffTime = DateTime.UtcNow.Subtract(timeWindow);
+                return await _dbSet
+                    .CountAsync(lh => 
+                        lh.UserId == userId && 
+                        !lh.IsSuccessful && 
+                        !lh.IsDeleted && 
+                        lh.LoginTime >= cutoffTime, 
+                        cancellationToken) >= maxAttempts;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در بررسی ورودهای ناموفق اخیر کاربر {UserId}", userId);
+                throw;
+            }
+        }
+
+        public async Task<int> CleanupOldHistoryAsync(
+            int daysToKeep,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var cutoffDate = DateTime.UtcNow.AddDays(-daysToKeep);
+                var oldRecords = await _dbSet
+                    .Where(lh => lh.LoginTime < cutoffDate && !lh.IsDeleted)
+                    .ToListAsync(cancellationToken);
+
+                if (!oldRecords.Any())
+                {
+                    return 0;
+                }
+
+                foreach (var record in oldRecords)
+                {
+                    record.IsDeleted = true;
+                    record.DeletedAt = DateTime.UtcNow;
+                }
+
+                return await _context.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در پاکسازی تاریخچه ورود قدیمی");
+                throw;
+            }
+        }
+
+        public async Task<IEnumerable<LoginHistory>> GetByIpAddressAsync(
+            string ipAddress,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await _dbSet
+                    .Include(lh => lh.User)
+                    .Where(lh => 
+                        lh.IpAddress == ipAddress && 
+                        !lh.IsDeleted)
+                    .OrderByDescending(lh => lh.LoginTime)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در دریافت تاریخچه ورود با آدرس IP {IpAddress}", ipAddress);
+                throw;
+            }
+        }
+
+        public async Task<IEnumerable<LoginHistory>> GetByDeviceInfoAsync(
+            string deviceInfo,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await _dbSet
+                    .Include(lh => lh.User)
+                    .Where(lh => 
+                        lh.DeviceInfo == deviceInfo && 
+                        !lh.IsDeleted)
+                    .OrderByDescending(lh => lh.LoginTime)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در دریافت تاریخچه ورود با اطلاعات دستگاه {DeviceInfo}", deviceInfo);
+                throw;
+            }
         }
 
         public async Task<LoginHistory> AddAsync(LoginHistory loginHistory)
@@ -34,7 +361,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             if (loginHistory == null)
                 throw new ArgumentNullException(nameof(loginHistory));
 
-            await _context.LoginHistory.AddAsync(loginHistory);
+            await _dbSet.AddAsync(loginHistory);
             return loginHistory;
         }
 
@@ -48,7 +375,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             if (loginHistory == null)
                 throw new ArgumentNullException(nameof(loginHistory));
 
-            _context.LoginHistory.Remove(loginHistory);
+            _dbSet.Remove(loginHistory);
             return await SaveChangesAsync() > 0;
         }
 
@@ -63,27 +390,27 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
 
         public async Task<LoginHistory> GetByIdAsync(Guid id)
         {
-            return await _context.LoginHistory.FindAsync(id);
+            return await _dbSet.FindAsync(id);
         }
 
         public async Task<IEnumerable<LoginHistory>> GetAllAsync()
         {
-            return await _context.LoginHistory.ToListAsync();
+            return await _dbSet.ToListAsync();
         }
 
         public async Task<IEnumerable<LoginHistory>> GetAsync(Expression<Func<LoginHistory, bool>> predicate)
         {
-            return await _context.LoginHistory.Where(predicate).ToListAsync();
+            return await _dbSet.Where(predicate).ToListAsync();
         }
 
         public async Task<LoginHistory> GetFirstOrDefaultAsync(Expression<Func<LoginHistory, bool>> predicate)
         {
-            return await _context.LoginHistory.FirstOrDefaultAsync(predicate);
+            return await _dbSet.FirstOrDefaultAsync(predicate);
         }
 
         public async Task<bool> ExistsAsync(Expression<Func<LoginHistory, bool>> predicate)
         {
-            return await _context.LoginHistory.AnyAsync(predicate);
+            return await _dbSet.AnyAsync(predicate);
         }
 
         public async Task<int> SaveChangesAsync()
@@ -123,7 +450,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
         /// <returns>آخرین رکورد ورود موفق کاربر</returns>
         public async Task<LoginHistory> GetLastSuccessfulLoginAsync(Guid userId, CancellationToken cancellationToken = default)
         {
-            return await _context.LoginHistory
+            return await _dbSet
                 .Where(lh => lh.UserId == userId && lh.IsSuccessful)
                 .OrderByDescending(lh => lh.LoginTime)
                 .FirstOrDefaultAsync(cancellationToken);
@@ -136,7 +463,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
         /// <returns>کوئری تاریخچه ورود کاربر</returns>
         public IQueryable<LoginHistory> GetLoginHistoryQuery(Guid userId)
         {
-            return _context.LoginHistory.Where(lh => lh.UserId == userId);
+            return _dbSet.Where(lh => lh.UserId == userId);
         }
 
         /// <summary>
@@ -152,7 +479,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             if (startTime > endTime)
                 throw new ArgumentException("زمان شروع نمی‌تواند بعد از زمان پایان باشد", nameof(startTime));
 
-            return await _context.LoginHistory
+            return await _dbSet
                 .CountAsync(lh =>
                     lh.UserId == userId &&
                     !lh.IsSuccessful &&
@@ -172,7 +499,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
         /// <returns>تاپل شامل لیست تاریخچه ورود و تعداد کل رکوردها</returns>
         public async Task<LoginHistoryResult> GetUserLoginHistoryAsync(Guid userId, int page = 1, int pageSize = 10)
         {
-            var query = _context.LoginHistory.Where(lh => lh.UserId == userId);
+            var query = _dbSet.Where(lh => lh.UserId == userId);
             var totalCount = await query.CountAsync();
             var items = await query
                 .OrderByDescending(lh => lh.LoginTime)
@@ -200,7 +527,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             if (startTime > endTime)
                 throw new ArgumentException("زمان شروع نمی‌تواند بعد از زمان پایان باشد", nameof(startTime));
 
-            var query = _context.LoginHistory
+            var query = _dbSet
                 .Where(lh => lh.LoginTime >= startTime && lh.LoginTime <= endTime);
 
             if (includeUser)
@@ -226,7 +553,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             if (startTime > endTime)
                 throw new ArgumentException("زمان شروع نمی‌تواند بعد از زمان پایان باشد", nameof(startTime));
 
-            var query = _context.LoginHistory
+            var query = _dbSet
                 .Where(lh => lh.LoginTime >= startTime && lh.LoginTime <= endTime);
 
             var totalLogins = await query.CountAsync(cancellationToken);
@@ -251,7 +578,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             if (count < 1)
                 throw new ArgumentException("تعداد رکوردها نمی‌تواند کمتر از 1 باشد", nameof(count));
 
-            return await _context.LoginHistory
+            return await _dbSet
                 .Where(lh => lh.UserId == userId && !lh.IsSuccessful)
                 .OrderByDescending(lh => lh.LoginTime)
                 .Take(count)
@@ -275,7 +602,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             if (startTime > endTime)
                 throw new ArgumentException("زمان شروع نمی‌تواند بعد از زمان پایان باشد", nameof(startTime));
 
-            return await _context.LoginHistory
+            return await _dbSet
                 .AnyAsync(lh =>
                     lh.UserId == userId &&
                     lh.IsSuccessful &&
@@ -301,7 +628,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             if (startTime > endTime)
                 throw new ArgumentException("زمان شروع نمی‌تواند بعد از زمان پایان باشد", nameof(startTime));
 
-            var sessions = await _context.LoginHistory
+            var sessions = await _dbSet
                 .Where(lh =>
                     lh.UserId == userId &&
                     lh.IsSuccessful &&
@@ -329,7 +656,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             if (startTime > endTime)
                 throw new ArgumentException("زمان شروع نمی‌تواند بعد از زمان پایان باشد", nameof(startTime));
 
-            return await _context.LoginHistory
+            return await _dbSet
                 .Where(lh =>
                     lh.IsSuccessful &&
                     lh.LoginTime >= startTime &&

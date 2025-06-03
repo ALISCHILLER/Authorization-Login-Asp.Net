@@ -1,158 +1,179 @@
+using Authorization_Login_Asp.Net.Core.Application.Features.Notifications.Commands;
+using Authorization_Login_Asp.Net.Core.Application.Features.Notifications.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
-using Authorization_Login_Asp.Net.Core.Domain.Entities;
-using Authorization_Login_Asp.Net.Core.Application.DTOs;
-using Authorization_Login_Asp.Net.Core.Infrastructure.Services;
 using System.ComponentModel.DataAnnotations;
 
 namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
+    /// <summary>
+    /// کنترلر مدیریت اعلان‌ها و هشدارهای سیستم
+    /// </summary>
     [Authorize(Policy = "RequireAdminRole")]
-    public class NotificationsController : ControllerBase
+    public class NotificationsController : BaseApiController
     {
-        private readonly INotificationService _notificationService;
-        private readonly ILogger<NotificationsController> _logger;
+        private readonly IMediator _mediator;
 
         public NotificationsController(
-            INotificationService notificationService,
-            ILogger<NotificationsController> logger)
+            IMediator mediator,
+            ILogger<NotificationsController> logger) : base(logger)
         {
-            _notificationService = notificationService;
-            _logger = logger;
+            _mediator = mediator;
         }
 
         /// <summary>
         /// دریافت لیست اعلان‌ها
         /// </summary>
+        /// <param name="count">تعداد اعلان‌های مورد نظر</param>
+        /// <returns>لیست اعلان‌ها</returns>
+        /// <response code="200">لیست اعلان‌ها با موفقیت دریافت شد</response>
         [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<NotificationDto>), 200)]
+        [ProducesResponseType(typeof(GetNotificationsResponse), 200)]
         public async Task<IActionResult> GetNotifications([FromQuery] int count = 10)
         {
-            var notifications = await _notificationService.GetNotificationsAsync(count);
-            return Ok(notifications);
+            var result = await _mediator.Send(new GetNotificationsQuery { Count = count });
+            return Success(result);
         }
 
         /// <summary>
         /// ایجاد اعلان جدید
         /// </summary>
+        /// <param name="command">اطلاعات اعلان جدید</param>
+        /// <returns>اطلاعات اعلان ایجاد شده</returns>
+        /// <response code="201">اعلان با موفقیت ایجاد شد</response>
+        /// <response code="400">اطلاعات ورودی نامعتبر است</response>
         [HttpPost]
-        [ProducesResponseType(typeof(NotificationDto), 201)]
+        [ProducesResponseType(typeof(CreateNotificationResponse), 201)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> CreateNotification([FromBody] NotificationRequest request)
+        public async Task<IActionResult> CreateNotification([FromBody] CreateNotificationCommand command)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var notification = await _notificationService.CreateNotificationAsync(request);
-            return CreatedAtAction(nameof(GetNotifications), new { id = notification.Id }, notification);
+            var result = await _mediator.Send(command);
+            return CreatedAtAction(nameof(GetNotifications), new { id = result.Id }, result);
         }
 
         /// <summary>
         /// ارسال اعلان سیستمی
         /// </summary>
+        /// <param name="command">اطلاعات اعلان سیستمی</param>
+        /// <returns>نتیجه ارسال اعلان</returns>
+        /// <response code="200">اعلان با موفقیت ارسال شد</response>
+        /// <response code="400">اطلاعات ورودی نامعتبر است</response>
         [HttpPost("system")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> SendSystemAlert([FromBody] AlertRequest request)
+        public async Task<IActionResult> SendSystemAlert([FromBody] SendSystemAlertCommand command)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            await _notificationService.SendSystemAlertAsync(request.Title, request.Message, request.Severity);
-            return Ok(new { message = "اعلان سیستمی با موفقیت ارسال شد" });
+            await _mediator.Send(command);
+            return Success("اعلان سیستمی با موفقیت ارسال شد");
         }
 
         /// <summary>
         /// ارسال اعلان امنیتی
         /// </summary>
+        /// <param name="command">اطلاعات اعلان امنیتی</param>
+        /// <returns>نتیجه ارسال اعلان</returns>
+        /// <response code="200">اعلان با موفقیت ارسال شد</response>
+        /// <response code="400">اطلاعات ورودی نامعتبر است</response>
         [HttpPost("security")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> SendSecurityAlert([FromBody] AlertRequest request)
+        public async Task<IActionResult> SendSecurityAlert([FromBody] SendSecurityAlertCommand command)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            await _notificationService.SendSecurityAlertAsync(request.Title, request.Message, request.Severity);
-            return Ok(new { message = "اعلان امنیتی با موفقیت ارسال شد" });
+            await _mediator.Send(command);
+            return Success("اعلان امنیتی با موفقیت ارسال شد");
         }
 
         /// <summary>
         /// ارسال اعلان عملکردی
         /// </summary>
+        /// <param name="command">اطلاعات اعلان عملکردی</param>
+        /// <returns>نتیجه ارسال اعلان</returns>
+        /// <response code="200">اعلان با موفقیت ارسال شد</response>
+        /// <response code="400">اطلاعات ورودی نامعتبر است</response>
         [HttpPost("performance")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> SendPerformanceAlert([FromBody] AlertRequest request)
+        public async Task<IActionResult> SendPerformanceAlert([FromBody] SendPerformanceAlertCommand command)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            await _notificationService.SendPerformanceAlertAsync(request.Title, request.Message, request.Severity);
-            return Ok(new { message = "اعلان عملکردی با موفقیت ارسال شد" });
+            await _mediator.Send(command);
+            return Success("اعلان عملکردی با موفقیت ارسال شد");
         }
 
         /// <summary>
         /// ارسال اعلان خطا
         /// </summary>
+        /// <param name="command">اطلاعات اعلان خطا</param>
+        /// <returns>نتیجه ارسال اعلان</returns>
+        /// <response code="200">اعلان با موفقیت ارسال شد</response>
+        /// <response code="400">اطلاعات ورودی نامعتبر است</response>
         [HttpPost("error")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> SendErrorAlert([FromBody] AlertRequest request)
+        public async Task<IActionResult> SendErrorAlert([FromBody] SendErrorAlertCommand command)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            await _notificationService.SendErrorAlertAsync(request.Title, request.Message, request.Severity);
-            return Ok(new { message = "اعلان خطا با موفقیت ارسال شد" });
+            await _mediator.Send(command);
+            return Success("اعلان خطا با موفقیت ارسال شد");
         }
 
         /// <summary>
         /// علامت‌گذاری اعلان به عنوان خوانده شده
         /// </summary>
+        /// <param name="id">شناسه اعلان</param>
+        /// <returns>نتیجه عملیات</returns>
+        /// <response code="200">اعلان با موفقیت علامت‌گذاری شد</response>
+        /// <response code="400">شناسه اعلان نامعتبر است</response>
+        /// <response code="404">اعلان یافت نشد</response>
         [HttpPut("{id}/read")]
         [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> MarkAsRead(string id)
         {
             if (!Guid.TryParse(id, out var notificationId))
-                return BadRequest("شناسه اعلان نامعتبر است");
+                return Error("شناسه اعلان نامعتبر است");
 
-            await _notificationService.MarkAsReadAsync(notificationId);
-            return Ok(new { message = "اعلان با موفقیت به عنوان خوانده شده علامت‌گذاری شد" });
+            await _mediator.Send(new MarkNotificationAsReadCommand { NotificationId = notificationId });
+            return Success("اعلان با موفقیت به عنوان خوانده شده علامت‌گذاری شد");
         }
 
         /// <summary>
         /// حذف اعلان
         /// </summary>
+        /// <param name="id">شناسه اعلان</param>
+        /// <returns>نتیجه عملیات</returns>
+        /// <response code="200">اعلان با موفقیت حذف شد</response>
+        /// <response code="400">شناسه اعلان نامعتبر است</response>
+        /// <response code="404">اعلان یافت نشد</response>
         [HttpDelete("{id}")]
         [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> DeleteNotification(string id)
         {
             if (!Guid.TryParse(id, out var notificationId))
-                return BadRequest("شناسه اعلان نامعتبر است");
+                return Error("شناسه اعلان نامعتبر است");
 
-            await _notificationService.DeleteNotificationAsync(notificationId);
-            return Ok(new { message = "اعلان با موفقیت حذف شد" });
+            await _mediator.Send(new DeleteNotificationCommand { NotificationId = notificationId });
+            return Success("اعلان با موفقیت حذف شد");
         }
-    }
-
-    public class AlertRequest
-    {
-        [Required(ErrorMessage = "عنوان اعلان الزامی است")]
-        [StringLength(100, ErrorMessage = "عنوان اعلان نمی‌تواند بیشتر از 100 کاراکتر باشد")]
-        public string Title { get; set; }
-
-        [Required(ErrorMessage = "متن اعلان الزامی است")]
-        [StringLength(500, ErrorMessage = "متن اعلان نمی‌تواند بیشتر از 500 کاراکتر باشد")]
-        public string Message { get; set; }
-
-        [Required(ErrorMessage = "سطح اهمیت اعلان الزامی است")]
-        public AlertSeverity Severity { get; set; }
     }
 }

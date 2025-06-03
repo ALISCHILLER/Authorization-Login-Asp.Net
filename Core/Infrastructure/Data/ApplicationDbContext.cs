@@ -1,153 +1,229 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Authorization_Login_Asp.Net.Domain.ValueObjects;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Authorization_Login_Asp.Net.Core.Domain.Common;
 using Authorization_Login_Asp.Net.Core.Domain.Entities;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Data.Configurations;
 
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Data
 {
+    /// <summary>
+    /// کانتکست اصلی دیتابیس برنامه
+    /// </summary>
     public class ApplicationDbContext : DbContext
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-            : base(options)
+        private readonly ICurrentUserService _currentUserService;
+        private readonly IDateTimeService _dateTimeService;
+
+        public ApplicationDbContext(
+            DbContextOptions<ApplicationDbContext> options,
+            ICurrentUserService currentUserService,
+            IDateTimeService dateTimeService) : base(options)
         {
+            _currentUserService = currentUserService;
+            _dateTimeService = dateTimeService;
         }
 
+        #region DbSets
         public DbSet<User> Users { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<Permission> Permissions { get; set; }
-        public DbSet<UserRole> UserRoles { get; set; }
         public DbSet<RolePermission> RolePermissions { get; set; }
+        public DbSet<UserRole> UserRoles { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
-        public DbSet<UserDevice> UserDevices { get; set; }
         public DbSet<LoginHistory> LoginHistory { get; set; }
-        public DbSet<TwoFactorRecoveryCode> RecoveryCodes { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
+        public DbSet<SystemError> SystemErrors { get; set; }
+        public DbSet<SecurityError> SecurityErrors { get; set; }
+        public DbSet<ValidationError> ValidationErrors { get; set; }
+        public DbSet<PerformanceError> PerformanceErrors { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
+        #endregion
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Configure User entity
-            modelBuilder.Entity<User>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Username).IsRequired().HasMaxLength(50);
-                entity.Property(e => e.PasswordHash).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.FullName).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.PhoneNumber).IsRequired().HasMaxLength(15);
-                entity.Property(e => e.ProfileImageUrl).IsRequired().HasMaxLength(500);
-                entity.Property(e => e.FirstName).IsRequired().HasMaxLength(50);
-                entity.Property(e => e.LastName).IsRequired().HasMaxLength(50);
-                entity.Property(e => e.TwoFactorSecret).IsRequired();
+            // اعمال تنظیمات موجودیت‌ها
+            modelBuilder.ApplyConfiguration(new UserConfiguration());
+            modelBuilder.ApplyConfiguration(new RoleConfiguration());
+            modelBuilder.ApplyConfiguration(new PermissionConfiguration());
+            modelBuilder.ApplyConfiguration(new RolePermissionConfiguration());
+            modelBuilder.ApplyConfiguration(new UserRoleConfiguration());
+            modelBuilder.ApplyConfiguration(new RefreshTokenConfiguration());
+            modelBuilder.ApplyConfiguration(new LoginHistoryConfiguration());
+            modelBuilder.ApplyConfiguration(new NotificationConfiguration());
+            modelBuilder.ApplyConfiguration(new SystemErrorConfiguration());
+            modelBuilder.ApplyConfiguration(new SecurityErrorConfiguration());
+            modelBuilder.ApplyConfiguration(new ValidationErrorConfiguration());
+            modelBuilder.ApplyConfiguration(new PerformanceErrorConfiguration());
+            modelBuilder.ApplyConfiguration(new AuditLogConfiguration());
 
-                entity.OwnsOne(e => e.Email, email =>
+            // اعمال فیلترهای سراسری
+            modelBuilder.ApplyGlobalFilters();
+        }
+
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            foreach (var entry in ChangeTracker.Entries<AuditableEntity>())
+            {
+                switch (entry.State)
                 {
-                    email.Property(e => e.Value)
-                        .HasColumnName("Email")
-                        .IsRequired()
-                        .HasMaxLength(100);
-                });
+                    case EntityState.Added:
+                        entry.Entity.CreatedBy = _currentUserService.UserId;
+                        entry.Entity.CreatedAt = _dateTimeService.Now;
+                        break;
 
-                entity.HasMany(e => e.UserRoles)
-                    .WithOne(e => e.User)
-                    .HasForeignKey(e => e.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                    case EntityState.Modified:
+                        entry.Entity.LastModifiedBy = _currentUserService.UserId;
+                        entry.Entity.LastModifiedAt = _dateTimeService.Now;
+                        break;
 
-                entity.HasMany(e => e.RefreshTokens)
-                    .WithOne(e => e.User)
-                    .HasForeignKey(e => e.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                    case EntityState.Deleted:
+                        if (entry.Entity is ISoftDelete softDelete)
+                        {
+                            entry.State = EntityState.Modified;
+                            softDelete.IsDeleted = true;
+                            softDelete.DeletedBy = _currentUserService.UserId;
+                            softDelete.DeletedAt = _dateTimeService.Now;
+                        }
+                        break;
+                }
+            }
 
-                entity.HasMany(e => e.UserDevices)
-                    .WithOne(e => e.User)
-                    .HasForeignKey(e => e.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
+            var result = await base.SaveChangesAsync(cancellationToken);
 
-                entity.HasMany(e => e.RecoveryCodes)
-                    .WithOne(e => e.User)
-                    .HasForeignKey(e => e.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
+            // ثبت تغییرات در لاگ حسابرسی
+            await AuditChanges();
 
-                entity.HasMany(e => e.LoginHistory)
-                    .WithOne(e => e.User)
-                    .HasForeignKey(e => e.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
+            return result;
+        }
 
-            // Configure Role entity
-            modelBuilder.Entity<Role>(entity =>
+        private async Task AuditChanges()
+        {
+            var auditEntries = OnBeforeSaveChanges();
+            await SaveChangesAsync();
+            await OnAfterSaveChanges(auditEntries);
+        }
+
+        private List<AuditEntry> OnBeforeSaveChanges()
+        {
+            ChangeTracker.DetectChanges();
+            var auditEntries = new List<AuditEntry>();
+
+            foreach (var entry in ChangeTracker.Entries())
             {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
-                entity.Property(e => e.DisplayName).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.Description).HasMaxLength(500);
+                if (entry.Entity is AuditLog || entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
+                    continue;
 
-                entity.HasMany(e => e.RolePermissions)
-                    .WithOne(e => e.Role)
-                    .HasForeignKey(e => e.RoleId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
+                var auditEntry = new AuditEntry(entry)
+                {
+                    TableName = entry.Entity.GetType().Name,
+                    UserId = _currentUserService.UserId,
+                    Action = entry.State.ToString()
+                };
+                auditEntries.Add(auditEntry);
 
-            // Configure Permission entity
-            modelBuilder.Entity<Permission>(entity =>
+                foreach (var property in entry.Properties)
+                {
+                    if (property.IsTemporary)
+                    {
+                        auditEntry.TemporaryProperties.Add(property);
+                        continue;
+                    }
+
+                    string propertyName = property.Metadata.Name;
+                    if (property.Metadata.IsPrimaryKey())
+                    {
+                        auditEntry.KeyValues[propertyName] = property.CurrentValue;
+                        continue;
+                    }
+
+                    switch (entry.State)
+                    {
+                        case EntityState.Added:
+                            auditEntry.NewValues[propertyName] = property.CurrentValue;
+                            break;
+
+                        case EntityState.Deleted:
+                            auditEntry.OldValues[propertyName] = property.OriginalValue;
+                            break;
+
+                        case EntityState.Modified:
+                            if (property.IsModified && property.OriginalValue?.Equals(property.CurrentValue) == false)
+                            {
+                                auditEntry.OldValues[propertyName] = property.OriginalValue;
+                                auditEntry.NewValues[propertyName] = property.CurrentValue;
+                            }
+                            break;
+                    }
+                }
+            }
+
+            return auditEntries;
+        }
+
+        private async Task OnAfterSaveChanges(List<AuditEntry> auditEntries)
+        {
+            if (auditEntries == null || !auditEntries.Any())
+                return;
+
+            foreach (var auditEntry in auditEntries)
             {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.Description).HasMaxLength(500);
+                foreach (var prop in auditEntry.TemporaryProperties)
+                {
+                    if (prop.Metadata.IsPrimaryKey())
+                    {
+                        auditEntry.KeyValues[prop.Metadata.Name] = prop.CurrentValue;
+                    }
+                    else
+                    {
+                        auditEntry.NewValues[prop.Metadata.Name] = prop.CurrentValue;
+                    }
+                }
 
-                entity.HasMany(e => e.RolePermissions)
-                    .WithOne(e => e.Permission)
-                    .HasForeignKey(e => e.PermissionId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
+                AuditLogs.Add(auditEntry.ToAudit());
+            }
 
-            // Configure UserRole entity
-            modelBuilder.Entity<UserRole>(entity =>
+            await SaveChangesAsync();
+        }
+    }
+
+    /// <summary>
+    /// کلاس کمکی برای ثبت تغییرات
+    /// </summary>
+    public class AuditEntry
+    {
+        public AuditEntry(EntityEntry entry)
+        {
+            Entry = entry;
+        }
+
+        public EntityEntry Entry { get; }
+        public string TableName { get; set; }
+        public string UserId { get; set; }
+        public string Action { get; set; }
+        public Dictionary<string, object> KeyValues { get; } = new Dictionary<string, object>();
+        public Dictionary<string, object> OldValues { get; } = new Dictionary<string, object>();
+        public Dictionary<string, object> NewValues { get; } = new Dictionary<string, object>();
+        public List<PropertyEntry> TemporaryProperties { get; } = new List<PropertyEntry>();
+
+        public AuditLog ToAudit()
+        {
+            var audit = new AuditLog
             {
-                entity.HasKey(e => new { e.UserId, e.RoleId });
-            });
+                TableName = TableName,
+                UserId = UserId,
+                Action = Action,
+                KeyValues = JsonSerializer.Serialize(KeyValues),
+                OldValues = OldValues.Count == 0 ? null : JsonSerializer.Serialize(OldValues),
+                NewValues = NewValues.Count == 0 ? null : JsonSerializer.Serialize(NewValues),
+                Timestamp = DateTime.UtcNow
+            };
 
-            // Configure RolePermission entity
-            modelBuilder.Entity<RolePermission>(entity =>
-            {
-                entity.HasKey(e => new { e.RoleId, e.PermissionId });
-            });
-
-            // Configure RefreshToken entity
-            modelBuilder.Entity<RefreshToken>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Token).IsRequired().HasMaxLength(500);
-                entity.Property(e => e.CreatedByIp).HasMaxLength(50);
-                entity.Property(e => e.RevokedByIp).HasMaxLength(50);
-                entity.Property(e => e.ReasonRevoked).HasMaxLength(200);
-            });
-
-            // Configure UserDevice entity
-            modelBuilder.Entity<UserDevice>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.DeviceId).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.DeviceName).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.DeviceType).IsRequired().HasMaxLength(50);
-                entity.Property(e => e.IpAddress).HasMaxLength(50);
-                entity.Property(e => e.UserAgent).HasMaxLength(500);
-            });
-
-            // Configure LoginHistory entity
-            modelBuilder.Entity<LoginHistory>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.IpAddress).HasMaxLength(50);
-                entity.Property(e => e.UserAgent).HasMaxLength(500);
-                entity.Property(e => e.Location).HasMaxLength(200);
-                entity.Property(e => e.FailureReason).HasMaxLength(200);
-            });
-
-            // Configure TwoFactorRecoveryCode entity
-            modelBuilder.Entity<TwoFactorRecoveryCode>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Code).IsRequired().HasMaxLength(100);
-            });
+            return audit;
         }
     }
 }

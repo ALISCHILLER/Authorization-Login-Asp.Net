@@ -155,19 +155,11 @@ builder.Services.AddAuthentication(options =>
 // تنظیمات Redis برای کش
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    var redisConfig = builder.Configuration.GetConnectionString("Redis");
-    options.ConfigurationOptions = new ConfigurationOptions
-    {
-        EndPoints = { redisConfig },
-        Ssl = true,
-        SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | 
-                      System.Security.Authentication.SslProtocols.Tls13,
-        AbortOnConnectFail = false,
-        ConnectTimeout = 5000,
-        SyncTimeout = 5000
-    };
-    options.InstanceName = "Authorization.Login:";
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+    options.InstanceName = "AuthApp:";
 });
+
+builder.Services.AddScoped<ICacheService, DistributedCacheService>();
 
 // ثبت سرویس‌های برنامه
 builder.Services.AddScoped<IUserService, UserService>();

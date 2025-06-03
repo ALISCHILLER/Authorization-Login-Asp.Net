@@ -1,114 +1,193 @@
-using Authorization_Login_Asp.Net.Core.Application.Interfaces;
-using Authorization_Login_Asp.Net.Core.Domain.Entities;
-using Authorization_Login_Asp.Net.Core.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Authorization_Login_Asp.Net.Core.Domain.Entities;
+using Authorization_Login_Asp.Net.Core.Domain.Interfaces;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Data;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Repositories.Base;
 
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
 {
     /// <summary>
     /// پیاده‌سازی مخزن (Repository) رفرش توکن با استفاده از Entity Framework Core
     /// </summary>
-    public class RefreshTokenRepository : IRefreshTokenRepository
+    public class RefreshTokenRepository : BaseRepository<RefreshToken>, IRefreshTokenRepository
     {
-        private readonly AppDbContext _context;
-        private readonly DbSet<RefreshToken> _refreshTokens;
-
-        public RefreshTokenRepository(AppDbContext context)
+        public RefreshTokenRepository(
+            ApplicationDbContext context,
+            ILogger<RefreshTokenRepository> logger) : base(context, logger)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
-            _refreshTokens = _context.Set<RefreshToken>();
         }
 
-        public async Task AddAsync(RefreshToken refreshToken)
+        public async Task<RefreshToken> GetByTokenAsync(string token, CancellationToken cancellationToken = default)
         {
-            if (refreshToken == null)
-                throw new ArgumentNullException(nameof(refreshToken));
-            await _refreshTokens.AddAsync(refreshToken);
-        }
-
-        public async Task<RefreshToken?> GetByTokenAsync(string token)
-        {
-            if (string.IsNullOrWhiteSpace(token))
-                return null;
-            return await _refreshTokens.FirstOrDefaultAsync(rt => rt.Token == token);
-        }
-
-        public async Task<RefreshToken?> GetByIdAsync(Guid id)
-        {
-            return await _refreshTokens.FindAsync(id);
-        }
-
-        public async Task<List<RefreshToken>> GetActiveTokensByUserIdAsync(Guid userId)
-        {
-            return await _refreshTokens
-                .Where(rt => rt.UserId == userId && rt.IsActive)
-                .ToListAsync();
-        }
-
-        public async Task RemoveAsync(RefreshToken refreshToken)
-        {
-            if (refreshToken == null)
-                throw new ArgumentNullException(nameof(refreshToken));
-            _refreshTokens.Remove(refreshToken);
-            await Task.CompletedTask;
-        }
-
-        public async Task UpdateAsync(RefreshToken refreshToken)
-        {
-            if (refreshToken == null)
-                throw new ArgumentNullException(nameof(refreshToken));
-            _context.Entry(refreshToken).State = EntityState.Modified;
-            await Task.CompletedTask;
-        }
-
-        public async Task SaveChangesAsync()
-        {
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task<IEnumerable<RefreshToken>> GetAllByUserIdAsync(Guid userId)
-        {
-            return await _context.RefreshTokens
-                .Where(rt => rt.UserId == userId)
-                .ToListAsync();
-        }
-
-        public async Task<bool> IsTokenRevokedAsync(string token)
-        {
-            var refreshToken = await _context.RefreshTokens
-                .FirstOrDefaultAsync(rt => rt.Token == token);
-            return refreshToken?.IsRevoked ?? true;
-        }
-
-        public async Task RevokeTokenAsync(string token, string reason = null)
-        {
-            var refreshToken = await _context.RefreshTokens
-                .FirstOrDefaultAsync(rt => rt.Token == token);
-            if (refreshToken != null)
+            try
             {
+                return await _dbSet
+                    .Include(rt => rt.User)
+                    .FirstOrDefaultAsync(rt => rt.Token == token && !rt.IsDeleted, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در دریافت توکن با مقدار {Token}", token);
+                throw;
+            }
+        }
+
+        public async Task<IEnumerable<RefreshToken>> GetByUserAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await _dbSet
+                    .Where(rt => rt.UserId == userId && !rt.IsDeleted)
+                    .OrderByDescending(rt => rt.CreatedAt)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در دریافت توکن‌های کاربر {UserId}", userId);
+                throw;
+            }
+        }
+
+        public async Task<bool> RevokeTokenAsync(string token, string reason = null, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var refreshToken = await _dbSet
+                    .FirstOrDefaultAsync(rt => rt.Token == token && !rt.IsDeleted, cancellationToken);
+
+                if (refreshToken == null)
+                {
+                    return false;
+                }
+
+                refreshToken.IsRevoked = true;
                 refreshToken.RevokedAt = DateTime.UtcNow;
                 refreshToken.ReasonRevoked = reason;
-                await _context.SaveChangesAsync();
+
+                return await _context.SaveChangesAsync(cancellationToken) > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در لغو توکن {Token}", token);
+                throw;
             }
         }
 
-        public async Task RevokeAllUserTokensAsync(Guid userId)
+        public async Task<bool> RevokeAllUserTokensAsync(Guid userId, string reason = null, CancellationToken cancellationToken = default)
         {
-            var tokens = await _context.RefreshTokens
-                .Where(rt => rt.UserId == userId && !rt.IsRevoked)
-                .ToListAsync();
-
-            foreach (var token in tokens)
+            try
             {
-                token.RevokedAt = DateTime.UtcNow;
-                token.ReasonRevoked = "User logged out";
-            }
+                var tokens = await _dbSet
+                    .Where(rt => rt.UserId == userId && !rt.IsDeleted && !rt.IsRevoked)
+                    .ToListAsync(cancellationToken);
 
-            await _context.SaveChangesAsync();
+                if (!tokens.Any())
+                {
+                    return true;
+                }
+
+                foreach (var token in tokens)
+                {
+                    token.IsRevoked = true;
+                    token.RevokedAt = DateTime.UtcNow;
+                    token.ReasonRevoked = reason;
+                }
+
+                return await _context.SaveChangesAsync(cancellationToken) > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در لغو همه توکن‌های کاربر {UserId}", userId);
+                throw;
+            }
+        }
+
+        public async Task<bool> IsTokenValidAsync(string token, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await _dbSet.AnyAsync(rt => 
+                    rt.Token == token && 
+                    !rt.IsDeleted && 
+                    !rt.IsRevoked && 
+                    rt.ExpiresAt > DateTime.UtcNow, 
+                    cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در بررسی اعتبار توکن {Token}", token);
+                throw;
+            }
+        }
+
+        public async Task<int> CleanupExpiredTokensAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var expiredTokens = await _dbSet
+                    .Where(rt => 
+                        (rt.ExpiresAt <= DateTime.UtcNow || rt.IsRevoked) && 
+                        !rt.IsDeleted)
+                    .ToListAsync(cancellationToken);
+
+                if (!expiredTokens.Any())
+                {
+                    return 0;
+                }
+
+                foreach (var token in expiredTokens)
+                {
+                    token.IsDeleted = true;
+                    token.DeletedAt = DateTime.UtcNow;
+                }
+
+                return await _context.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در پاکسازی توکن‌های منقضی شده");
+                throw;
+            }
+        }
+
+        public async Task<bool> UpdateTokenAsync(RefreshToken token, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                _context.Entry(token).State = EntityState.Modified;
+                return await _context.SaveChangesAsync(cancellationToken) > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در بروزرسانی توکن {TokenId}", token.Id);
+                throw;
+            }
+        }
+
+        public async Task<IEnumerable<RefreshToken>> GetActiveTokensAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await _dbSet
+                    .Include(rt => rt.User)
+                    .Where(rt => 
+                        !rt.IsDeleted && 
+                        !rt.IsRevoked && 
+                        rt.ExpiresAt > DateTime.UtcNow)
+                    .OrderByDescending(rt => rt.CreatedAt)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "خطا در دریافت توکن‌های فعال");
+                throw;
+            }
         }
     }
 }

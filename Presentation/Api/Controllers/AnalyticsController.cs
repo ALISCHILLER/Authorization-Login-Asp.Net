@@ -1,111 +1,153 @@
+using Authorization_Login_Asp.Net.Core.Application.Features.Analytics.Commands;
+using Authorization_Login_Asp.Net.Core.Application.Features.Analytics.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
-using Authorization_Login_Asp.Net.Core.Application.DTOs;
-using Authorization_Login_Asp.Net.Core.Application.Interfaces;
-using Microsoft.Extensions.Logging;
 
 namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
+    /// <summary>
+    /// کنترلر مدیریت تحلیل‌ها و گزارش‌های سیستم
+    /// </summary>
     [Authorize(Roles = "Admin")]
-    [Produces("application/json")]
-    public class AnalyticsController : ControllerBase
+    public class AnalyticsController : BaseApiController
     {
-        private readonly IMetricsService _metricsService;
-        private readonly IReportingService _reportingService;
-        private readonly ILogger<AnalyticsController> _logger;
+        private readonly IMediator _mediator;
 
         public AnalyticsController(
-            IMetricsService metricsService,
-            IReportingService reportingService,
-            ILogger<AnalyticsController> logger)
+            IMediator mediator,
+            ILogger<AnalyticsController> logger) : base(logger)
         {
-            _metricsService = metricsService;
-            _reportingService = reportingService;
-            _logger = logger;
+            _mediator = mediator;
         }
 
-        #region Metrics
+        #region متریک‌ها
         /// <summary>
         /// دریافت متریک‌های کلی سیستم
         /// </summary>
+        /// <returns>متریک‌های کلی سیستم</returns>
+        /// <response code="200">متریک‌های سیستم با موفقیت دریافت شد</response>
         [HttpGet("metrics")]
-        [ProducesResponseType(typeof(SystemMetricsDto), 200)]
+        [ProducesResponseType(typeof(GetSystemMetricsResponse), 200)]
         public async Task<IActionResult> GetSystemMetrics()
         {
-            var metrics = await _metricsService.GetSystemMetricsAsync();
-            return Ok(metrics);
+            var result = await _mediator.Send(new GetSystemMetricsQuery());
+            return Success(result);
         }
 
         /// <summary>
         /// دریافت متریک‌های عملکرد API
         /// </summary>
+        /// <returns>متریک‌های عملکرد API</returns>
+        /// <response code="200">متریک‌های API با موفقیت دریافت شد</response>
         [HttpGet("metrics/endpoints")]
-        [ProducesResponseType(typeof(EndpointMetricsDto), 200)]
+        [ProducesResponseType(typeof(GetEndpointMetricsResponse), 200)]
         public async Task<IActionResult> GetEndpointMetrics()
         {
-            var metrics = await _metricsService.GetEndpointMetricsAsync();
-            return Ok(metrics);
+            var result = await _mediator.Send(new GetEndpointMetricsQuery());
+            return Success(result);
         }
 
         /// <summary>
         /// دریافت متریک‌های پایگاه داده
         /// </summary>
+        /// <returns>متریک‌های پایگاه داده</returns>
+        /// <response code="200">متریک‌های پایگاه داده با موفقیت دریافت شد</response>
         [HttpGet("metrics/database")]
-        [ProducesResponseType(typeof(DatabaseMetricsDto), 200)]
+        [ProducesResponseType(typeof(GetDatabaseMetricsResponse), 200)]
         public async Task<IActionResult> GetDatabaseMetrics()
         {
-            var metrics = await _metricsService.GetDatabaseMetricsAsync();
-            return Ok(metrics);
+            var result = await _mediator.Send(new GetDatabaseMetricsQuery());
+            return Success(result);
         }
         #endregion
 
-        #region Reports
+        #region گزارش‌ها
         /// <summary>
         /// دریافت گزارش فعالیت کاربران
         /// </summary>
+        /// <param name="startDate">تاریخ شروع</param>
+        /// <param name="endDate">تاریخ پایان</param>
+        /// <returns>گزارش فعالیت کاربران</returns>
+        /// <response code="200">گزارش با موفقیت دریافت شد</response>
+        /// <response code="400">تاریخ‌های ورودی نامعتبر است</response>
         [HttpGet("reports/user-activity")]
-        [ProducesResponseType(typeof(UserActivityReportDto), 200)]
+        [ProducesResponseType(typeof(GetUserActivityReportResponse), 200)]
+        [ProducesResponseType(400)]
         public async Task<IActionResult> GetUserActivityReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
         {
-            var report = await _reportingService.GenerateUserActivityReportAsync(startDate, endDate);
-            return Ok(report);
+            var result = await _mediator.Send(new GetUserActivityReportQuery 
+            { 
+                StartDate = startDate,
+                EndDate = endDate
+            });
+            return Success(result);
         }
 
         /// <summary>
         /// دریافت گزارش امنیتی
         /// </summary>
+        /// <param name="startDate">تاریخ شروع</param>
+        /// <param name="endDate">تاریخ پایان</param>
+        /// <returns>گزارش امنیتی</returns>
+        /// <response code="200">گزارش با موفقیت دریافت شد</response>
+        /// <response code="400">تاریخ‌های ورودی نامعتبر است</response>
         [HttpGet("reports/security")]
-        [ProducesResponseType(typeof(SecurityReportDto), 200)]
+        [ProducesResponseType(typeof(GetSecurityReportResponse), 200)]
+        [ProducesResponseType(400)]
         public async Task<IActionResult> GetSecurityReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
         {
-            var report = await _reportingService.GenerateSecurityReportAsync(startDate, endDate);
-            return Ok(report);
+            var result = await _mediator.Send(new GetSecurityReportQuery 
+            { 
+                StartDate = startDate,
+                EndDate = endDate
+            });
+            return Success(result);
         }
 
         /// <summary>
         /// دریافت گزارش عملکرد سیستم
         /// </summary>
+        /// <param name="startDate">تاریخ شروع</param>
+        /// <param name="endDate">تاریخ پایان</param>
+        /// <returns>گزارش عملکرد سیستم</returns>
+        /// <response code="200">گزارش با موفقیت دریافت شد</response>
+        /// <response code="400">تاریخ‌های ورودی نامعتبر است</response>
         [HttpGet("reports/performance")]
-        [ProducesResponseType(typeof(PerformanceReportDto), 200)]
+        [ProducesResponseType(typeof(GetPerformanceReportResponse), 200)]
+        [ProducesResponseType(400)]
         public async Task<IActionResult> GetPerformanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
         {
-            var report = await _reportingService.GeneratePerformanceReportAsync(startDate, endDate);
-            return Ok(report);
+            var result = await _mediator.Send(new GetPerformanceReportQuery 
+            { 
+                StartDate = startDate,
+                EndDate = endDate
+            });
+            return Success(result);
         }
 
         /// <summary>
         /// دریافت گزارش خطاها
         /// </summary>
+        /// <param name="startDate">تاریخ شروع</param>
+        /// <param name="endDate">تاریخ پایان</param>
+        /// <returns>گزارش خطاها</returns>
+        /// <response code="200">گزارش با موفقیت دریافت شد</response>
+        /// <response code="400">تاریخ‌های ورودی نامعتبر است</response>
         [HttpGet("reports/errors")]
-        [ProducesResponseType(typeof(ErrorReportDto), 200)]
+        [ProducesResponseType(typeof(GetErrorReportResponse), 200)]
+        [ProducesResponseType(400)]
         public async Task<IActionResult> GetErrorReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
         {
-            var report = await _reportingService.GenerateErrorReportAsync(startDate, endDate);
-            return Ok(report);
+            var result = await _mediator.Send(new GetErrorReportQuery 
+            { 
+                StartDate = startDate,
+                EndDate = endDate
+            });
+            return Success(result);
         }
         #endregion
     }

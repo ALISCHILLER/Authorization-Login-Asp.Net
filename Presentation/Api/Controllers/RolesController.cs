@@ -7,277 +7,190 @@ using Microsoft.Extensions.Logging;
 using Authorization_Login_Asp.Net.Core.Application.DTOs;
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
 using Authorization_Login_Asp.Net.Core.Application.Exceptions;
+using Authorization_Login_Asp.Net.Core.Application.Features.Roles.Commands;
+using Authorization_Login_Asp.Net.Core.Application.Features.Roles.Queries;
+using MediatR;
 
 namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
+    /// <summary>
+    /// کنترلر مدیریت نقش‌ها و دسترسی‌ها
+    /// </summary>
     [Authorize(Roles = "Admin,SuperAdmin")]
-    [Produces("application/json")]
-    public class RolesController : ControllerBase
+    public class RolesController : BaseApiController
     {
-        private readonly IRoleManagementService _roleService;
-        private readonly IUserAuthorizationService _userAuthorizationService;
-        private readonly ILogger<RolesController> _logger;
+        private readonly IMediator _mediator;
 
         public RolesController(
-            IRoleManagementService roleService,
-            IUserAuthorizationService userAuthorizationService,
-            ILogger<RolesController> logger)
+            IMediator mediator,
+            ILogger<RolesController> logger) : base(logger)
         {
-            _roleService = roleService ?? throw new ArgumentNullException(nameof(roleService));
-            _userAuthorizationService = userAuthorizationService ?? throw new ArgumentNullException(nameof(userAuthorizationService));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _mediator = mediator;
         }
 
-        #region Role Management
-
+        #region مدیریت نقش‌ها
+        /// <summary>
+        /// دریافت لیست تمام نقش‌ها
+        /// </summary>
         [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<RoleDto>), 200)]
-        public async Task<ActionResult<IEnumerable<RoleDto>>> GetAllRoles()
+        [ProducesResponseType(typeof(GetRolesResponse), 200)]
+        public async Task<IActionResult> GetAllRoles()
         {
-            try
-            {
-                var roles = await _roleService.GetAllRolesAsync();
-                return Ok(roles);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در دریافت لیست نقش‌ها");
-                return StatusCode(500, new { error = "خطای داخلی سرور" });
-            }
+            var result = await _mediator.Send(new GetRolesQuery());
+            return Success(result);
         }
 
+        /// <summary>
+        /// دریافت اطلاعات نقش با شناسه
+        /// </summary>
         [HttpGet("{id}")]
-        [ProducesResponseType(typeof(RoleDto), 200)]
+        [ProducesResponseType(typeof(GetRoleByIdResponse), 200)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult<RoleDto>> GetRoleById(Guid id)
+        public async Task<IActionResult> GetRoleById(Guid id)
         {
-            try
-            {
-                var role = await _roleService.GetRoleByIdAsync(id);
-                return Ok(role);
-            }
-            catch (RoleNotFoundException ex)
-            {
-                return NotFound(new { error = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در دریافت اطلاعات نقش");
-                return StatusCode(500, new { error = "خطای داخلی سرور" });
-            }
+            var result = await _mediator.Send(new GetRoleByIdQuery { RoleId = id });
+            return Success(result);
         }
 
+        /// <summary>
+        /// ایجاد نقش جدید
+        /// </summary>
         [HttpPost]
-        [ProducesResponseType(typeof(RoleDto), 201)]
+        [ProducesResponseType(typeof(CreateRoleResponse), 201)]
         [ProducesResponseType(400)]
         [ProducesResponseType(409)]
-        public async Task<ActionResult<RoleDto>> CreateRole([FromBody] CreateRoleDto request)
+        public async Task<IActionResult> CreateRole([FromBody] CreateRoleCommand command)
         {
-            try
-            {
-                var role = await _roleService.CreateRoleAsync(request);
-                return CreatedAtAction(nameof(GetRoleById), new { id = role.Id }, role);
-            }
-            catch (DuplicateRoleException ex)
-            {
-                return Conflict(new { error = ex.Message });
-            }
-            catch (ValidationException ex)
-            {
-                return BadRequest(new { errors = ex.Errors });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در ایجاد نقش جدید");
-                return StatusCode(500, new { error = "خطای داخلی سرور" });
-            }
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _mediator.Send(command);
+            return CreatedAtAction(nameof(GetRoleById), new { id = result.Id }, result);
         }
 
+        /// <summary>
+        /// به‌روزرسانی نقش
+        /// </summary>
         [HttpPut("{id}")]
-        [ProducesResponseType(typeof(RoleDto), 200)]
+        [ProducesResponseType(typeof(UpdateRoleResponse), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult<RoleDto>> UpdateRole(Guid id, [FromBody] UpdateRoleDto request)
+        public async Task<IActionResult> UpdateRole(Guid id, [FromBody] UpdateRoleCommand command)
         {
-            try
-            {
-                var role = await _roleService.UpdateRoleAsync(id, request);
-                return Ok(role);
-            }
-            catch (RoleNotFoundException ex)
-            {
-                return NotFound(new { error = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
-            catch (ValidationException ex)
-            {
-                return BadRequest(new { errors = ex.Errors });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در به‌روزرسانی نقش");
-                return StatusCode(500, new { error = "خطای داخلی سرور" });
-            }
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            command.RoleId = id;
+            var result = await _mediator.Send(command);
+            return Success(result);
         }
 
+        /// <summary>
+        /// حذف نقش
+        /// </summary>
         [HttpDelete("{id}")]
-        [ProducesResponseType(200)]
+        [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult> DeleteRole(Guid id)
+        public async Task<IActionResult> DeleteRole(Guid id)
         {
-            try
-            {
-                await _roleService.DeleteRoleAsync(id);
-                return Ok(new { message = "نقش با موفقیت حذف شد" });
-            }
-            catch (RoleNotFoundException ex)
-            {
-                return NotFound(new { error = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در حذف نقش");
-                return StatusCode(500, new { error = "خطای داخلی سرور" });
-            }
+            await _mediator.Send(new DeleteRoleCommand { RoleId = id });
+            return NoContent();
         }
-
         #endregion
 
-        #region Permission Management
-
+        #region مدیریت دسترسی‌ها
+        /// <summary>
+        /// اختصاص دسترسی‌ها به نقش
+        /// </summary>
         [HttpPost("{roleId}/permissions")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult> AssignPermissions(Guid roleId, [FromBody] AssignPermissionsRequest request)
+        public async Task<IActionResult> AssignPermissions(Guid roleId, [FromBody] AssignPermissionsCommand command)
         {
-            try
-            {
-                await _roleService.AssignPermissionsToRoleAsync(roleId, request.PermissionIds);
-                return Ok(new { message = "دسترسی‌ها با موفقیت به نقش اختصاص داده شد" });
-            }
-            catch (RoleNotFoundException ex)
-            {
-                return NotFound(new { error = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در اختصاص دسترسی‌ها به نقش");
-                return StatusCode(500, new { error = "خطای داخلی سرور" });
-            }
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            command.RoleId = roleId;
+            await _mediator.Send(command);
+            return Success("دسترسی‌ها با موفقیت به نقش اختصاص داده شد");
         }
 
+        /// <summary>
+        /// حذف دسترسی‌ها از نقش
+        /// </summary>
         [HttpDelete("{roleId}/permissions")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult> RemovePermissions(Guid roleId, [FromBody] RemovePermissionsRequest request)
+        public async Task<IActionResult> RemovePermissions(Guid roleId, [FromBody] RemovePermissionsCommand command)
         {
-            try
-            {
-                await _roleService.RemovePermissionsFromRoleAsync(roleId, request.PermissionIds);
-                return Ok(new { message = "دسترسی‌ها با موفقیت از نقش حذف شد" });
-            }
-            catch (RoleNotFoundException ex)
-            {
-                return NotFound(new { error = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در حذف دسترسی‌ها از نقش");
-                return StatusCode(500, new { error = "خطای داخلی سرور" });
-            }
-        }
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
+            command.RoleId = roleId;
+            await _mediator.Send(command);
+            return Success("دسترسی‌ها با موفقیت از نقش حذف شد");
+        }
         #endregion
 
-        #region User-Role Management
-
+        #region مدیریت نقش‌های کاربر
+        /// <summary>
+        /// اختصاص نقش به کاربر
+        /// </summary>
         [HttpPost("users/{userId}/roles/{roleName}")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult> AssignRoleToUser(string userId, string roleName)
+        public async Task<IActionResult> AssignRoleToUser(string userId, string roleName)
         {
             if (!Guid.TryParse(userId, out Guid userGuid))
-            {
-                return BadRequest("شناسه کاربر نامعتبر است");
-            }
+                return Error("شناسه کاربر نامعتبر است");
 
-            try
-            {
-                var result = await _userAuthorizationService.AssignRoleAsync(userGuid, roleName);
-                if (!result)
-                    return BadRequest("نقش با موفقیت به کاربر اختصاص داده نشد");
-
-                return Ok(new { message = "نقش با موفقیت به کاربر اختصاص داده شد" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در اختصاص نقش به کاربر");
-                return StatusCode(500, new { error = "خطای داخلی سرور" });
-            }
+            await _mediator.Send(new AssignRoleToUserCommand 
+            { 
+                UserId = userGuid,
+                RoleName = roleName
+            });
+            return Success("نقش با موفقیت به کاربر اختصاص داده شد");
         }
 
+        /// <summary>
+        /// حذف نقش از کاربر
+        /// </summary>
         [HttpDelete("users/{userId}/roles/{roleName}")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult> RemoveRoleFromUser(string userId, string roleName)
+        public async Task<IActionResult> RemoveRoleFromUser(string userId, string roleName)
         {
             if (!Guid.TryParse(userId, out Guid userGuid))
-            {
-                return BadRequest("شناسه کاربر نامعتبر است");
-            }
+                return Error("شناسه کاربر نامعتبر است");
 
-            try
-            {
-                var result = await _userAuthorizationService.RemoveRoleAsync(userGuid, roleName);
-                if (!result)
-                    return BadRequest("نقش با موفقیت از کاربر حذف نشد");
-
-                return Ok(new { message = "نقش با موفقیت از کاربر حذف شد" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در حذف نقش از کاربر");
-                return StatusCode(500, new { error = "خطای داخلی سرور" });
-            }
+            await _mediator.Send(new RemoveRoleFromUserCommand 
+            { 
+                UserId = userGuid,
+                RoleName = roleName
+            });
+            return Success("نقش با موفقیت از کاربر حذف شد");
         }
 
+        /// <summary>
+        /// دریافت نقش‌های کاربر
+        /// </summary>
         [HttpGet("users/{userId}/roles")]
-        [ProducesResponseType(typeof(IEnumerable<string>), 200)]
+        [ProducesResponseType(typeof(GetUserRolesResponse), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult<IEnumerable<string>>> GetUserRoles(string userId)
+        public async Task<IActionResult> GetUserRoles(string userId)
         {
             if (!Guid.TryParse(userId, out Guid userGuid))
-            {
-                return BadRequest("شناسه کاربر نامعتبر است");
-            }
+                return Error("شناسه کاربر نامعتبر است");
 
-            try
-            {
-                var roles = await _userAuthorizationService.GetUserRolesAsync(userGuid);
-                return Ok(roles);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در دریافت نقش‌های کاربر");
-                return StatusCode(500, new { error = "خطای داخلی سرور" });
-            }
+            var result = await _mediator.Send(new GetUserRolesQuery { UserId = userGuid });
+            return Success(result);
         }
-
         #endregion
     }
 

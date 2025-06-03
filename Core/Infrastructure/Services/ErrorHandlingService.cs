@@ -3,6 +3,12 @@ using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Security;
 using System.Text.Json;
+using System;
+using System.Threading.Tasks;
+using Authorization_Login_Asp.Net.Core.Domain.Exceptions;
+using Authorization_Login_Asp.Net.Core.Domain.Interfaces;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Services.Base;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Data;
 
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
 {
@@ -11,9 +17,21 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         Task HandleExceptionAsync(Exception ex, HttpContext context);
         Task LogErrorAsync(Exception ex, string source, Dictionary<string, object> additionalData = null);
         Task<ErrorResponse> CreateErrorResponseAsync(Exception ex, HttpContext context);
+        Task LogSystemErrorAsync(Exception ex, string context, string userId = null);
+        Task LogSecurityErrorAsync(string message, string context, string userId = null);
+        Task LogValidationErrorAsync(string message, string context, string userId = null);
+        Task LogPerformanceErrorAsync(string message, string context, long duration);
+        Task<SystemError[]> GetSystemErrorsAsync(DateTime startDate, DateTime endDate);
+        Task<SecurityError[]> GetSecurityErrorsAsync(DateTime startDate, DateTime endDate);
+        Task<ValidationError[]> GetValidationErrorsAsync(DateTime startDate, DateTime endDate);
+        Task<PerformanceError[]> GetPerformanceErrorsAsync(DateTime startDate, DateTime endDate);
+        Task CleanupOldErrorsAsync(int daysToKeep);
     }
 
-    public class ErrorHandlingService : IErrorHandlingService
+    /// <summary>
+    /// سرویس مدیریت خطا و لاگینگ
+    /// </summary>
+    public class ErrorHandlingService : BaseService, IErrorHandlingService
     {
         private readonly ILogger<ErrorHandlingService> _logger;
         private readonly INotificationService _notificationService;
@@ -21,12 +39,13 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         private readonly IConfiguration _configuration;
 
         public ErrorHandlingService(
+            IUnitOfWork unitOfWork,
             ILogger<ErrorHandlingService> logger,
             INotificationService notificationService,
             IMetricsService metricsService,
             IConfiguration configuration)
+            : base(unitOfWork, logger)
         {
-            _logger = logger;
             _notificationService = notificationService;
             _metricsService = metricsService;
             _configuration = configuration;
@@ -154,6 +173,146 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                 ConflictException => StatusCodes.Status409Conflict,
                 _ => StatusCodes.Status500InternalServerError
             };
+        }
+
+        /// <summary>
+        /// ثبت خطای سیستمی
+        /// </summary>
+        public async Task LogSystemErrorAsync(Exception ex, string context, string userId = null)
+        {
+            await ExecuteInTransaction(async () =>
+            {
+                var error = new SystemError
+                {
+                    Message = ex.Message,
+                    StackTrace = ex.StackTrace,
+                    Source = ex.Source,
+                    Context = context,
+                    UserId = userId,
+                    Timestamp = DateTime.UtcNow,
+                    ErrorType = ex.GetType().Name
+                };
+
+                await _unitOfWork.SystemErrors.AddAsync(error);
+                _logger.LogError(ex, $"خطای سیستمی در {context} - کاربر: {userId}");
+            }, "ثبت خطای سیستمی");
+        }
+
+        /// <summary>
+        /// ثبت خطای امنیتی
+        /// </summary>
+        public async Task LogSecurityErrorAsync(string message, string context, string userId = null)
+        {
+            await ExecuteInTransaction(async () =>
+            {
+                var error = new SecurityError
+                {
+                    Message = message,
+                    Context = context,
+                    UserId = userId,
+                    Timestamp = DateTime.UtcNow,
+                    IpAddress = GetCurrentIpAddress()
+                };
+
+                await _unitOfWork.SecurityErrors.AddAsync(error);
+                _logger.LogWarning($"خطای امنیتی در {context} - کاربر: {userId} - پیام: {message}");
+            }, "ثبت خطای امنیتی");
+        }
+
+        /// <summary>
+        /// ثبت خطای اعتبارسنجی
+        /// </summary>
+        public async Task LogValidationErrorAsync(string message, string context, string userId = null)
+        {
+            await ExecuteInTransaction(async () =>
+            {
+                var error = new ValidationError
+                {
+                    Message = message,
+                    Context = context,
+                    UserId = userId,
+                    Timestamp = DateTime.UtcNow
+                };
+
+                await _unitOfWork.ValidationErrors.AddAsync(error);
+                _logger.LogWarning($"خطای اعتبارسنجی در {context} - کاربر: {userId} - پیام: {message}");
+            }, "ثبت خطای اعتبارسنجی");
+        }
+
+        /// <summary>
+        /// ثبت خطای عملکردی
+        /// </summary>
+        public async Task LogPerformanceErrorAsync(string message, string context, long duration)
+        {
+            await ExecuteInTransaction(async () =>
+            {
+                var error = new PerformanceError
+                {
+                    Message = message,
+                    Context = context,
+                    Duration = duration,
+                    Timestamp = DateTime.UtcNow
+                };
+
+                await _unitOfWork.PerformanceErrors.AddAsync(error);
+                _logger.LogWarning($"خطای عملکردی در {context} - مدت زمان: {duration}ms - پیام: {message}");
+            }, "ثبت خطای عملکردی");
+        }
+
+        /// <summary>
+        /// دریافت خطاهای سیستمی
+        /// </summary>
+        public async Task<SystemError[]> GetSystemErrorsAsync(DateTime startDate, DateTime endDate)
+        {
+            return await _unitOfWork.SystemErrors.GetErrorsAsync(startDate, endDate);
+        }
+
+        /// <summary>
+        /// دریافت خطاهای امنیتی
+        /// </summary>
+        public async Task<SecurityError[]> GetSecurityErrorsAsync(DateTime startDate, DateTime endDate)
+        {
+            return await _unitOfWork.SecurityErrors.GetErrorsAsync(startDate, endDate);
+        }
+
+        /// <summary>
+        /// دریافت خطاهای اعتبارسنجی
+        /// </summary>
+        public async Task<ValidationError[]> GetValidationErrorsAsync(DateTime startDate, DateTime endDate)
+        {
+            return await _unitOfWork.ValidationErrors.GetErrorsAsync(startDate, endDate);
+        }
+
+        /// <summary>
+        /// دریافت خطاهای عملکردی
+        /// </summary>
+        public async Task<PerformanceError[]> GetPerformanceErrorsAsync(DateTime startDate, DateTime endDate)
+        {
+            return await _unitOfWork.PerformanceErrors.GetErrorsAsync(startDate, endDate);
+        }
+
+        /// <summary>
+        /// پاکسازی خطاهای قدیمی
+        /// </summary>
+        public async Task CleanupOldErrorsAsync(int daysToKeep)
+        {
+            var cutoffDate = DateTime.UtcNow.AddDays(-daysToKeep);
+            
+            await ExecuteInTransaction(async () =>
+            {
+                await _unitOfWork.SystemErrors.DeleteOldErrorsAsync(cutoffDate);
+                await _unitOfWork.SecurityErrors.DeleteOldErrorsAsync(cutoffDate);
+                await _unitOfWork.ValidationErrors.DeleteOldErrorsAsync(cutoffDate);
+                await _unitOfWork.PerformanceErrors.DeleteOldErrorsAsync(cutoffDate);
+                
+                _logger.LogInformation($"خطاهای قدیمی‌تر از {cutoffDate} پاکسازی شدند");
+            }, "پاکسازی خطاهای قدیمی");
+        }
+
+        private string GetCurrentIpAddress()
+        {
+            // TODO: پیاده‌سازی دریافت IP آدرس فعلی
+            return "127.0.0.1";
         }
     }
 
