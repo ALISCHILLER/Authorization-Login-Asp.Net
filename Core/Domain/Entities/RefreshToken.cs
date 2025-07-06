@@ -8,13 +8,9 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
     /// <summary>
     /// مدل توکن رفرش
     /// </summary>
-    public class RefreshToken : Authorization_Login_Asp.Net.Core.Domain.Common.IEntity
+    public class RefreshToken : BaseEntity // Inherit from new BaseEntity
     {
-        /// <summary>
-        /// کلید اصلی
-        /// </summary>
-        [Key]
-        public Guid Id { get; set; }
+        // Id, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy, IsDeleted, DeletedAt, DeletedBy are inherited.
 
         /// <summary>
         /// شناسه کاربر
@@ -33,24 +29,20 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// تاریخ انقضا
         /// </summary>
         [Required]
-        public DateTime ExpiryDate { get; set; }
-
-        /// <summary>
-        /// تاریخ ایجاد
-        /// </summary>
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime ExpiresAt { get; set; } // Renamed from ExpiryDate for consistency, removed duplicate ExpiresAt
 
         /// <summary>
         /// آدرس IP ایجاد کننده توکن
         /// </summary>
         [MaxLength(50)]
-        public string CreatedByIp { get; set; } = string.Empty;
+        public string CreatedByIp { get; set; } = string.Empty; // Specific to RefreshToken context
 
         /// <summary>
-        /// آدرس IP توکن
+        /// آدرس IP توکن (می‌تواند همان CreatedByIp باشد یا برای هر استفاده از توکن، آی‌پی جدیدی ثبت شود)
         /// </summary>
         [MaxLength(50)]
         public string IpAddress { get; set; } = string.Empty;
+
 
         /// <summary>
         /// تاریخ باطل شدن
@@ -61,7 +53,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// آدرس IP باطل کننده توکن
         /// </summary>
         [MaxLength(50)]
-        public string RevokedByIp { get; set; } = string.Empty;
+        public string RevokedByIp { get; set; } = string.Empty; // Specific to RefreshToken context
 
         /// <summary>
         /// شناسه توکن جایگزین (برای چرخش توکن)
@@ -72,12 +64,12 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// دلیل باطل شدن
         /// </summary>
         [MaxLength(200)]
-        public string ReasonRevoked { get; set; } = string.Empty;
+        public string ReasonRevoked { get; set; } = string.Empty; // Kept ReasonRevoked, removed RevokedReason
 
         /// <summary>
         /// وضعیت انقضا
         /// </summary>
-        public bool IsExpired => DateTime.UtcNow >= ExpiryDate;
+        public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
 
         /// <summary>
         /// وضعیت باطل شدن
@@ -87,7 +79,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// <summary>
         /// وضعیت فعال بودن
         /// </summary>
-        public bool IsActive => !IsRevoked && !IsExpired;
+        public bool IsActive => !IsRevoked && !IsExpired && !IsDeleted; // Added !IsDeleted check
 
         /// <summary>
         /// کاربر
@@ -99,46 +91,46 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// توکن جایگزین (برای چرخش توکن)
         /// </summary>
         [ForeignKey(nameof(ReplacedByTokenId))]
-        public virtual RefreshToken ReplacedByToken { get; set; } = null!;
-
-        /// <summary>
-        /// دلیل باطل شدن
-        /// </summary>
-        [MaxLength(200)]
-        public string RevokedReason { get; set; } = string.Empty;
-        public DateTime ExpiresAt { get; internal set; }
+        public virtual RefreshToken? ReplacedByToken { get; set; } // Made nullable
 
         /// <summary>
         /// بررسی معتبر بودن توکن
         /// </summary>
         public bool IsValid()
         {
-            return IsActive && !RevokedAt.HasValue && ExpiryDate > DateTime.UtcNow;
+            return IsActive; // IsActive already checks expiry and revocation
         }
 
         /// <summary>
         /// باطل کردن توکن
         /// </summary>
         /// <param name="reason">دلیل باطل شدن</param>
+        /// <param name="revokedByIpAddress">IP Address of the revoker</param>
         /// <param name="replacedByTokenId">شناسه توکن جایگزین (اختیاری)</param>
-        public void Revoke(string? reason = null, Guid? replacedByTokenId = null)
+        /// <param name="updatedByUserId">User ID of the revoker, if applicable</param>
+        public void Revoke(string? reason = null, string? revokedByIpAddress = null, Guid? replacedByTokenId = null, string? updatedByUserId = null)
         {
-            RevokedAt = DateTime.UtcNow;
-            ReasonRevoked = reason ?? string.Empty;
-            ReplacedByTokenId = replacedByTokenId;
+            if (!IsRevoked) // Prevent multiple revocations
+            {
+                RevokedAt = DateTime.UtcNow;
+                ReasonRevoked = reason ?? string.Empty;
+                RevokedByIp = revokedByIpAddress ?? string.Empty;
+                ReplacedByTokenId = replacedByTokenId;
+                MarkAsUpdated(updatedByUserId); // Mark the entity as updated
+            }
         }
 
-        public RefreshToken()
+        // Constructor no longer needs to set Id or CreatedAt manually
+        public RefreshToken() : base()
         {
-            Id = Guid.NewGuid();
-            CreatedAt = DateTime.UtcNow;
         }
 
-        public Guid? CreatedBy { get; set; }
-        public DateTime? LastModifiedAt { get; set; }
-        public Guid? LastModifiedBy { get; set; }
-        public DateTime? DeletedAt { get; set; }
-        public Guid? DeletedBy { get; set; }
-        public bool IsDeleted { get; set; }
+        // Removed manual audit properties as they are inherited from BaseEntity
+        // public Guid? CreatedBy { get; set; }
+        // public DateTime? LastModifiedAt { get; set; }
+        // public Guid? LastModifiedBy { get; set; }
+        // public DateTime? DeletedAt { get; set; }
+        // public Guid? DeletedBy { get; set; }
+        // public bool IsDeleted { get; set; }
     }
 }

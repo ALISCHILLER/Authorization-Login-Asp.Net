@@ -58,10 +58,10 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
                 Type = type,
                 IsSystem = isSystem,
                 ExpiresAt = expiresAt,
-                Permissions = Authorization_Login_Asp.Net.Core.Domain.ValueObjects.RolePermissions.Create(),
-                CreatedAt = DateTime.UtcNow
+                Permissions = Authorization_Login_Asp.Net.Core.Domain.ValueObjects.RolePermissions.Create()
+                // CreatedAt is set by BaseEntity constructor
             };
-
+            // role.MarkAsCreated(null); // Optionally, if you want to set CreatedBy here, though typically done by context/service
             return role;
         }
 
@@ -76,32 +76,35 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             Name = name.Trim();
             Description = description?.Trim();
             Type = type;
-            Update();
+            UpdateAuditable(null); // Passing null for modifiedByUserId for now
         }
 
-        public void Deactivate()
+        public void Deactivate(string? deactivatedByUserId = null)
         {
             if (IsSystem)
                 throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نقش سیستمی قابل غیرفعال‌سازی نیست");
 
             IsActive = false;
-            Update();
+            // Instead of just Update(), we should consider this a "deletion" or "deactivation" event
+            // For now, using UpdateAuditable to record the change.
+            // A more specific DeleteAuditable might be too strong if IsActive is the only change.
+            UpdateAuditable(deactivatedByUserId);
         }
 
-        public void Activate()
+        public void Activate(string? activatedByUserId = null)
         {
             IsActive = true;
-            Update();
+            UpdateAuditable(activatedByUserId);
         }
 
-        public void SetExpiration(DateTime? expirationDate)
+        public void SetExpiration(DateTime? expirationDate, string? modifiedByUserId = null)
         {
             if (IsSystem)
                 throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نقش سیستمی قابل محدود کردن نیست");
 
             ValidateExpiration(expirationDate);
             ExpiresAt = expirationDate;
-            Update();
+            UpdateAuditable(modifiedByUserId);
         }
 
         public bool IsExpired()
@@ -124,10 +127,10 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
                 throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نام دسترسی نمی‌تواند خالی باشد");
 
             Permissions.AddPermission(permissionName.Trim());
-            Update();
+            UpdateAuditable(null); // Passing null for modifiedByUserId for now
         }
 
-        public void RemovePermission(string permissionName)
+        public void RemovePermission(string permissionName, string? modifiedByUserId = null)
         {
             if (IsSystem)
                 throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نقش سیستمی قابل ویرایش نیست");
@@ -136,7 +139,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
                 throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نام دسترسی نمی‌تواند خالی باشد");
 
             Permissions.RemovePermission(permissionName.Trim());
-            Update();
+            UpdateAuditable(modifiedByUserId);
         }
 
         public bool HasPermission(string permissionName)
@@ -153,12 +156,12 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
                 throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نقش سیستمی قابل ویرایش نیست");
 
             Permissions = Authorization_Login_Asp.Net.Core.Domain.ValueObjects.RolePermissions.Create();
-            Update();
+            UpdateAuditable(null); // Passing null for modifiedByUserId for now
         }
         #endregion
 
         #region User Management
-        public void AddUser(User user)
+        public void AddUser(User user, string? modifiedByUserId = null)
         {
             if (user == null)
                 throw new ArgumentNullException(nameof(user));
@@ -170,11 +173,11 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             {
                 var userRole = UserRole.Create(user.Id, Id);
                 _userRoles.Add(userRole);
-                Update();
+                UpdateAuditable(modifiedByUserId);
             }
         }
 
-        public void RemoveUser(User user)
+        public void RemoveUser(User user, string? modifiedByUserId = null)
         {
             if (user == null)
                 throw new ArgumentNullException(nameof(user));
@@ -183,17 +186,17 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             if (userRole != null)
             {
                 _userRoles.Remove(userRole);
-                Update();
+                UpdateAuditable(modifiedByUserId);
             }
         }
 
-        public void ClearUsers()
+        public void ClearUsers(string? modifiedByUserId = null)
         {
             if (IsSystem)
                 throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نقش سیستمی قابل ویرایش نیست");
 
             _userRoles.Clear();
-            Update();
+            UpdateAuditable(modifiedByUserId);
         }
 
         public void AddUsers(IEnumerable<User> users)

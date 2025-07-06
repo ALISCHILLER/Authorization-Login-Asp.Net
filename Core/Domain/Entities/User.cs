@@ -55,6 +55,8 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             TwoFactorSecret = string.Empty;
             UpdatedBy = string.Empty;
             AddDomainEvent(new UserCreatedEvent(Id));
+            // Initialize PasswordSalt, though it will be set by Application layer
+            PasswordSalt = string.Empty;
         }
 
         [Required, MaxLength(50)]
@@ -72,8 +74,11 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             private set => Email = new Email(value);
         }
 
-        [Required, MaxLength(100)]
+        [Required, MaxLength(256)] // Increased length for potentially longer hashes
         public string PasswordHash { get; set; }
+
+        [Required, MaxLength(128)] // Added for storing salt
+        public string PasswordSalt { get; set; }
 
         [Required, MaxLength(100)]
         public string FullName { get; set; }
@@ -102,14 +107,18 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         public string? TwoFactorSecret { get; set; }
         public UserSecuritySettings SecuritySettings { get; set; }
 
-        public string UpdatedBy { get; set; } = string.Empty; // اگر نیاز به audit باشد فقط این پراپرتی کافی است
+        // Removed: public string UpdatedBy { get; set; } = string.Empty;
+        // UpdatedBy is inherited from BaseEntity as string?
 
         public string? RefreshToken { get; set; }
         public string? VerificationToken { get; set; }
         public string? PasswordResetToken { get; set; }
 
-        public new DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime? UpdatedAt { get; set; }
+        // Removed: public new DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        // CreatedAt is inherited from BaseEntity and set in its constructor.
+
+        // Removed: public DateTime? UpdatedAt { get; set; }
+        // UpdatedAt is inherited from BaseEntity as DateTime?
 
         // Navigation property for Roles
         public ICollection<Role> Roles { get; set; } = new List<Role>();
@@ -148,11 +157,12 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             AddDomainEvent(new UserEmailVerifiedEvent(Id));
         }
 
-        public void ChangePassword(string newPasswordHash)
+        public void ChangePassword(string newPasswordHash, string newPasswordSalt)
         {
             PasswordHash = newPasswordHash ?? throw new ArgumentNullException(nameof(newPasswordHash));
+            PasswordSalt = newPasswordSalt ?? throw new ArgumentNullException(nameof(newPasswordSalt));
             LastPasswordChange = DateTime.UtcNow;
-            SecurityStamp = Guid.NewGuid().ToString("N");
+            SecurityStamp = Guid.NewGuid().ToString("N"); // Good practice to change security stamp on password change
 
             AddDomainEvent(new UserPasswordChangedEvent(Id));
         }
@@ -243,17 +253,13 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             _loginHistory.Add(login);
         }
 
-        public static User Create(string username, string email, string firstName, string lastName, string phoneNumber, string password)
-        {
-            // رمز عبور هش شود (نمونه ساده)
-            var passwordHash = BCrypt.Net.BCrypt.HashPassword(password);
-            return new User(username, email, passwordHash, firstName, lastName, phoneNumber);
-        }
+        // Static Create method that directly hashes password is removed.
+        // Password hashing and salt generation should be handled by the Application layer using IPasswordHasher.
+        // The constructor User(...) already accepts passwordHash. A new constructor or factory method
+        // in the application layer should be used.
 
-        public bool VerifyPassword(string password)
-        {
-            return BCrypt.Net.BCrypt.Verify(password, PasswordHash);
-        }
+        // Instance method VerifyPassword that directly uses BCrypt is removed.
+        // Password verification should be handled by the Application layer using IPasswordHasher.
 
         public void IncrementFailedLoginAttempts()
         {
@@ -275,23 +281,26 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
 
         public List<string> BackupCodes { get; set; } = new List<string>();
 
-        public override void Delete(Guid? deletedBy = null)
+        // Using DeleteAuditable and RestoreAuditable from AggregateRoot (which call base methods and add events)
+        // These overrides ensure IsActive is also managed.
+        public void DeleteUser(string? deletedByUserId = null)
         {
             if (!IsDeleted)
             {
-                base.Delete(deletedBy);
+                base.DeleteAuditable(deletedByUserId); // Calls base.MarkAsDeleted and adds EntityDeletedEvent
                 IsActive = false;
-                // AddDomainEvent(new UserDeletedEvent(Id)); // حذف چون ایونت وجود ندارد
+                // If a more specific UserDeletedEvent is needed, it can be added here too,
+                // but EntityDeletedEvent from AggregateRoot already covers the deletion.
             }
         }
 
-        public override void Restore(Guid? restoredBy = null)
+        public void RestoreUser(string? restoredByUserId = null)
         {
             if (IsDeleted)
             {
-                base.Restore(restoredBy);
+                base.RestoreAuditable(restoredByUserId); // Calls base.MarkAsRestored and adds EntityRestoredEvent
                 IsActive = true;
-                // AddDomainEvent(new UserRestoredEvent(Id)); // حذف چون ایونت وجود ندارد
+                // Similarly, a UserRestoredEvent could be added if needed.
             }
         }
     }

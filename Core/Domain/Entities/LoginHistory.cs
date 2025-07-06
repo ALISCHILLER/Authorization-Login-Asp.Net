@@ -5,15 +5,16 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace Authorization_Login_Asp.Net.Core.Domain.Entities
 {
     /// <summary>
+using Authorization_Login_Asp.Net.Core.Domain.Common; // Added for BaseEntity
+
+namespace Authorization_Login_Asp.Net.Core.Domain.Entities
+{
+    /// <summary>
     /// مدل تاریخچه ورود کاربران
     /// </summary>
-    public class LoginHistory
+    public class LoginHistory : BaseEntity // Inherit from BaseEntity
     {
-        /// <summary>
-        /// کلید اصلی
-        /// </summary>
-        [Key]
-        public Guid Id { get; set; }
+        // Id, CreatedAt (as LoginTime), CreatedBy, UpdatedAt, UpdatedBy, IsDeleted, DeletedAt, DeletedBy are inherited.
 
         /// <summary>
         /// شناسه کاربر
@@ -21,11 +22,12 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         [Required]
         public Guid UserId { get; set; }
 
-        /// <summary>
-        /// زمان ورود
-        /// </summary>
-        [Required]
-        public DateTime LoginTime { get; set; } = DateTime.UtcNow;
+        // LoginTime is replaced by CreatedAt from BaseEntity
+        // /// <summary>
+        // /// زمان ورود
+        // /// </summary>
+        // [Required]
+        // public DateTime LoginTime { get; set; } = DateTime.UtcNow;
 
         /// <summary>
         /// آدرس IP کاربر
@@ -120,21 +122,20 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         [ForeignKey(nameof(UserId))]
         public virtual User User { get; set; } = null!;
 
-        /// <summary>
-        /// وضعیت حذف
-        /// </summary>
-        public bool IsDeleted { get; set; }
+        // IsDeleted is inherited from BaseEntity
 
         /// <summary>
         /// ثبت زمان خروج و محاسبه مدت زمان حضور
         /// </summary>
-        public void Logout()
+        public void Logout(string? updatedByUserId = null)
         {
             LogoutTime = DateTime.UtcNow;
-            if (LoginTime != default)
+            // CreatedAt is the LoginTime from BaseEntity
+            if (CreatedAt != default)
             {
-                SessionDuration = (int)(LogoutTime.Value - LoginTime).TotalSeconds;
+                SessionDuration = (int)(LogoutTime.Value - CreatedAt).TotalSeconds;
             }
+            MarkAsUpdated(updatedByUserId);
         }
 
         /// <summary>

@@ -61,46 +61,69 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Data
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            foreach (var entry in ChangeTracker.Entries<AuditableEntity>())
+            var userId = _currentUserService.UserId; // Get current user's ID (string)
+            var now = _dateTimeService.Now; // Get current time
+
+            foreach (var entry in ChangeTracker.Entries<BaseEntity>()) // Changed from AuditableEntity to BaseEntity
             {
                 switch (entry.State)
                 {
                     case EntityState.Added:
-                        entry.Entity.CreatedBy = _currentUserService.UserId;
-                        entry.Entity.CreatedAt = _dateTimeService.Now;
+                        // BaseEntity constructor already sets CreatedAt.
+                        // We only need to set CreatedBy if it's not set by the entity's MarkAsCreated method.
+                        // If MarkAsCreated was called with a userId, this might override it or be redundant.
+                        // For consistency, DbContext should be the authority for these audit fields during save.
+                        entry.Property(nameof(BaseEntity.CreatedBy)).CurrentValue = userId;
+                        entry.Property(nameof(BaseEntity.CreatedAt)).CurrentValue = now; // Ensure it uses DateTimeService
+                        entry.Property(nameof(BaseEntity.UpdatedAt)).CurrentValue = null;
+                        entry.Property(nameof(BaseEntity.UpdatedBy)).CurrentValue = null;
+                        entry.Property(nameof(BaseEntity.DeletedBy)).CurrentValue = null;
+                        entry.Property(nameof(BaseEntity.DeletedAt)).CurrentValue = null;
+                        entry.Property(nameof(BaseEntity.IsDeleted)).CurrentValue = false;
                         break;
 
                     case EntityState.Modified:
-                        entry.Entity.LastModifiedBy = _currentUserService.UserId;
-                        entry.Entity.LastModifiedAt = _dateTimeService.Now;
+                        entry.Property(nameof(BaseEntity.UpdatedAt)).CurrentValue = now;
+                        entry.Property(nameof(BaseEntity.UpdatedBy)).CurrentValue = userId;
+
+                        // If the entity is being soft-deleted, IsDeleted will be true.
+                        // The MarkAsDeleted method on BaseEntity should have set DeletedAt and DeletedBy.
+                        // We ensure DbContext respects these values if set by domain logic, or sets them if state is just 'Deleted'.
+                        if (entry.Property(nameof(BaseEntity.IsDeleted)).CurrentValue is true &&
+                            entry.Property(nameof(BaseEntity.DeletedAt)).CurrentValue == null)
+                        {
+                            entry.Property(nameof(BaseEntity.DeletedAt)).CurrentValue = now;
+                            entry.Property(nameof(BaseEntity.DeletedBy)).CurrentValue = userId;
+                        }
                         break;
 
-                    case EntityState.Deleted:
-                        if (entry.Entity is ISoftDelete softDelete)
-                        {
-                            entry.State = EntityState.Modified;
-                            softDelete.IsDeleted = true;
-                            softDelete.DeletedBy = _currentUserService.UserId;
-                            softDelete.DeletedAt = _dateTimeService.Now;
-                        }
+                    case EntityState.Deleted: // This case handles hard deletes if soft-delete is not implemented via IsDeleted flag
+                        // For hard deletes, audit log will capture it. No specific BaseEntity fields to set here other than what EF does.
+                        // If we want to enforce soft-delete for all BaseEntity, this case might throw an exception
+                        // or convert to a soft delete (though that's usually done via setting IsDeleted = true and State = Modified).
+                        // The current soft-delete logic in BaseEntity.MarkAsDeleted should set State to Modified.
+                        // So, this case might be less common if soft-delete is consistently used.
+                        // For now, let's assume it means a hard delete if not caught by IsDeleted = true & Modified state.
+                        // We can add a final check for DeletedAt/DeletedBy if that's desired for hard deletes too.
+                        // entry.Property(nameof(BaseEntity.DeletedAt)).CurrentValue = now;
+                        // entry.Property(nameof(BaseEntity.DeletedBy)).CurrentValue = userId;
                         break;
                 }
             }
 
+            // جمع آوری اطلاعات برای لاگ حسابرسی قبل از ذخیره تغییرات اصلی
+            var auditEntries = OnBeforeSaveChanges();
+
+            // ذخیره تغییرات اصلی موجودیت‌ها
             var result = await base.SaveChangesAsync(cancellationToken);
 
-            // ثبت تغییرات در لاگ حسابرسی
-            await AuditChanges();
+            // ثبت لاگ‌های حسابرسی پس از ذخیره موفق تغییرات اصلی
+            await OnAfterSaveChanges(auditEntries, cancellationToken);
 
             return result;
         }
 
-        private async Task AuditChanges()
-        {
-            var auditEntries = OnBeforeSaveChanges();
-            await SaveChangesAsync();
-            await OnAfterSaveChanges(auditEntries);
-        }
+        // متد AuditChanges() حذف شد چون منطق آن در SaveChangesAsync ادغام شد
 
         private List<AuditEntry> OnBeforeSaveChanges()
         {
@@ -109,26 +132,29 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Data
 
             foreach (var entry in ChangeTracker.Entries())
             {
+                // فقط موجودیت‌هایی که تغییر کرده‌اند و AuditLog نیستند را لاگ کن
                 if (entry.Entity is AuditLog || entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
                     continue;
 
                 var auditEntry = new AuditEntry(entry)
                 {
-                    TableName = entry.Entity.GetType().Name,
-                    UserId = _currentUserService.UserId,
+                    TableName = entry.Metadata.GetTableName() ?? entry.Entity.GetType().Name, // Get table name if possible
+                    UserId = _currentUserService.UserId, // اطمینان از اینکه UserId قابل null است اگر کاربر احراز هویت نشده باشد
                     Action = entry.State.ToString()
                 };
                 auditEntries.Add(auditEntry);
 
                 foreach (var property in entry.Properties)
                 {
+                    string propertyName = property.Metadata.Name;
+
                     if (property.IsTemporary)
                     {
+                        // اگر پراپرتی موقتی است (مثلاً توسط دیتابیس تولید می‌شود)، آن را برای به‌روزرسانی بعد از ذخیره نگه دار
                         auditEntry.TemporaryProperties.Add(property);
                         continue;
                     }
 
-                    string propertyName = property.Metadata.Name;
                     if (property.Metadata.IsPrimaryKey())
                     {
                         auditEntry.KeyValues[propertyName] = property.CurrentValue;
@@ -146,8 +172,13 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Data
                             break;
 
                         case EntityState.Modified:
-                            if (property.IsModified && property.OriginalValue?.Equals(property.CurrentValue) == false)
+                            if (property.IsModified) //  && (property.OriginalValue != null && !property.OriginalValue.Equals(property.CurrentValue)) || (property.CurrentValue != null && !property.CurrentValue.Equals(property.OriginalValue)))
                             {
+                                // بررسی دقیق‌تر برای جلوگیری از ثبت مقادیر یکسان
+                                if (property.OriginalValue == null && property.CurrentValue == null) continue;
+                                if (property.OriginalValue != null && property.OriginalValue.Equals(property.CurrentValue)) continue;
+                                if (property.CurrentValue != null && property.CurrentValue.Equals(property.OriginalValue)) continue;
+
                                 auditEntry.OldValues[propertyName] = property.OriginalValue;
                                 auditEntry.NewValues[propertyName] = property.CurrentValue;
                             }
@@ -155,17 +186,17 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Data
                     }
                 }
             }
-
             return auditEntries;
         }
 
-        private async Task OnAfterSaveChanges(List<AuditEntry> auditEntries)
+        private async Task OnAfterSaveChanges(List<AuditEntry> auditEntries, CancellationToken cancellationToken = default)
         {
             if (auditEntries == null || !auditEntries.Any())
                 return;
 
             foreach (var auditEntry in auditEntries)
             {
+                // به‌روزرسانی مقادیر پراپرتی‌های موقتی (مانند کلیدهای اصلی که توسط دیتابیس تولید شده‌اند)
                 foreach (var prop in auditEntry.TemporaryProperties)
                 {
                     if (prop.Metadata.IsPrimaryKey())
@@ -177,11 +208,15 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Data
                         auditEntry.NewValues[prop.Metadata.Name] = prop.CurrentValue;
                     }
                 }
-
                 AuditLogs.Add(auditEntry.ToAudit());
             }
 
-            await SaveChangesAsync();
+            // ذخیره موجودیت‌های AuditLog بدون فعال کردن مجدد منطق حسابرسی برای خودشان
+            // این اطمینان می‌دهد که فقط تغییرات AuditLog ذخیره می‌شوند و حلقه بازگشتی ایجاد نمی‌شود.
+            if (AuditLogs.Local.Any()) // فقط اگر AuditLog جدیدی اضافه شده باشد
+            {
+                 await base.SaveChangesAsync(cancellationToken);
+            }
         }
     }
 

@@ -27,22 +27,27 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Common
             _domainEvents.Clear();
         }
 
-        public override void Update(Guid? modifiedBy = null)
+        // Overriding methods to ensure domain events are raised.
+        // The actual state change is handled by the base.MarkAsUpdated/Deleted/Restored methods.
+
+        public virtual void UpdateAuditable(string? modifiedByUserId = null)
         {
-            base.Update(modifiedBy);
-            AddDomainEvent(new EntityUpdatedEvent(Id, GetType().Name, modifiedBy));
+            base.MarkAsUpdated(modifiedByUserId);
+            AddDomainEvent(new EntityUpdatedEvent(Id, GetType().Name, modifiedByUserId));
         }
 
-        public override void Delete(Guid? deletedBy = null)
+        public virtual void DeleteAuditable(string? deletedByUserId = null)
         {
-            base.Delete(deletedBy);
-            AddDomainEvent(new EntityDeletedEvent(Id, GetType().Name, deletedBy));
+            base.MarkAsDeleted(deletedByUserId);
+            // Note: EntityDeletedEvent might imply a hard delete.
+            // If this is for soft delete, a different event like EntitySoftDeletedEvent might be more appropriate.
+            AddDomainEvent(new EntityDeletedEvent(Id, GetType().Name, deletedByUserId));
         }
 
-        public override void Restore(Guid? restoredBy = null)
+        public virtual void RestoreAuditable(string? restoredByUserId = null)
         {
-            base.Restore(restoredBy);
-            AddDomainEvent(new EntityRestoredEvent(Id, GetType().Name, restoredBy));
+            base.MarkAsRestored(restoredByUserId);
+            AddDomainEvent(new EntityRestoredEvent(Id, GetType().Name, restoredByUserId));
         }
     }
 }

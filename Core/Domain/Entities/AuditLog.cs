@@ -18,8 +18,9 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         public string? UserId { get; set; }
         public string? UserName { get; set; }
 
-        [Required]
-        public DateTime Timestamp { get; set; }
+        // Timestamp is replaced by CreatedAt from BaseEntity
+        // [Required]
+        // public DateTime Timestamp { get; set; }
 
         public string? OldValues { get; set; }
         public string? NewValues { get; set; }
@@ -59,7 +60,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             if (string.IsNullOrWhiteSpace(entityName))
                 throw new ArgumentException("EntityName cannot be empty", nameof(entityName));
 
-            Id = Guid.NewGuid();
+            // Id and CreatedAt (formerly Timestamp) are set by BaseEntity constructor
             Action = action;
             EntityName = entityName;
             EntityId = entityId;
@@ -69,8 +70,8 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             UserAgent = userAgent;
             OldValues = oldValues;
             NewValues = newValues;
-            Timestamp = DateTime.UtcNow;
             Succeeded = true;
+            // MarkAsCreated(userId); // Optionally set CreatedBy if it's different from general entity auditing
         }
 
         public void MarkAsFailed(string errorMessage)
