@@ -4,6 +4,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Linq;
 
 namespace Authorization_Login_Asp.Net.Core.Application.Common.Behaviors;
 
@@ -17,6 +19,12 @@ public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
     where TRequest : IRequest<TResponse>
 {
     private readonly ILogger<LoggingBehavior<TRequest, TResponse>> _logger;
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        WriteIndented = true,
+        MaxDepth = 5,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
 
     /// <summary>
     /// سازنده رفتار لاگینگ
@@ -24,7 +32,7 @@ public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
     /// <param name="logger">لاگر</param>
     public LoggingBehavior(ILogger<LoggingBehavior<TRequest, TResponse>> logger)
     {
-        _logger = logger;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>
@@ -39,35 +47,45 @@ public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
-        var requestName = typeof(TRequest).Name;
-        var requestGuid = Guid.NewGuid().ToString();
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        var requestType = typeof(TRequest).Name;
+        var correlationId = Guid.NewGuid().ToString();
+        var requestProperties = GetRequestProperties(request);
 
         using var scope = _logger.BeginScope(new Dictionary<string, object>
         {
-            ["RequestName"] = requestName,
-            ["RequestGuid"] = requestGuid,
-            ["RequestType"] = typeof(TRequest).FullName,
-            ["ResponseType"] = typeof(TResponse).FullName
+            ["CorrelationId"] = correlationId,
+            ["RequestType"] = requestType,
+            ["RequestProperties"] = requestProperties
         });
-
-        _logger.LogInformation(
-            "شروع پردازش درخواست {RequestName} با شناسه {RequestGuid}",
-            requestName,
-            requestGuid);
 
         var timer = System.Diagnostics.Stopwatch.StartNew();
 
         try
         {
-            var response = await next();
+            _logger.LogInformation(
+                "شروع پردازش درخواست {RequestType} با شناسه {CorrelationId}\nپارامترها: {RequestProperties}",
+                requestType,
+                correlationId,
+                JsonSerializer.Serialize(requestProperties, _jsonOptions));
 
+            var response = await next();
             timer.Stop();
 
+            var responseProperties = GetResponseProperties(response);
+
             _logger.LogInformation(
-                "پردازش درخواست {RequestName} با شناسه {RequestGuid} با موفقیت انجام شد. زمان پردازش: {ElapsedMilliseconds} میلی‌ثانیه",
-                requestName,
-                requestGuid,
-                timer.ElapsedMilliseconds);
+                "پردازش درخواست {RequestType} با شناسه {CorrelationId} با موفقیت انجام شد\n" +
+                "زمان پردازش: {ElapsedMilliseconds} میلی‌ثانیه\n" +
+                "پاسخ: {ResponseProperties}",
+                requestType,
+                correlationId,
+                timer.ElapsedMilliseconds,
+                JsonSerializer.Serialize(responseProperties, _jsonOptions));
 
             return response;
         }
@@ -77,12 +95,99 @@ public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
 
             _logger.LogError(
                 ex,
-                "خطا در پردازش درخواست {RequestName} با شناسه {RequestGuid}. زمان پردازش: {ElapsedMilliseconds} میلی‌ثانیه",
-                requestName,
-                requestGuid,
-                timer.ElapsedMilliseconds);
+                "خطا در پردازش درخواست {RequestType} با شناسه {CorrelationId}\n" +
+                "زمان پردازش: {ElapsedMilliseconds} میلی‌ثانیه\n" +
+                "پارامترها: {RequestProperties}\n" +
+                "پیام خطا: {ErrorMessage}\n" +
+                "محل خطا: {StackTrace}",
+                requestType,
+                correlationId,
+                timer.ElapsedMilliseconds,
+                JsonSerializer.Serialize(requestProperties, _jsonOptions),
+                ex.Message,
+                ex.StackTrace);
 
             throw;
         }
+    }
+
+    /// <summary>
+    /// استخراج پراپرتی‌های درخواست برای لاگ
+    /// </summary>
+    private static Dictionary<string, object> GetRequestProperties(TRequest request)
+    {
+        try
+        {
+            return request.GetType()
+                .GetProperties()
+                .Where(p => p.CanRead && IsSimpleType(p.PropertyType))
+                .ToDictionary(
+                    p => p.Name,
+                    p => p.GetValue(request));
+        }
+        catch (Exception)
+        {
+            return new Dictionary<string, object>
+            {
+                ["warning"] = "خطا در استخراج پراپرتی‌های درخواست"
+            };
+        }
+    }
+
+    /// <summary>
+    /// استخراج پراپرتی‌های پاسخ برای لاگ
+    /// </summary>
+    private static Dictionary<string, object> GetResponseProperties(TResponse response)
+    {
+        if (response == null)
+        {
+            return new Dictionary<string, object>
+            {
+                ["warning"] = "پاسخ خالی است"
+            };
+        }
+
+        try
+        {
+            return response.GetType()
+                .GetProperties()
+                .Where(p => p.CanRead && IsSimpleType(p.PropertyType))
+                .ToDictionary(
+                    p => p.Name,
+                    p => p.GetValue(response));
+        }
+        catch (Exception)
+        {
+            return new Dictionary<string, object>
+            {
+                ["warning"] = "خطا در استخراج پراپرتی‌های پاسخ"
+            };
+        }
+    }
+
+    /// <summary>
+    /// بررسی نوع ساده برای لاگ کردن
+    /// </summary>
+    private static bool IsSimpleType(Type type)
+    {
+        return type.IsPrimitive
+            || type.IsEnum
+            || type == typeof(string)
+            || type == typeof(decimal)
+            || type == typeof(DateTime)
+            || type == typeof(DateTimeOffset)
+            || type == typeof(TimeSpan)
+            || type == typeof(Guid)
+            || IsNullableSimpleType(type);
+    }
+
+    /// <summary>
+    /// بررسی نوع nullable ساده
+    /// </summary>
+    private static bool IsNullableSimpleType(Type type)
+    {
+        return type.IsGenericType
+            && type.GetGenericTypeDefinition() == typeof(Nullable<>)
+            && IsSimpleType(type.GetGenericArguments()[0]);
     }
 } 

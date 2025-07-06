@@ -1,5 +1,5 @@
 ﻿using FluentValidation;
-using Authorization_Login_Asp.Net.Core.Application.DTOs;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Auth;
 
 namespace Authorization_Login_Asp.Net.Core.Application.Validators
 {
@@ -10,7 +10,7 @@ namespace Authorization_Login_Asp.Net.Core.Application.Validators
     {
         public RefreshTokenRequestValidator()
         {
-            RuleFor(x => x.AccessToken)
+            RuleFor(x => x.ExpiredAccessToken)
                 .NotEmpty().WithMessage("توکن دسترسی الزامی است.");
 
             RuleFor(x => x.RefreshToken)

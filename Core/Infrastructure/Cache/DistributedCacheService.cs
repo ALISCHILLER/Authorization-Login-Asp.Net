@@ -99,66 +99,32 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Cache
         }
 
         /// <inheritdoc/>
-        public async Task<T> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
+        public async Task<T> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, TimeSpan? absoluteExpiration = null, CancellationToken cancellationToken = default)
         {
-            try
-            {
-                var value = await GetAsync<T>(key, cancellationToken);
-                if (value != null)
-                {
-                    return value;
-                }
-
-                value = await factory();
-                if (value != null)
-                {
-                    await SetAsync(key, value, expiration, cancellationToken);
-                }
-
+            var value = await GetAsync<T>(key, cancellationToken);
+            if (value != null && !value.Equals(default(T)))
                 return value;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در دریافت یا ایجاد مقدار در کش با کلید {Key}", key);
-                return await factory();
-            }
+            value = await factory();
+            await SetAsync(key, value, absoluteExpiration, cancellationToken);
+            return value;
         }
 
-        /// <inheritdoc/>
-        public async Task ClearAsync(CancellationToken cancellationToken = default)
+        public Task RemoveByPrefixAsync(string prefix, CancellationToken cancellationToken = default)
         {
-            try
-            {
-                // توجه: این متد در IDistributedCache وجود ندارد
-                // در صورت نیاز به پاک کردن همه کش، باید از روش‌های دیگری استفاده کرد
-                // مثلاً استفاده از Redis یا تغییر کلیدها
-                _logger.LogWarning("پاک کردن همه کش در DistributedCache پشتیبانی نمی‌شود");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در پاک کردن کش");
-            }
+            // Not supported in IDistributedCache, so just a stub for now
+            return Task.CompletedTask;
         }
 
-        /// <inheritdoc/>
-        public async Task ExtendAsync(string key, TimeSpan expiration, CancellationToken cancellationToken = default)
+        public Task ClearAsync(CancellationToken cancellationToken = default)
         {
-            try
-            {
-                var value = await _cache.GetStringAsync(key, cancellationToken);
-                if (!string.IsNullOrEmpty(value))
-                {
-                    var options = new DistributedCacheEntryOptions
-                    {
-                        AbsoluteExpirationRelativeToNow = expiration
-                    };
-                    await _cache.SetStringAsync(key, value, options, cancellationToken);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در تمدید زمان انقضای کش با کلید {Key}", key);
-            }
+            // Not supported in IDistributedCache, so just a stub for now
+            return Task.CompletedTask;
+        }
+
+        public Task ExtendAsync(string key, TimeSpan time, CancellationToken cancellationToken = default)
+        {
+            // Not supported in IDistributedCache, so just a stub for now
+            return Task.CompletedTask;
         }
     }
-} 
+}

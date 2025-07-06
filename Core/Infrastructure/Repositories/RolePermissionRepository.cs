@@ -99,17 +99,9 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
         /// <exception cref="InvalidOperationException">در صورت وجود ارتباط تکراری</exception>
         public async Task<bool> AddPermissionToRoleAsync(Guid roleId, Guid permissionId, CancellationToken cancellationToken = default)
         {
-            var rolePermission = new RolePermission
-            {
-                RoleId = roleId,
-                PermissionId = permissionId,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            return await AddRelationshipAsync(
-                rolePermission,
-                rp => rp.RoleId == roleId && rp.PermissionId == permissionId && !rp.IsDeleted,
-                cancellationToken);
+            var rolePermission = RolePermission.Create(roleId, permissionId);
+            await _dbSet.AddAsync(rolePermission, cancellationToken);
+            return await _context.SaveChangesAsync(cancellationToken) > 0;
         }
 
         /// <summary>
@@ -121,151 +113,68 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
         /// <returns>درست اگر عملیات موفقیت‌آمیز باشد</returns>
         public async Task<bool> RemovePermissionFromRoleAsync(Guid roleId, Guid permissionId, CancellationToken cancellationToken = default)
         {
-            return await RemoveRelationshipAsync(
-                rp => rp.RoleId == roleId && rp.PermissionId == permissionId && !rp.IsDeleted,
-                cancellationToken);
+            var entity = await _dbSet.FirstOrDefaultAsync(rp => rp.RoleId == roleId && rp.PermissionId == permissionId && !rp.IsDeleted, cancellationToken);
+            if (entity == null) return false;
+            entity.IsDeleted = true;
+            entity.DeletedAt = DateTime.UtcNow;
+            return await _context.SaveChangesAsync(cancellationToken) > 0;
         }
 
-        /// <summary>
-        /// حذف تمام دسترسی‌های یک نقش
-        /// </summary>
-        /// <param name="roleId">شناسه نقش</param>
-        /// <param name="cancellationToken">امکان لغو عملیات</param>
-        /// <returns>تعداد دسترسی‌های حذف شده</returns>
-        public async Task<int> RemoveAllPermissionsFromRoleAsync(Guid roleId, CancellationToken cancellationToken = default)
+        // --- Implementation of IRolePermissionRepository (Domain/Interfaces) ---
+        public async Task<IEnumerable<Permission>> GetRolePermissionsAsync(Guid roleId)
         {
-            var rolePermissions = await _dbSet
-                .Where(rp => rp.RoleId == roleId)
-                .ToListAsync(cancellationToken);
-
-            if (!rolePermissions.Any())
-                return 0;
-
-            _dbSet.RemoveRange(rolePermissions);
-            return await SaveChangesAsync(cancellationToken);
+            return await _dbSet
+                .Where(rp => rp.RoleId == roleId && !rp.IsDeleted)
+                .Include(rp => rp.Permission)
+                .Select(rp => rp.Permission)
+                .ToListAsync();
         }
 
-        /// <summary>
-        /// افزودن چند دسترسی به نقش
-        /// </summary>
-        /// <param name="roleId">شناسه نقش</param>
-        /// <param name="permissionIds">شناسه‌های دسترسی‌ها</param>
-        /// <param name="cancellationToken">امکان لغو عملیات</param>
-        /// <returns>لیست ارتباطات ایجاد شده</returns>
-        /// <exception cref="InvalidOperationException">در صورت وجود دسترسی تکراری</exception>
-        public async Task<IEnumerable<RolePermission>> AddPermissionsToRoleAsync(Guid roleId, IEnumerable<Guid> permissionIds, CancellationToken cancellationToken = default)
+        public async Task<bool> HasPermissionAsync(Guid roleId, string permissionName)
         {
-            if (permissionIds == null || !permissionIds.Any())
-                throw new ArgumentException("لیست دسترسی‌ها نمی‌تواند خالی باشد", nameof(permissionIds));
+            return await _dbSet
+                .Include(rp => rp.Permission)
+                .AnyAsync(rp => rp.RoleId == roleId && !rp.IsDeleted && rp.Permission.Name == permissionName);
+        }
 
-            var existingPermissions = await _dbSet
-                .Where(rp => rp.RoleId == roleId && permissionIds.Contains(rp.PermissionId))
-                .Select(rp => rp.PermissionId)
-                .ToListAsync(cancellationToken);
+        public async Task AddPermissionToRoleAsync(Guid roleId, Guid permissionId)
+        {
+            if (await _dbSet.AnyAsync(rp => rp.RoleId == roleId && rp.PermissionId == permissionId && !rp.IsDeleted))
+                return;
+            var rolePermission = RolePermission.Create(roleId, permissionId);
+            await _dbSet.AddAsync(rolePermission);
+            await _context.SaveChangesAsync();
+        }
 
-            if (existingPermissions.Any())
-                throw new InvalidOperationException($"دسترسی‌های زیر قبلاً به نقش اضافه شده‌اند: {string.Join(", ", existingPermissions)}");
+        public async Task RemovePermissionFromRoleAsync(Guid roleId, Guid permissionId)
+        {
+            var entity = await _dbSet.FirstOrDefaultAsync(rp => rp.RoleId == roleId && rp.PermissionId == permissionId && !rp.IsDeleted);
+            if (entity == null) return;
+            entity.IsDeleted = true;
+            entity.DeletedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
 
-            var rolePermissions = permissionIds.Select(permissionId => new RolePermission
-            {
-                RoleId = roleId,
-                PermissionId = permissionId,
-                CreatedAt = DateTime.UtcNow
-            }).ToList();
-
-            await _dbSet.AddRangeAsync(rolePermissions, cancellationToken);
-            await SaveChangesAsync(cancellationToken);
-
+        public async Task<IEnumerable<Role>> GetRolesByPermissionAsync(string permissionName)
+        {
             return await _dbSet
                 .Include(rp => rp.Role)
                 .Include(rp => rp.Permission)
-                .Where(rp => rp.RoleId == roleId && permissionIds.Contains(rp.PermissionId))
-                .ToListAsync(cancellationToken);
+                .Where(rp => !rp.IsDeleted && rp.Permission.Name == permissionName)
+                .Select(rp => rp.Role)
+                .ToListAsync();
         }
 
-        /// <summary>
-        /// حذف چند دسترسی از نقش
-        /// </summary>
-        /// <param name="roleId">شناسه نقش</param>
-        /// <param name="permissionIds">شناسه‌های دسترسی‌ها</param>
-        /// <param name="cancellationToken">امکان لغو عملیات</param>
-        /// <returns>تعداد دسترسی‌های حذف شده</returns>
-        public async Task<int> RemovePermissionsFromRoleAsync(Guid roleId, IEnumerable<Guid> permissionIds, CancellationToken cancellationToken = default)
+        public async Task<IEnumerable<Role>> GetRolesByPermissionAsync(Guid permissionId)
         {
-            if (permissionIds == null || !permissionIds.Any())
-                throw new ArgumentException("لیست دسترسی‌ها نمی‌تواند خالی باشد", nameof(permissionIds));
-
-            var rolePermissions = await _dbSet
-                .Where(rp => rp.RoleId == roleId && permissionIds.Contains(rp.PermissionId))
-                .ToListAsync(cancellationToken);
-
-            if (!rolePermissions.Any())
-                return 0;
-
-            _dbSet.RemoveRange(rolePermissions);
-            return await SaveChangesAsync(cancellationToken);
+            return await _dbSet
+                .Include(rp => rp.Role)
+                .Where(rp => !rp.IsDeleted && rp.PermissionId == permissionId)
+                .Select(rp => rp.Role)
+                .ToListAsync();
         }
 
-        /// <summary>
-        /// دریافت دسترسی‌های یک نقش
-        /// </summary>
-        /// <param name="roleId">شناسه نقش</param>
-        /// <param name="cancellationToken">امکان لغو عملیات</param>
-        /// <returns>لیست دسترسی‌های نقش مورد نظر</returns>
-        public async Task<IEnumerable<Permission>> GetRolePermissionsAsync(Guid roleId, CancellationToken cancellationToken = default)
-        {
-            var rolePermissions = await GetByRoleAsync(roleId, cancellationToken);
-            return rolePermissions.Select(rp => rp.Permission);
-        }
-
-        /// <summary>
-        /// دریافت نقش‌های یک دسترسی
-        /// </summary>
-        /// <param name="permissionId">شناسه دسترسی</param>
-        /// <param name="cancellationToken">امکان لغو عملیات</param>
-        /// <returns>لیست نقش‌های دسترسی مورد نظر</returns>
-        public async Task<IEnumerable<Role>> GetRolesWithPermissionAsync(Guid permissionId, CancellationToken cancellationToken = default)
-        {
-            var rolePermissions = await GetByPermissionAsync(permissionId, cancellationToken);
-            return rolePermissions.Select(rp => rp.Role);
-        }
-
-        /// <summary>
-        /// بروزرسانی دسترسی‌های یک نقش
-        /// </summary>
-        /// <param name="roleId">شناسه نقش</param>
-        /// <param name="permissionIds">شناسه‌های دسترسی‌ها</param>
-        /// <param name="cancellationToken">امکان لغو عملیات</param>
-        /// <returns>درست اگر عملیات موفقیت‌آمیز باشد</returns>
-        public async Task<bool> UpdateRolePermissionsAsync(
-            Guid roleId, 
-            IEnumerable<Guid> permissionIds, 
-            CancellationToken cancellationToken = default)
-        {
-            return await UpdateRelationshipsAsync(
-                roleId,
-                permissionIds,
-                permissionId => new RolePermission
-                {
-                    RoleId = roleId,
-                    PermissionId = permissionId,
-                    CreatedAt = DateTime.UtcNow
-                },
-                rp => rp.RoleId == roleId && !rp.IsDeleted,
-                rp => rp.PermissionId,
-                cancellationToken);
-        }
-
-        /// <summary>
-        /// پاکسازی دسترسی‌های حذف شده نقش‌ها
-        /// </summary>
-        /// <param name="cancellationToken">امکان لغو عملیات</param>
-        /// <returns>تعداد دسترسی‌های حذف شده</returns>
-        public async Task<int> CleanupDeletedRolePermissionsAsync(CancellationToken cancellationToken = default)
-        {
-            return await CleanupDeletedRelationshipsAsync(
-                rp => rp.IsDeleted && rp.DeletedAt < DateTime.UtcNow.AddDays(-30),
-                cancellationToken);
-        }
+        // حذف کامل متدهای قدیمی و ناسازگار (مانند RemoveAllPermissionsFromRoleAsync، AddPermissionsToRoleAsync، RemovePermissionsFromRoleAsync، UpdateRolePermissionsAsync، CleanupDeletedRolePermissionsAsync و ...)
+        // فقط متدهای اینترفیس باقی بماند (در بالا پیاده‌سازی شد)
     }
 }

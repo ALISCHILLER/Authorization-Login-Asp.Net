@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Sms;
 
 namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
 {
@@ -31,5 +34,17 @@ namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
         /// <returns>تسک</returns>
         Task SendPasswordChangedNotificationAsync(string phoneNumber);
         Task SendTwoFactorCodeAsync(string phoneNumber, string code);
+        Task SendSmsAsync(string phoneNumber, string message);
+        Task SendSmsAsync(List<string> phoneNumbers, string message);
+        Task SendTemplatedSmsAsync(string phoneNumber, string templateId, Dictionary<string, string> templateData);
+        Task SendTemplatedSmsAsync(List<string> phoneNumbers, string templateId, Dictionary<string, string> templateData);
+        Task<bool> ValidatePhoneNumberAsync(string phoneNumber);
+        Task<bool> IsSmsDeliveredAsync(string messageId);
+        Task<SmsStatus> GetSmsStatusAsync(string messageId);
+        Task<decimal> GetBalanceAsync();
+        Task<List<SmsTemplate>> GetTemplatesAsync();
+        Task<bool> AddTemplateAsync(SmsTemplate template);
+        Task<bool> UpdateTemplateAsync(SmsTemplate template);
+        Task<bool> DeleteTemplateAsync(string templateId);
     }
 }

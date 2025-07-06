@@ -31,43 +31,43 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// آدرس IP کاربر
         /// </summary>
         [MaxLength(50)]
-        public string IpAddress { get; set; }
+        public string IpAddress { get; set; } = string.Empty;
 
         /// <summary>
         /// اطلاعات مرورگر کاربر
         /// </summary>
         [MaxLength(500)]
-        public string UserAgent { get; set; }
+        public string UserAgent { get; set; } = string.Empty;
 
         /// <summary>
         /// نام دستگاه
         /// </summary>
         [MaxLength(100)]
-        public string DeviceName { get; set; }
+        public string DeviceName { get; set; } = string.Empty;
 
         /// <summary>
         /// نوع دستگاه (موبایل، دسکتاپ و ...)
         /// </summary>
         [MaxLength(50)]
-        public string DeviceType { get; set; }
+        public string DeviceType { get; set; } = string.Empty;
 
         /// <summary>
         /// سیستم عامل
         /// </summary>
         [MaxLength(50)]
-        public string OperatingSystem { get; set; }
+        public string OperatingSystem { get; set; } = string.Empty;
 
         /// <summary>
         /// نام مرورگر
         /// </summary>
         [MaxLength(100)]
-        public string Browser { get; set; }
+        public string Browser { get; set; } = string.Empty;
 
         /// <summary>
         /// نسخه مرورگر
         /// </summary>
         [MaxLength(50)]
-        public string BrowserVersion { get; set; }
+        public string BrowserVersion { get; set; } = string.Empty;
 
         /// <summary>
         /// وضعیت موفقیت‌آمیز بودن ورود
@@ -78,25 +78,25 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// دلیل عدم موفقیت در صورت ناموفق بودن
         /// </summary>
         [MaxLength(200)]
-        public string FailureReason { get; set; }
+        public string FailureReason { get; set; } = string.Empty;
 
         /// <summary>
         /// موقعیت جغرافیایی (کشور)
         /// </summary>
         [MaxLength(100)]
-        public string Country { get; set; }
+        public string Country { get; set; } = string.Empty;
 
         /// <summary>
         /// موقعیت جغرافیایی (شهر)
         /// </summary>
         [MaxLength(100)]
-        public string City { get; set; }
+        public string City { get; set; } = string.Empty;
 
         /// <summary>
         /// موقعیت مکانی (ترکیب کشور و شهر)
         /// </summary>
         [MaxLength(200)]
-        public string Location { get; set; }
+        public string Location { get; set; } = string.Empty;
 
         /// <summary>
         /// زمان خروج
@@ -118,7 +118,12 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// کاربر
         /// </summary>
         [ForeignKey(nameof(UserId))]
-        public virtual User User { get; set; }
+        public virtual User User { get; set; } = null!;
+
+        /// <summary>
+        /// وضعیت حذف
+        /// </summary>
+        public bool IsDeleted { get; set; }
 
         /// <summary>
         /// ثبت زمان خروج و محاسبه مدت زمان حضور

@@ -4,60 +4,45 @@ using Authorization_Login_Asp.Net.Core.Domain.Events;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Common
 {
-    /// <summary>
-    /// کلاس پایه برای موجودیت‌های تجمعی
-    /// </summary>
-    public abstract class AggregateRoot : BaseEntity
+    public abstract class AggregateRoot : BaseEntity, IAggregateRoot
     {
-        private readonly List<DomainEvent> _domainEvents = new();
+        private readonly List<IDomainEvent> _domainEvents = new();
 
-        /// <summary>
-        /// رویدادهای دامنه
-        /// </summary>
-        public IReadOnlyCollection<DomainEvent> DomainEvents => _domainEvents.AsReadOnly();
-
-        /// <summary>
-        /// افزودن رویداد دامنه
-        /// </summary>
-        /// <param name="domainEvent">رویداد دامنه</param>
-        protected void AddDomainEvent(DomainEvent domainEvent)
+        protected AggregateRoot() : base()
         {
+        }
+
+        public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
+
+        protected void AddDomainEvent(IDomainEvent domainEvent)
+        {
+            if (domainEvent == null)
+                throw new ArgumentNullException(nameof(domainEvent));
+
             _domainEvents.Add(domainEvent);
         }
 
-        /// <summary>
-        /// پاک کردن رویدادهای دامنه
-        /// </summary>
         public void ClearDomainEvents()
         {
             _domainEvents.Clear();
         }
 
-        /// <summary>
-        /// اعمال تغییرات
-        /// </summary>
-        public override void Update()
+        public override void Update(Guid? modifiedBy = null)
         {
-            base.Update();
-            AddDomainEvent(new DomainEvent());
+            base.Update(modifiedBy);
+            AddDomainEvent(new EntityUpdatedEvent(Id, GetType().Name, modifiedBy));
         }
 
-        /// <summary>
-        /// حذف منطقی
-        /// </summary>
-        public override void Delete()
+        public override void Delete(Guid? deletedBy = null)
         {
-            base.Delete();
-            AddDomainEvent(new DomainEvent());
+            base.Delete(deletedBy);
+            AddDomainEvent(new EntityDeletedEvent(Id, GetType().Name, deletedBy));
         }
 
-        /// <summary>
-        /// بازیابی
-        /// </summary>
-        public override void Restore()
+        public override void Restore(Guid? restoredBy = null)
         {
-            base.Restore();
-            AddDomainEvent(new DomainEvent());
+            base.Restore(restoredBy);
+            AddDomainEvent(new EntityRestoredEvent(Id, GetType().Name, restoredBy));
         }
     }
-} 
+}

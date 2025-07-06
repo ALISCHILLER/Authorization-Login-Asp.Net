@@ -1,320 +1,118 @@
 using System;
 using System.Threading.Tasks;
-using System.Threading;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Authorization_Login_Asp.Net.Core.Domain.Common;
 using Authorization_Login_Asp.Net.Core.Domain.Entities;
-using Authorization_Login_Asp.Net.Core.Domain.ValueObjects;
-using Authorization_Login_Asp.Net.Core.Application.DTOs;
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
-using Authorization_Login_Asp.Net.Core.Infrastructure.Options;
-using Authorization_Login_Asp.Net.Core.Infrastructure.Services;
 
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Security
 {
-    /// <summary>
-    /// سرویس یکپارچه امنیتی
-    /// این سرویس تمام عملیات مربوط به احراز هویت دو مرحله‌ای و مدیریت رمز عبور را در یک جا متمرکز می‌کند
-    /// </summary>
-    public class SecurityService : ITwoFactorService, IPasswordService
+    public class SecurityService : ISecurityService
     {
-        private readonly IUserRepository _userRepository;
-        private readonly IEmailService _emailService;
-        private readonly ISmsService _smsService;
-        private readonly ILoggingService _logger;
-        private readonly ITracingService _tracingService;
-        private readonly SecurityOptions _securityOptions;
-
-        public SecurityService(
-            IUserRepository userRepository,
-            IEmailService emailService,
-            ISmsService smsService,
-            ILoggingService logger,
-            ITracingService tracingService,
-            IOptions<SecurityOptions> securityOptions)
+        public Task<string> HashPasswordAsync(string password)
         {
-            _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
-            _emailService = emailService ?? throw new ArgumentNullException(nameof(emailService));
-            _smsService = smsService ?? throw new ArgumentNullException(nameof(smsService));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _tracingService = tracingService ?? throw new ArgumentNullException(nameof(tracingService));
-            _securityOptions = securityOptions?.Value ?? throw new ArgumentNullException(nameof(securityOptions));
+            // TODO: Implement password hashing logic
+            throw new NotImplementedException();
         }
 
-        #region ITwoFactorService Implementation
-
-        public async Task<bool> EnableTwoFactorAsync(Guid userId, TwoFactorType type)
+        public Task<bool> VerifyPasswordAsync(string password, string hash)
         {
-            using var activity = _tracingService.StartActivity("SecurityService.EnableTwoFactorAsync");
-            try
-            {
-                var user = await _userRepository.GetByIdAsync(userId);
-                if (user == null)
-                    throw new DomainException("کاربر یافت نشد");
-
-                if (user.TwoFactorEnabled)
-                    throw new DomainException("احراز هویت دو مرحله‌ای قبلاً فعال شده است");
-
-                // تولید کد تأیید
-                var verificationCode = GenerateVerificationCode();
-                var expiryTime = DateTime.UtcNow.AddMinutes(_securityOptions.TwoFactorCodeExpiryMinutes);
-
-                // ذخیره کد تأیید
-                user.SetTwoFactorVerification(verificationCode, expiryTime, type);
-                await _userRepository.UpdateAsync(user);
-                await _userRepository.SaveChangesAsync();
-
-                // ارسال کد تأیید
-                switch (type)
-                {
-                    case TwoFactorType.Email:
-                        await _emailService.SendTwoFactorCodeAsync(user.Email.Value, verificationCode);
-                        break;
-                    case TwoFactorType.Sms:
-                        await _smsService.SendTwoFactorCodeAsync(user.PhoneNumber, verificationCode);
-                        break;
-                    default:
-                        throw new DomainException("نوع احراز هویت دو مرحله‌ای نامعتبر است");
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در فعال‌سازی احراز هویت دو مرحله‌ای");
-                throw;
-            }
+            // TODO: Implement password verification logic
+            throw new NotImplementedException();
         }
 
-        public async Task<bool> DisableTwoFactorAsync(Guid userId, string code)
+        public Task<string> GenerateJwtTokenAsync(Guid userId, string userName, string[] roles)
         {
-            using var activity = _tracingService.StartActivity("SecurityService.DisableTwoFactorAsync");
-            try
-            {
-                var user = await _userRepository.GetByIdAsync(userId);
-                if (user == null)
-                    throw new DomainException("کاربر یافت نشد");
-
-                if (!user.TwoFactorEnabled)
-                    throw new DomainException("احراز هویت دو مرحله‌ای فعال نیست");
-
-                if (!user.VerifyTwoFactorCode(code))
-                    throw new DomainException("کد تأیید نامعتبر است");
-
-                user.DisableTwoFactor();
-                await _userRepository.UpdateAsync(user);
-                await _userRepository.SaveChangesAsync();
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در غیرفعال‌سازی احراز هویت دو مرحله‌ای");
-                throw;
-            }
+            // TODO: Implement JWT token generation
+            throw new NotImplementedException();
         }
 
-        public async Task<bool> ValidateTwoFactorAsync(Guid userId, string code)
+        public Task<bool> ValidateTokenAsync(string token)
         {
-            using var activity = _tracingService.StartActivity("SecurityService.ValidateTwoFactorAsync");
-            try
-            {
-                var user = await _userRepository.GetByIdAsync(userId);
-                if (user == null)
-                    throw new DomainException("کاربر یافت نشد");
-
-                if (!user.TwoFactorEnabled)
-                    throw new DomainException("احراز هویت دو مرحله‌ای فعال نیست");
-
-                if (!user.VerifyTwoFactorCode(code))
-                    throw new DomainException("کد تأیید نامعتبر است");
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در تأیید کد احراز هویت دو مرحله‌ای");
-                throw;
-            }
+            // TODO: Implement token validation
+            throw new NotImplementedException();
         }
 
-        public async Task<bool> ResendTwoFactorCodeAsync(Guid userId)
+        public Task<string> GenerateRefreshTokenAsync()
         {
-            using var activity = _tracingService.StartActivity("SecurityService.ResendTwoFactorCodeAsync");
-            try
-            {
-                var user = await _userRepository.GetByIdAsync(userId);
-                if (user == null)
-                    throw new DomainException("کاربر یافت نشد");
-
-                if (!user.TwoFactorEnabled)
-                    throw new DomainException("احراز هویت دو مرحله‌ای فعال نیست");
-
-                // تولید کد تأیید جدید
-                var verificationCode = GenerateVerificationCode();
-                var expiryTime = DateTime.UtcNow.AddMinutes(_securityOptions.TwoFactorCodeExpiryMinutes);
-
-                // ذخیره کد تأیید جدید
-                user.SetTwoFactorVerification(verificationCode, expiryTime, user.TwoFactorType);
-                await _userRepository.UpdateAsync(user);
-                await _userRepository.SaveChangesAsync();
-
-                // ارسال کد تأیید جدید
-                switch (user.TwoFactorType)
-                {
-                    case TwoFactorType.Email:
-                        await _emailService.SendTwoFactorCodeAsync(user.Email.Value, verificationCode);
-                        break;
-                    case TwoFactorType.Sms:
-                        await _smsService.SendTwoFactorCodeAsync(user.PhoneNumber, verificationCode);
-                        break;
-                    default:
-                        throw new DomainException("نوع احراز هویت دو مرحله‌ای نامعتبر است");
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در ارسال مجدد کد احراز هویت دو مرحله‌ای");
-                throw;
-            }
+            // TODO: Implement refresh token generation
+            throw new NotImplementedException();
         }
 
-        #endregion
-
-        #region IPasswordService Implementation
-
-        public async Task<bool> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword)
+        public Task<bool> ValidateRefreshTokenAsync(string token)
         {
-            using var activity = _tracingService.StartActivity("SecurityService.ChangePasswordAsync");
-            try
-            {
-                var user = await _userRepository.GetByIdAsync(userId);
-                if (user == null)
-                    throw new DomainException("کاربر یافت نشد");
-
-                if (!user.VerifyPassword(currentPassword))
-                    throw new DomainException("رمز عبور فعلی اشتباه است");
-
-                user.ChangePassword(newPassword);
-                await _userRepository.UpdateAsync(user);
-                await _userRepository.SaveChangesAsync();
-
-                // ارسال اعلان تغییر رمز عبور
-                await _emailService.SendPasswordChangedNotificationAsync(user.Email.Value);
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در تغییر رمز عبور");
-                throw;
-            }
+            // TODO: Implement refresh token validation
+            throw new NotImplementedException();
         }
 
-        public async Task<bool> ResetPasswordAsync(string email)
+        public Task<bool> IsPasswordExpiredAsync(Guid userId)
         {
-            using var activity = _tracingService.StartActivity("SecurityService.ResetPasswordAsync");
-            try
-            {
-                var user = await _userRepository.GetByEmailAsync(email);
-                if (user == null)
-                    throw new DomainException("کاربر یافت نشد");
-
-                // تولید کد تأیید
-                var resetCode = GenerateVerificationCode();
-                var expiryTime = DateTime.UtcNow.AddMinutes(_securityOptions.PasswordResetCodeExpiryMinutes);
-
-                // ذخیره کد تأیید
-                user.SetPasswordResetCode(resetCode, expiryTime);
-                await _userRepository.UpdateAsync(user);
-                await _userRepository.SaveChangesAsync();
-
-                // ارسال کد تأیید
-                await _emailService.SendPasswordResetCodeAsync(email, resetCode);
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در درخواست بازنشانی رمز عبور");
-                throw;
-            }
+            // TODO: Implement password expiration check
+            throw new NotImplementedException();
         }
 
-        public async Task<bool> ConfirmPasswordResetAsync(string email, string code, string newPassword)
+        public Task<bool> IsAccountLockedAsync(Guid userId)
         {
-            using var activity = _tracingService.StartActivity("SecurityService.ConfirmPasswordResetAsync");
-            try
-            {
-                var user = await _userRepository.GetByEmailAsync(email);
-                if (user == null)
-                    throw new DomainException("کاربر یافت نشد");
-
-                if (!user.VerifyPasswordResetCode(code))
-                    throw new DomainException("کد تأیید نامعتبر است");
-
-                user.ChangePassword(newPassword);
-                user.ClearPasswordResetCode();
-                await _userRepository.UpdateAsync(user);
-                await _userRepository.SaveChangesAsync();
-
-                // ارسال اعلان بازنشانی رمز عبور
-                await _emailService.SendPasswordResetNotificationAsync(email);
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در تأیید بازنشانی رمز عبور");
-                throw;
-            }
+            // TODO: Implement account lock check
+            throw new NotImplementedException();
         }
 
-        public async Task<bool> ValidatePasswordStrengthAsync(string password)
+        public Task<int> GetFailedLoginAttemptsAsync(Guid userId)
         {
-            using var activity = _tracingService.StartActivity("SecurityService.ValidatePasswordStrengthAsync");
-            try
-            {
-                // بررسی طول رمز عبور
-                if (password.Length < _securityOptions.MinimumPasswordLength)
-                    return false;
-
-                // بررسی پیچیدگی رمز عبور
-                var hasUpperCase = false;
-                var hasLowerCase = false;
-                var hasDigit = false;
-                var hasSpecialChar = false;
-
-                foreach (var c in password)
-                {
-                    if (char.IsUpper(c)) hasUpperCase = true;
-                    else if (char.IsLower(c)) hasLowerCase = true;
-                    else if (char.IsDigit(c)) hasDigit = true;
-                    else if (!char.IsLetterOrDigit(c)) hasSpecialChar = true;
-                }
-
-                return hasUpperCase && hasLowerCase && hasDigit && hasSpecialChar;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "خطا در بررسی قدرت رمز عبور");
-                throw;
-            }
+            // TODO: Implement failed login attempts retrieval
+            throw new NotImplementedException();
         }
 
-        #endregion
-
-        #region Private Methods
-
-        private string GenerateVerificationCode()
+        public Task ResetFailedLoginAttemptsAsync(Guid userId)
         {
-            var random = new Random();
-            return random.Next(100000, 999999).ToString();
+            // TODO: Implement reset failed login attempts
+            throw new NotImplementedException();
         }
 
-        #endregion
+        public Task IncrementFailedLoginAttemptsAsync(Guid userId)
+        {
+            // TODO: Implement increment failed login attempts
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> IsTwoFactorEnabledAsync(Guid userId)
+        {
+            // TODO: Implement 2FA enabled check
+            throw new NotImplementedException();
+        }
+
+        public Task<string> GenerateTwoFactorTokenAsync(Guid userId)
+        {
+            // TODO: Implement 2FA token generation
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> ValidateTwoFactorTokenAsync(Guid userId, string token)
+        {
+            // TODO: Implement 2FA token validation
+            throw new NotImplementedException();
+        }
+
+        public Task EnableAsync(User user, TwoFactorType type)
+        {
+            // TODO: Implement enable 2FA
+            throw new NotImplementedException();
+        }
+
+        public Task DisableAsync(User user)
+        {
+            // TODO: Implement disable 2FA
+            throw new NotImplementedException();
+        }
+
+        public Task SendCodeAsync(User user)
+        {
+            // TODO: Implement send 2FA code
+            throw new NotImplementedException();
+        }
+
+        public string GenerateTemporaryPassword()
+        {
+            // TODO: Implement temporary password generation
+            throw new NotImplementedException();
+        }
     }
-} 
+}

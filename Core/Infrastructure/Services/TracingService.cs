@@ -26,8 +26,13 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
     {
         private readonly ILogger<TracingService> _logger;
         private readonly JaegerSettings _settings;
+        private readonly ICurrentUserService _currentUserService;
         private static readonly ConcurrentDictionary<string, ActivitySource> _activitySources = new();
         private static readonly ActivitySource _defaultActivitySource;
+        private static readonly ConcurrentDictionary<string, Activity> _activeOperations = new();
+        private static readonly ConcurrentDictionary<string, DateTime> _operationStartTimes = new();
+        private static bool _isTracingEnabled = true;
+        private static string _currentCorrelationId;
 
         static TracingService()
         {
@@ -35,10 +40,11 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
             _activitySources.TryAdd("Authorization-Login-Service", _defaultActivitySource);
         }
 
-        public TracingService(ILogger<TracingService> logger, IOptions<JaegerSettings> settings)
+        public TracingService(ILogger<TracingService> logger, IOptions<JaegerSettings> settings, ICurrentUserService currentUserService)
         {
             _logger = logger;
             _settings = settings.Value;
+            _currentUserService = currentUserService;
         }
 
         /// <inheritdoc/>
@@ -87,6 +93,21 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         public Activity StartActivity(string name, ActivityKind kind = ActivityKind.Internal, ActivityContext? parentContext = null, IEnumerable<KeyValuePair<string, object>>? attributes = null)
         {
             var activity = _defaultActivitySource.StartActivity(name, kind, parentContext ?? default, attributes);
+            
+            if (activity != null)
+            {
+                // Add user context
+                if (_currentUserService.IsAuthenticated)
+                {
+                    activity.SetTag("userId", _currentUserService.UserId);
+                    activity.SetTag("userName", _currentUserService.UserName);
+                }
+
+                // Add request context
+                activity.SetTag("ipAddress", _currentUserService.GetIpAddress());
+                activity.SetTag("userAgent", _currentUserService.GetUserAgent());
+            }
+
             return activity ?? new Activity(name);
         }
 
@@ -120,7 +141,16 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
             }
             catch (Exception ex)
             {
-                activity.SetStatus(ActivityStatusCode.Error, ex.Message);
+                activity.SetStatus(ActivityStatusCode.Error);
+                activity.SetTag("error.type", ex.GetType().Name);
+                activity.SetTag("error.message", ex.Message);
+                activity.SetTag("error.stack_trace", ex.StackTrace);
+
+                _logger.LogError(
+                    ex,
+                    "Error in operation {Operation}: {ErrorMessage}",
+                    name,
+                    ex.Message);
                 throw;
             }
         }
@@ -139,6 +169,147 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
             {
                 activity.SetStatus(ActivityStatusCode.Error, ex.Message);
                 throw;
+            }
+        }
+
+        public async Task StartTraceAsync(string operationName, string correlationId = null)
+        {
+            if (string.IsNullOrEmpty(operationName))
+                throw new ArgumentException("Operation name cannot be empty", nameof(operationName));
+
+            correlationId ??= Guid.NewGuid().ToString();
+            _currentCorrelationId = correlationId;
+
+            var activity = StartActivity(operationName, ActivityKind.Internal);
+            _activeOperations.TryAdd(operationName, activity);
+            _operationStartTimes.TryAdd(operationName, DateTime.UtcNow);
+
+            await Task.CompletedTask;
+        }
+
+        public async Task EndTraceAsync(string operationName, string correlationId = null)
+        {
+            if (string.IsNullOrEmpty(operationName))
+                throw new ArgumentException("Operation name cannot be empty", nameof(operationName));
+
+            if (_activeOperations.TryRemove(operationName, out var activity))
+            {
+                activity?.Stop();
+                _operationStartTimes.TryRemove(operationName, out _);
+            }
+
+            await Task.CompletedTask;
+        }
+
+        public async Task AddTraceAttributeAsync(string operationName, string key, string value, string correlationId = null)
+        {
+            if (string.IsNullOrEmpty(operationName))
+                throw new ArgumentException("Operation name cannot be empty", nameof(operationName));
+
+            if (_activeOperations.TryGetValue(operationName, out var activity))
+            {
+                activity?.SetTag(key, value);
+            }
+
+            await Task.CompletedTask;
+        }
+
+        public async Task AddTraceEventAsync(string operationName, string eventName, string correlationId = null)
+        {
+            if (string.IsNullOrEmpty(operationName))
+                throw new ArgumentException("Operation name cannot be empty", nameof(operationName));
+
+            if (_activeOperations.TryGetValue(operationName, out var activity))
+            {
+                activity?.AddEvent(new ActivityEvent(eventName));
+            }
+
+            await Task.CompletedTask;
+        }
+
+        public Task<string> GetCorrelationIdAsync()
+        {
+            return Task.FromResult(_currentCorrelationId ?? string.Empty);
+        }
+
+        public Task SetCorrelationIdAsync(string correlationId)
+        {
+            _currentCorrelationId = correlationId;
+            return Task.CompletedTask;
+        }
+
+        public Task<bool> IsTraceEnabledAsync()
+        {
+            return Task.FromResult(_isTracingEnabled);
+        }
+
+        public Task EnableTraceAsync()
+        {
+            _isTracingEnabled = true;
+            return Task.CompletedTask;
+        }
+
+        public Task DisableTraceAsync()
+        {
+            _isTracingEnabled = false;
+            return Task.CompletedTask;
+        }
+
+        public Task<TimeSpan> GetOperationDurationAsync(string operationName, string correlationId = null)
+        {
+            if (string.IsNullOrEmpty(operationName))
+                throw new ArgumentException("Operation name cannot be empty", nameof(operationName));
+
+            if (_operationStartTimes.TryGetValue(operationName, out var startTime))
+            {
+                var duration = DateTime.UtcNow - startTime;
+                return Task.FromResult(duration);
+            }
+
+            return Task.FromResult(TimeSpan.Zero);
+        }
+
+        public Task<IEnumerable<string>> GetActiveOperationsAsync()
+        {
+            return Task.FromResult(_activeOperations.Keys.AsEnumerable());
+        }
+
+        public void TraceError(Exception exception, string operation)
+        {
+            var activity = Activity.Current;
+            if (activity != null)
+            {
+                activity.SetStatus(ActivityStatusCode.Error);
+                activity.SetTag("error.type", exception.GetType().Name);
+                activity.SetTag("error.message", exception.Message);
+                activity.SetTag("error.stack_trace", exception.StackTrace);
+
+                _logger.LogError(
+                    exception,
+                    "Error in operation {Operation}: {ErrorMessage}",
+                    operation,
+                    exception.Message);
+            }
+        }
+
+        public void TraceMetric(string metricName, double value, IDictionary<string, object> tags = null)
+        {
+            var activity = Activity.Current;
+            if (activity != null)
+            {
+                activity.AddEvent(new ActivityEvent(
+                    name: "Metric",
+                    tags: new ActivityTagsCollection(new Dictionary<string, object>
+                    {
+                        { "metric.name", metricName },
+                        { "metric.value", value },
+                        { "timestamp", DateTimeOffset.UtcNow }
+                    }.Concat(tags ?? new Dictionary<string, object>()))));
+
+                _logger.LogInformation(
+                    "Metric {MetricName}: {MetricValue}",
+                    metricName,
+                    value);
             }
         }
     }

@@ -7,10 +7,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MediatR;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Security;
-using Authorization_Login_Asp.Net.Core.Application.Features.Auth.Commands;
-using Authorization_Login_Asp.Net.Core.Application.Features.Auth.Queries;
 
-namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
+namespace Authorization_Login_Asp.Net.Core.Presentation.Api.Controllers
 {
     /// <summary>
     /// کنترلر مدیریت احراز هویت و پروفایل کاربران
@@ -21,25 +19,15 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
     public class AuthController : BaseApiController
     {
         private readonly IUserService _userService;
-        private readonly JwtTokenGenerator _jwtTokenGenerator;
+        private readonly IJwtTokenGenerator _jwtTokenGenerator;
         private readonly ITwoFactorAuthenticator _twoFactorAuthenticator;
-        private readonly IMediator _mediator;
         private readonly ITwoFactorService _twoFactorService;
         private readonly IPasswordService _passwordService;
         private readonly IDeviceManagementService _deviceService;
-        private readonly ILogger<AuthController> _logger;
 
         /// <summary>
         /// سازنده کنترلر احراز هویت
         /// </summary>
-        /// <param name="userService">سرویس مدیریت کاربران</param>
-        /// <param name="jwtTokenGenerator">سرویس تولید توکن JWT</param>
-        /// <param name="twoFactorAuthenticator">سرویس احراز هویت دو مرحله‌ای</param>
-        /// <param name="mediator">مدیتور</param>
-        /// <param name="twoFactorService">سرویس مدیریت احراز هویت دو مرحله‌ای</param>
-        /// <param name="passwordService">سرویس مدیریت رمز عبور</param>
-        /// <param name="deviceService">سرویس مدیریت دستگاه</param>
-        /// <param name="logger">لاگر</param>
         public AuthController(
             IUserService userService,
             IJwtTokenGenerator jwtTokenGenerator,
@@ -48,15 +36,15 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
             ITwoFactorService twoFactorService,
             IPasswordService passwordService,
             IDeviceManagementService deviceService,
-            ILogger<AuthController> logger) : base(logger)
+            ILogger<AuthController> logger) 
+            : base(logger, mediator)
         {
-            _userService = userService;
-            _jwtTokenGenerator = jwtTokenGenerator;
-            _twoFactorAuthenticator = twoFactorAuthenticator;
-            _mediator = mediator;
-            _twoFactorService = twoFactorService;
-            _passwordService = passwordService;
-            _deviceService = deviceService;
+            _userService = userService ?? throw new ArgumentNullException(nameof(userService));
+            _jwtTokenGenerator = jwtTokenGenerator ?? throw new ArgumentNullException(nameof(jwtTokenGenerator));
+            _twoFactorAuthenticator = twoFactorAuthenticator ?? throw new ArgumentNullException(nameof(twoFactorAuthenticator));
+            _twoFactorService = twoFactorService ?? throw new ArgumentNullException(nameof(twoFactorService));
+            _passwordService = passwordService ?? throw new ArgumentNullException(nameof(passwordService));
+            _deviceService = deviceService ?? throw new ArgumentNullException(nameof(deviceService));
         }
 
         #region احراز هویت
@@ -72,15 +60,16 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         [ProducesResponseType(400)]
         public async Task<IActionResult> Register([FromBody] RegisterCommand command)
         {
-            try
+            var validationResult = ValidateModel();
+            if (validationResult != null)
+                return validationResult;
+
+            var result = await ExecuteCommand(command, "خطا در ثبت‌نام کاربر");
+            if (result is OkObjectResult okResult)
             {
-                var result = await _mediator.Send(command);
-                return CreatedAtAction(nameof(Login), new { username = command.Username }, result);
+                return CreatedAtAction(nameof(Login), new { username = command.Username }, okResult.Value);
             }
-            catch (Exception ex)
-            {
-                return Error("خطا در ثبت‌نام کاربر");
-            }
+            return result;
         }
 
         /// <summary>
@@ -97,15 +86,11 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         [ProducesResponseType(401)]
         public async Task<IActionResult> Login([FromBody] LoginCommand command)
         {
-            try
-            {
-                var result = await _mediator.Send(command);
-                return Success(result);
-            }
-            catch (Exception ex)
-            {
-                return Error("نام کاربری یا رمز عبور اشتباه است", 401);
-            }
+            var validationResult = ValidateModel();
+            if (validationResult != null)
+                return validationResult;
+
+            return await ExecuteCommand(command, "نام کاربری یا رمز عبور اشتباه است");
         }
 
         /// <summary>
@@ -120,11 +105,11 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         [ProducesResponseType(400)]
         public async Task<IActionResult> TwoFactor([FromBody] ValidateTwoFactorCommand command)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            var validationResult = ValidateModel();
+            if (validationResult != null)
+                return validationResult;
 
-            var result = await _mediator.Send(command);
-            return Success(result);
+            return await ExecuteCommand(command, "کد تأیید نامعتبر است");
         }
 
         /// <summary>
@@ -134,16 +119,18 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         /// <returns>توکن‌های جدید دسترسی</returns>
         /// <response code="200">تمدید با موفقیت انجام شد</response>
         /// <response code="400">توکن رفرش نامعتبر است</response>
+        /// <response code="401">کاربر احراز هویت نشده است</response>
         [HttpPost("refresh-token")]
         [ProducesResponseType(typeof(AuthResponse), 200)]
         [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenCommand command)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            var validationResult = ValidateModel();
+            if (validationResult != null)
+                return validationResult;
 
-            var result = await _mediator.Send(command);
-            return Success(result);
+            return await ExecuteCommand(command, "توکن نامعتبر است");
         }
 
         /// <summary>
@@ -161,7 +148,7 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
             if (!TryGetUserId(out Guid userId))
                 return Error("شناسه کاربر نامعتبر است");
 
-            await _mediator.Send(new LogoutCommand { UserId = userId });
+            await ExecuteCommand(new LogoutCommand { UserId = userId });
             return Success("خروج با موفقیت انجام شد");
         }
         #endregion
@@ -184,8 +171,7 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
             if (!TryGetUserId(out Guid userId))
                 return Error("شناسه کاربر نامعتبر است");
 
-            var result = await _mediator.Send(new EnableTwoFactorCommand { UserId = userId });
-            return Success(result);
+            return await ExecuteCommand(new EnableTwoFactorCommand { UserId = userId });
         }
 
         /// <summary>
@@ -210,8 +196,7 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
                 return Error("شناسه کاربر نامعتبر است");
 
             command.UserId = userId;
-            var result = await _mediator.Send(command);
-            return Success(result);
+            return await ExecuteCommand(command);
         }
         #endregion
 
@@ -225,7 +210,7 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         /// <response code="404">کاربر یافت نشد</response>
         [Authorize]
         [HttpGet("profile")]
-        [ProducesResponseType(typeof(UserResponse), 200)]
+        [ProducesResponseType(typeof(UserDto), 200)]
         [ProducesResponseType(401)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetProfile()
@@ -233,8 +218,7 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
             if (!TryGetUserId(out Guid userId))
                 return Error("شناسه کاربر نامعتبر است");
 
-            var result = await _mediator.Send(new GetUserProfileQuery { UserId = userId });
-            return Success(result);
+            return await ExecuteCommand(new GetUserProfileQuery { UserId = userId });
         }
 
         /// <summary>
@@ -248,21 +232,42 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         /// <response code="404">کاربر یافت نشد</response>
         [Authorize]
         [HttpPut("profile")]
-        [ProducesResponseType(typeof(UserResponse), 200)]
-        [ProducesResponseType(typeof(UserResponse), 400)]
+        [ProducesResponseType(typeof(UserDto), 200)]
+        [ProducesResponseType(typeof(UserDto), 400)]
         [ProducesResponseType(401)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand command)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            var validationResult = ValidateModel();
+            if (validationResult != null)
+                return validationResult;
 
             if (!TryGetUserId(out Guid userId))
                 return Error("شناسه کاربر نامعتبر است");
 
             command.UserId = userId;
-            var result = await _mediator.Send(command);
-            return Success(result);
+            return await ExecuteCommand(command, "خطا در به‌روزرسانی پروفایل");
+        }
+
+        /// <summary>
+        /// تغییر رمز عبور
+        /// </summary>
+        [Authorize]
+        [HttpPost("change-password")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
+        {
+            var validationResult = ValidateModel();
+            if (validationResult != null)
+                return validationResult;
+
+            if (!TryGetUserId(out Guid userId))
+                return Error("شناسه کاربر نامعتبر است");
+
+            command.UserId = userId;
+            return await ExecuteCommand(command, "خطا در تغییر رمز عبور");
         }
         #endregion
     }

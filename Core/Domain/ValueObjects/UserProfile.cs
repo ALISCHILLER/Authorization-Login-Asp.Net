@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using Authorization_Login_Asp.Net.Core.Domain.Common;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.ValueObjects
 {

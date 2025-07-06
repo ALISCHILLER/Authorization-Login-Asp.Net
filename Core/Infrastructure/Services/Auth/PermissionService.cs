@@ -15,7 +15,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
     /// سرویس یکپارچه مدیریت دسترسی‌ها
     /// این سرویس شامل تمام عملیات مربوط به مدیریت دسترسی‌ها و نقش‌های کاربران است
     /// </summary>
-    public class PermissionService : BasePermissionService, IPermissionService
+    public class PermissionService : IPermissionService
     {
         private readonly AppDbContext _context;
 
@@ -23,7 +23,6 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
             ILogger<PermissionService> logger,
             IMemoryCache cache,
             AppDbContext context)
-            : base(logger, cache)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
         }
@@ -33,18 +32,15 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
         /// </summary>
         public async Task<bool> HasPermissionAsync(string userId, string permissionName)
         {
-            return await base.HasPermissionAsync(userId, permissionName, async () =>
-            {
-                var user = await _context.Users.FindAsync(userId);
-                if (user == null) return new List<Permission>();
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return false;
 
-                var permissions = new List<Permission>();
-                foreach (var role in user.Roles)
-                {
-                    permissions.AddRange(role.Permissions);
-                }
-                return permissions;
-            });
+            var permissions = new List<Permission>();
+            foreach (var role in user.Roles)
+            {
+                permissions.AddRange(role.Permissions);
+            }
+            return permissions.Any(p => p.Name == permissionName);
         }
 
         /// <summary>
@@ -52,13 +48,10 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
         /// </summary>
         public async Task<bool> HasRoleAsync(string userId, UserRole role)
         {
-            return await base.HasRoleAsync(userId, role, async () =>
-            {
-                var user = await _context.Users.FindAsync(userId);
-                if (user == null) return new List<Role>();
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return false;
 
-                return user.Roles;
-            });
+            return user.Roles.Any(r => r.Name == role.ToString());
         }
 
         /// <summary>
@@ -66,26 +59,18 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
         /// </summary>
         public async Task<bool> HasRolePermissionAsync(string userId, UserRole role, string permissionName)
         {
-            return await base.HasRolePermissionAsync(userId, role, permissionName,
-                async () =>
-                {
-                    var user = await _context.Users.FindAsync(userId);
-                    if (user == null) return new List<Role>();
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return false;
 
-                    return user.Roles;
-                },
-                async () =>
-                {
-                    var user = await _context.Users.FindAsync(userId);
-                    if (user == null) return new List<Permission>();
+            var roleEntity = user.Roles.FirstOrDefault(r => r.Name == role.ToString());
+            if (roleEntity == null) return false;
 
-                    var permissions = new List<Permission>();
-                    foreach (var userRole in user.Roles)
-                    {
-                        permissions.AddRange(userRole.Permissions);
-                    }
-                    return permissions;
-                });
+            var permissions = new List<Permission>();
+            foreach (var userRole in user.Roles)
+            {
+                permissions.AddRange(userRole.Permissions);
+            }
+            return permissions.Any(p => p.Name == permissionName);
         }
 
         /// <summary>
@@ -93,18 +78,15 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
         /// </summary>
         public async Task<IEnumerable<Permission>> GetUserPermissionsAsync(string userId)
         {
-            return await base.GetUserPermissionsAsync(userId, async () =>
-            {
-                var user = await _context.Users.FindAsync(userId);
-                if (user == null) return new List<Permission>();
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return new List<Permission>();
 
-                var permissions = new List<Permission>();
-                foreach (var role in user.Roles)
-                {
-                    permissions.AddRange(role.Permissions);
-                }
-                return permissions;
-            });
+            var permissions = new List<Permission>();
+            foreach (var role in user.Roles)
+            {
+                permissions.AddRange(role.Permissions);
+            }
+            return permissions;
         }
 
         /// <summary>
@@ -112,13 +94,10 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
         /// </summary>
         public async Task<IEnumerable<Role>> GetUserRolesAsync(string userId)
         {
-            return await base.GetUserRolesAsync(userId, async () =>
-            {
-                var user = await _context.Users.FindAsync(userId);
-                if (user == null) return new List<Role>();
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return new List<Role>();
 
-                return user.Roles;
-            });
+            return user.Roles;
         }
 
         /// <summary>

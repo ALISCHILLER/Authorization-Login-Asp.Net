@@ -80,6 +80,27 @@ builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<ILoginHistoryService, LoginHistoryService>();
 builder.Services.AddMemoryCache();
 
+// 注册 HttpContextAccessor
+builder.Services.AddHttpContextAccessor();
+
+// 注册 CurrentUserService
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+// 注册仓储服务
+builder.Services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
+builder.Services.AddScoped<IPermissionRepository, PermissionRepository>();
+builder.Services.AddScoped<IRoleRepository, RoleRepository>();
+
+// 注册审计服务
+builder.Services.AddScoped<IAuditService, AuditService>();
+
+// 注册日志服务
+builder.Services.AddScoped<ILoggingService, LoggingService>();
+builder.Services.AddScoped<ITracingService, TracingService>();
+
+// 注册领域事件处理
+builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+
 // تنظیمات احراز هویت JWT
 builder.Services.AddAuthentication(options =>
 {

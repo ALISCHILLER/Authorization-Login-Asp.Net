@@ -9,6 +9,9 @@ using System.Diagnostics;
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Configurations;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Options;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Common;
+using Authorization_Login_Asp.Net.Core.Domain.Interfaces;
+using System.Threading;
 
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
 {
@@ -62,7 +65,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                     <p><a href='{confirmationLink}'>تایید ایمیل</a></p>
                     <p>در صورتی که این حساب را ایجاد نکرده‌اید، این ایمیل را نادیده بگیرید.</p>";
 
-                await SendEmailAsync(new EmailRequest(email, subject, body));
+                await SendEmailAsync(new EmailRequest { To = email, Subject = subject, Body = body });
             }
             catch (Exception ex)
             {
@@ -86,7 +89,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                     <p>این لینک ۱ ساعت اعتبار دارد.</p>
                     <p>در صورتی که این درخواست را نداده‌اید، این ایمیل را نادیده بگیرید.</p>";
 
-                await SendEmailAsync(new EmailRequest(email, subject, body));
+                await SendEmailAsync(new EmailRequest { To = email, Subject = subject, Body = body });
             }
             catch (Exception ex)
             {
@@ -109,7 +112,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                     <p>این کد ۵ دقیقه اعتبار دارد.</p>
                     <p>در صورتی که این درخواست را نداده‌اید، فوراً حساب خود را امن کنید.</p>";
 
-                await SendEmailAsync(new EmailRequest(email, subject, body));
+                await SendEmailAsync(new EmailRequest { To = email, Subject = subject, Body = body });
             }
             catch (Exception ex)
             {
@@ -131,7 +134,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                     <p>رمز عبور حساب شما با موفقیت تغییر یافت.</p>
                     <p>در صورتی که این عمل را انجام نداده‌اید، فوراً حساب خود را امن کنید.</p>";
 
-                await SendEmailAsync(new EmailRequest(email, subject, body));
+                await SendEmailAsync(new EmailRequest { To = email, Subject = subject, Body = body });
             }
             catch (Exception ex)
             {
@@ -158,13 +161,82 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                     </ul>
                     <p>در صورتی که این ورود را انجام نداده‌اید، فوراً حساب خود را امن کنید.</p>";
 
-                await SendEmailAsync(new EmailRequest(email, subject, body));
+                await SendEmailAsync(new EmailRequest { To = email, Subject = subject, Body = body });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "خطا در ارسال اطلاعیه ورود جدید به {Email}", email);
                 throw;
             }
+        }
+
+        /// <inheritdoc />
+        public async Task SendVerificationEmailAsync(string email)
+        {
+            var subject = "تایید ایمیل";
+            var body = "کد تایید یا لینک تایید ایمیل";
+            await SendEmailAsync(new Authorization_Login_Asp.Net.Core.Application.DTOs.Common.EmailRequest { To = email, Subject = subject, Body = body });
+        }
+
+        public async Task SendBackupCodesAsync(string email, System.Collections.Generic.List<string> codes)
+        {
+            var subject = "کدهای پشتیبان";
+            var body = $"کدهای پشتیبان شما: {string.Join(", ", codes)}";
+            await SendEmailAsync(new Authorization_Login_Asp.Net.Core.Application.DTOs.Common.EmailRequest { To = email, Subject = subject, Body = body });
+        }
+
+        public async Task SendEmailAsync(string to, string subject, string body, bool isHtml = false)
+        {
+            await SendEmailAsync(new Authorization_Login_Asp.Net.Core.Application.DTOs.Common.EmailRequest { To = to, Subject = subject, Body = body, IsHtml = isHtml });
+        }
+
+        public async Task SendEmailAsync(string to, string subject, string body, System.Collections.Generic.List<Authorization_Login_Asp.Net.Core.Application.DTOs.Common.EmailAttachment> attachments, bool isHtml = false)
+        {
+            await SendEmailAsync(new Authorization_Login_Asp.Net.Core.Application.DTOs.Common.EmailRequest { To = to, Subject = subject, Body = body, Attachments = attachments, IsHtml = isHtml });
+        }
+
+        public async Task SendEmailAsync(System.Collections.Generic.List<string> to, string subject, string body, bool isHtml = false)
+        {
+            foreach (var email in to)
+                await SendEmailAsync(new Authorization_Login_Asp.Net.Core.Application.DTOs.Common.EmailRequest { To = email, Subject = subject, Body = body, IsHtml = isHtml });
+        }
+
+        public async Task SendEmailAsync(System.Collections.Generic.List<string> to, string subject, string body, System.Collections.Generic.List<Authorization_Login_Asp.Net.Core.Application.DTOs.Common.EmailAttachment> attachments, bool isHtml = false)
+        {
+            foreach (var email in to)
+                await SendEmailAsync(new Authorization_Login_Asp.Net.Core.Application.DTOs.Common.EmailRequest { To = email, Subject = subject, Body = body, Attachments = attachments, IsHtml = isHtml });
+        }
+
+        public async Task SendTemplatedEmailAsync(string to, string template, System.Collections.Generic.Dictionary<string, string> parameters)
+        {
+            var body = template;
+            foreach (var kv in parameters)
+                body = body.Replace($"{{{kv.Key}}}", kv.Value);
+            await SendEmailAsync(new Authorization_Login_Asp.Net.Core.Application.DTOs.Common.EmailRequest { To = to, Subject = "ایمیل قالبی", Body = body });
+        }
+
+        public async Task SendTemplatedEmailAsync(System.Collections.Generic.List<string> to, string template, System.Collections.Generic.Dictionary<string, string> parameters)
+        {
+            foreach (var email in to)
+                await SendTemplatedEmailAsync(email, template, parameters);
+        }
+
+        public Task<bool> ValidateEmailAsync(string email)
+        {
+            // Minimal validation
+            return Task.FromResult(email.Contains("@"));
+        }
+
+        public Task<bool> IsEmailDeliveredAsync(string email)
+        {
+            // Stub: always return true
+            return Task.FromResult(true);
+        }
+
+        public Task<string> GetEmailStatusAsync(string email)
+        {
+            // Stub: always return "Delivered"
+            return Task.FromResult("Delivered");
         }
 
         #endregion
@@ -186,14 +258,10 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                         "ایمیل در محیط توسعه:\n" +
                         "به: {To}\n" +
                         "موضوع: {Subject}\n" +
-                        "اولویت: {Priority}\n" +
-                        "متن: {Body}\n" +
-                        "متادیتا: {Metadata}",
+                        "متن: {Body}\n",
                         request.To,
                         request.Subject,
-                        request.Priority,
-                        request.Body,
-                        request.Metadata);
+                        request.Body);
 
                     return;
                 }

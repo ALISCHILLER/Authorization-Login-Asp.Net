@@ -7,9 +7,8 @@ using Microsoft.Extensions.Logging;
 using Authorization_Login_Asp.Net.Core.Application.DTOs;
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
 using Authorization_Login_Asp.Net.Core.Application.Exceptions;
-using Authorization_Login_Asp.Net.Core.Application.Features.Roles.Commands;
-using Authorization_Login_Asp.Net.Core.Application.Features.Roles.Queries;
 using MediatR;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Roles;
 
 namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
 {
@@ -59,12 +58,12 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         [ProducesResponseType(typeof(CreateRoleResponse), 201)]
         [ProducesResponseType(400)]
         [ProducesResponseType(409)]
-        public async Task<IActionResult> CreateRole([FromBody] CreateRoleCommand command)
+        public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var result = await _mediator.Send(command);
+            var result = await _mediator.Send(request);
             return CreatedAtAction(nameof(GetRoleById), new { id = result.Id }, result);
         }
 
@@ -75,13 +74,13 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         [ProducesResponseType(typeof(UpdateRoleResponse), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> UpdateRole(Guid id, [FromBody] UpdateRoleCommand command)
+        public async Task<IActionResult> UpdateRole(Guid id, [FromBody] UpdateRoleRequest request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            command.RoleId = id;
-            var result = await _mediator.Send(command);
+            request.RoleId = id;
+            var result = await _mediator.Send(request);
             return Success(result);
         }
 
@@ -107,12 +106,12 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> AssignPermissions(Guid roleId, [FromBody] AssignPermissionsCommand command)
+        public async Task<IActionResult> AssignPermissions(Guid roleId, [FromBody] AssignPermissionsRequest request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            command.RoleId = roleId;
+            var command = new AssignPermissionsCommand { RoleId = roleId, PermissionIds = request.PermissionIds };
             await _mediator.Send(command);
             return Success("دسترسی‌ها با موفقیت به نقش اختصاص داده شد");
         }
@@ -124,12 +123,12 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> RemovePermissions(Guid roleId, [FromBody] RemovePermissionsCommand command)
+        public async Task<IActionResult> RemovePermissions(Guid roleId, [FromBody] RemovePermissionsRequest request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            command.RoleId = roleId;
+            var command = new RemovePermissionsCommand { RoleId = roleId, PermissionIds = request.PermissionIds };
             await _mediator.Send(command);
             return Success("دسترسی‌ها با موفقیت از نقش حذف شد");
         }

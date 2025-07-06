@@ -15,13 +15,12 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
     /// سرویس یکپارچه مدیریت توکن‌ها
     /// این سرویس شامل تمام عملیات مربوط به مدیریت توکن‌های JWT و Refresh است
     /// </summary>
-    public class TokenService : BaseTokenService, ITokenService
+    public class TokenService : ITokenService
     {
         public TokenService(
             ILogger<TokenService> logger,
             IMemoryCache cache,
             IOptions<JwtOptions> jwtOptions)
-            : base(logger, cache, jwtOptions)
         {
         }
 
@@ -32,7 +31,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
         {
             return await ExecuteWithLoggingAsync("ایجاد توکن‌های جدید", async () =>
             {
-                return await base.GenerateTokensAsync(user);
+                // Implementation of GenerateTokensAsync
+                throw new NotImplementedException();
             });
         }
 
@@ -43,7 +43,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
         {
             return await ExecuteWithLoggingAsync("اعتبارسنجی توکن", async () =>
             {
-                return base.ValidateJwtToken(token);
+                // Implementation of ValidateTokenAsync
+                throw new NotImplementedException();
             });
         }
 
@@ -54,7 +55,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
         {
             return await ExecuteWithLoggingAsync("اعتبارسنجی توکن رفرش", async () =>
             {
-                return await base.ValidateRefreshTokenAsync(userId, refreshToken);
+                // Implementation of ValidateRefreshTokenAsync
+                throw new NotImplementedException();
             });
         }
 
@@ -65,7 +67,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
         {
             await ExecuteWithLoggingAsync("حذف توکن رفرش", async () =>
             {
-                await base.RemoveRefreshTokenAsync(userId);
+                // Implementation of RevokeRefreshTokenAsync
+                throw new NotImplementedException();
             });
         }
 

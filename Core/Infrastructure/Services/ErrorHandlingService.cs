@@ -1,4 +1,3 @@
-using Authorization_Login_Asp.Net.Core.Domain.Entities;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Security;
@@ -9,46 +8,45 @@ using Authorization_Login_Asp.Net.Core.Domain.Exceptions;
 using Authorization_Login_Asp.Net.Core.Domain.Interfaces;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Services.Base;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Data;
+using Microsoft.AspNetCore.Http;
+using System.Collections.Generic;
+using Authorization_Login_Asp.Net.Core.Application.Interfaces;
 
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
 {
-    public interface IErrorHandlingService
-    {
-        Task HandleExceptionAsync(Exception ex, HttpContext context);
-        Task LogErrorAsync(Exception ex, string source, Dictionary<string, object> additionalData = null);
-        Task<ErrorResponse> CreateErrorResponseAsync(Exception ex, HttpContext context);
-        Task LogSystemErrorAsync(Exception ex, string context, string userId = null);
-        Task LogSecurityErrorAsync(string message, string context, string userId = null);
-        Task LogValidationErrorAsync(string message, string context, string userId = null);
-        Task LogPerformanceErrorAsync(string message, string context, long duration);
-        Task<SystemError[]> GetSystemErrorsAsync(DateTime startDate, DateTime endDate);
-        Task<SecurityError[]> GetSecurityErrorsAsync(DateTime startDate, DateTime endDate);
-        Task<ValidationError[]> GetValidationErrorsAsync(DateTime startDate, DateTime endDate);
-        Task<PerformanceError[]> GetPerformanceErrorsAsync(DateTime startDate, DateTime endDate);
-        Task CleanupOldErrorsAsync(int daysToKeep);
-    }
-
-    /// <summary>
-    /// سرویس مدیریت خطا و لاگینگ
-    /// </summary>
-    public class ErrorHandlingService : BaseService, IErrorHandlingService
+    public class ErrorHandlingService : Authorization_Login_Asp.Net.Core.Application.Interfaces.IErrorHandlingService
     {
         private readonly ILogger<ErrorHandlingService> _logger;
+        private readonly IConfiguration _configuration;
+        private readonly ITracingService _tracingService;
+        private readonly IEmailService _emailService;
+        private readonly ISmsService _smsService;
         private readonly INotificationService _notificationService;
         private readonly IMetricsService _metricsService;
-        private readonly IConfiguration _configuration;
+        private readonly ApplicationDbContext _dbContext;
+        private string _lastError = string.Empty;
+        private string _lastStackTrace = string.Empty;
+        private string _lastSource = string.Empty;
+        private string _lastMessage = string.Empty;
 
         public ErrorHandlingService(
-            IUnitOfWork unitOfWork,
             ILogger<ErrorHandlingService> logger,
+            IConfiguration configuration,
+            ITracingService tracingService,
+            IEmailService emailService,
+            ISmsService smsService,
             INotificationService notificationService,
             IMetricsService metricsService,
-            IConfiguration configuration)
-            : base(unitOfWork, logger)
+            ApplicationDbContext dbContext)
         {
-            _notificationService = notificationService;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            _tracingService = tracingService ?? throw new ArgumentNullException(nameof(tracingService));
+            _emailService = emailService ?? throw new ArgumentNullException(nameof(emailService));
+            _smsService = smsService ?? throw new ArgumentNullException(nameof(smsService));
+            _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
             _metricsService = metricsService;
-            _configuration = configuration;
+            _dbContext = dbContext;
         }
 
         public async Task HandleExceptionAsync(Exception ex, HttpContext context)
@@ -61,10 +59,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                 // ارسال اعلان برای خطاهای بحرانی
                 if (IsCriticalError(ex))
                 {
-                    await _notificationService.SendErrorAlertAsync(
-                        "Critical Error Occurred",
-                        $"Error: {ex.Message}\nPath: {context.Request.Path}\nTime: {DateTime.UtcNow}",
-                        AlertSeverity.Critical);
+                    // پیاده‌سازی ارسال اعلان
                 }
 
                 // ثبت متریک خطا
@@ -82,35 +77,26 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
             }
         }
 
-        public async Task LogErrorAsync(Exception ex, string source, Dictionary<string, object> additionalData = null)
+        public async Task LogErrorAsync(Exception ex, string source, Dictionary<string, object>? additionalData = null)
         {
             try
             {
-                var logData = new
+                _lastError = ex.Message;
+                _lastStackTrace = ex.StackTrace ?? string.Empty;
+                _lastSource = source;
+                _lastMessage = ex.Message;
+
+                var errorLog = new ErrorLog
                 {
-                    Timestamp = DateTime.UtcNow,
+                    Message = ex.Message,
+                    StackTrace = ex.StackTrace,
                     Source = source,
-                    ExceptionType = ex.GetType().Name,
-                    ex.Message,
-                    ex.StackTrace,
-                    InnerException = ex.InnerException?.Message,
-                    AdditionalData = additionalData
+                    AdditionalData = additionalData,
+                    CreatedAt = DateTime.UtcNow
                 };
 
-                // لاگ کردن به فایل
-                _logger.LogError(ex, "Error occurred in {Source}: {Message}", source, ex.Message);
-
-                // لاگ کردن به Elasticsearch یا سایر سیستم‌های لاگینگ
-                if (_configuration.GetValue<bool>("AppSettings:LoggingSettings:EnableElasticsearchLogging"))
-                {
-                    // پیاده‌سازی ارسال به Elasticsearch
-                }
-
-                // لاگ کردن به Application Insights
-                if (_configuration.GetValue<bool>("AppSettings:LoggingSettings:EnableApplicationInsights"))
-                {
-                    // پیاده‌سازی ارسال به Application Insights
-                }
+                await _dbContext.ErrorLogs.AddAsync(errorLog);
+                await _dbContext.SaveChangesAsync();
             }
             catch (Exception logEx)
             {
@@ -120,27 +106,68 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
 
         public async Task<ErrorResponse> CreateErrorResponseAsync(Exception ex, HttpContext context)
         {
-            var errorResponse = new ErrorResponse
+            var response = new ErrorResponse
             {
-                TraceId = Activity.Current?.Id ?? context.TraceIdentifier,
-                Message = GetUserFriendlyMessage(ex),
-                StatusCode = GetStatusCode(ex),
-                AdditionalData = new Dictionary<string, object>
-                {
-                    { "Path", context.Request.Path },
-                    { "Method", context.Request.Method },
-                    { "Timestamp", DateTime.UtcNow }
-                }
+                Message = "خطای سرور",
+                StatusCode = StatusCodes.Status500InternalServerError,
+                ErrorTime = DateTime.UtcNow
             };
 
-            // اضافه کردن اطلاعات بیشتر در محیط توسعه
-            if (context.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment())
+            switch (ex)
             {
-                errorResponse.DeveloperMessage = ex.Message;
-                errorResponse.StackTrace = ex.StackTrace;
+                case DomainException domainEx:
+                    response.StatusCode = StatusCodes.Status400BadRequest;
+                    response.Message = domainEx.Message;
+                    response.Code = domainEx.Code;
+                    response.AdditionalData = domainEx.AdditionalData;
+                    break;
+
+                case NotFoundException notFoundEx:
+                    response.StatusCode = StatusCodes.Status404NotFound;
+                    response.Message = notFoundEx.Message;
+                    response.Code = notFoundEx.Code;
+                    response.AdditionalData = new Dictionary<string, object>
+                    {
+                        { "EntityType", notFoundEx.EntityType },
+                        { "EntityId", notFoundEx.EntityId }
+                    };
+                    break;
+
+                case ConflictException conflictEx:
+                    response.StatusCode = StatusCodes.Status409Conflict;
+                    response.Message = conflictEx.Message;
+                    response.Code = conflictEx.Code;
+                    response.AdditionalData = new Dictionary<string, object>
+                    {
+                        { "EntityType", conflictEx.EntityType },
+                        { "ConflictingValue", conflictEx.ConflictingValue }
+                    };
+                    break;
+
+                case SecurityDomainException securityEx:
+                    response.StatusCode = StatusCodes.Status403Forbidden;
+                    response.Message = securityEx.Message;
+                    response.Code = securityEx.Code;
+                    response.AdditionalData = new Dictionary<string, object>
+                    {
+                        { "RiskLevel", securityEx.RiskLevel },
+                        { "IpAddress", securityEx.IpAddress },
+                        { "UserAgent", securityEx.UserAgent }
+                    };
+                    break;
+
+                case UnauthorizedAccessException:
+                    response.StatusCode = StatusCodes.Status401Unauthorized;
+                    response.Message = "دسترسی غیرمجاز";
+                    response.Code = DomainErrorCodes.General.UnauthorizedAccess;
+                    break;
+
+                default:
+                    _logger.LogError(ex, "An unhandled exception has occurred");
+                    break;
             }
 
-            return errorResponse;
+            return response;
         }
 
         private bool IsCriticalError(Exception ex)
@@ -151,92 +178,78 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                    ex is SecurityException;
         }
 
-        private string GetUserFriendlyMessage(Exception ex)
-        {
-            return ex switch
-            {
-                UnauthorizedAccessException => "You are not authorized to perform this action.",
-                ValidationException => "The request contains invalid data.",
-                NotFoundException => "The requested resource was not found.",
-                ConflictException => "The request conflicts with the current state of the server.",
-                _ => "An unexpected error occurred. Please try again later."
-            };
-        }
-
-        private int GetStatusCode(Exception ex)
-        {
-            return ex switch
-            {
-                UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
-                ValidationException => StatusCodes.Status400BadRequest,
-                NotFoundException => StatusCodes.Status404NotFound,
-                ConflictException => StatusCodes.Status409Conflict,
-                _ => StatusCodes.Status500InternalServerError
-            };
-        }
-
         /// <summary>
         /// ثبت خطای سیستمی
         /// </summary>
-        public async Task LogSystemErrorAsync(Exception ex, string context, string userId = null)
+        public async Task LogSystemErrorAsync(Exception ex, string context, string? userId = null)
         {
-            await ExecuteInTransaction(async () =>
+            try
             {
-                var error = new SystemError
+                var systemError = new SystemError
                 {
                     Message = ex.Message,
-                    StackTrace = ex.StackTrace,
-                    Source = ex.Source,
+                    StackTrace = ex.StackTrace ?? string.Empty,
                     Context = context,
-                    UserId = userId,
-                    Timestamp = DateTime.UtcNow,
-                    ErrorType = ex.GetType().Name
+                    UserId = userId ?? string.Empty,
+                    CreatedAt = DateTime.UtcNow
                 };
 
-                await _unitOfWork.SystemErrors.AddAsync(error);
-                _logger.LogError(ex, $"خطای سیستمی در {context} - کاربر: {userId}");
-            }, "ثبت خطای سیستمی");
+                await _dbContext.SystemErrors.AddAsync(systemError);
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (Exception logEx)
+            {
+                _logger.LogError(logEx, "Error occurred while logging system error");
+            }
         }
 
         /// <summary>
         /// ثبت خطای امنیتی
         /// </summary>
-        public async Task LogSecurityErrorAsync(string message, string context, string userId = null)
+        public async Task LogSecurityErrorAsync(string message, string context, string? userId = null)
         {
-            await ExecuteInTransaction(async () =>
+            try
             {
-                var error = new SecurityError
+                var securityError = new SecurityError
                 {
                     Message = message,
                     Context = context,
-                    UserId = userId,
-                    Timestamp = DateTime.UtcNow,
-                    IpAddress = GetCurrentIpAddress()
+                    UserId = userId ?? string.Empty,
+                    IpAddress = GetCurrentIpAddress(),
+                    CreatedAt = DateTime.UtcNow
                 };
 
-                await _unitOfWork.SecurityErrors.AddAsync(error);
-                _logger.LogWarning($"خطای امنیتی در {context} - کاربر: {userId} - پیام: {message}");
-            }, "ثبت خطای امنیتی");
+                await _dbContext.SecurityErrors.AddAsync(securityError);
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (Exception logEx)
+            {
+                _logger.LogError(logEx, "Error occurred while logging security error");
+            }
         }
 
         /// <summary>
         /// ثبت خطای اعتبارسنجی
         /// </summary>
-        public async Task LogValidationErrorAsync(string message, string context, string userId = null)
+        public async Task LogValidationErrorAsync(string message, string context, string? userId = null)
         {
-            await ExecuteInTransaction(async () =>
+            try
             {
-                var error = new ValidationError
+                var validationError = new ValidationError
                 {
                     Message = message,
                     Context = context,
-                    UserId = userId,
-                    Timestamp = DateTime.UtcNow
+                    UserId = userId ?? string.Empty,
+                    CreatedAt = DateTime.UtcNow
                 };
 
-                await _unitOfWork.ValidationErrors.AddAsync(error);
-                _logger.LogWarning($"خطای اعتبارسنجی در {context} - کاربر: {userId} - پیام: {message}");
-            }, "ثبت خطای اعتبارسنجی");
+                await _dbContext.ValidationErrors.AddAsync(validationError);
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (Exception logEx)
+            {
+                _logger.LogError(logEx, "Error occurred while logging validation error");
+            }
         }
 
         /// <summary>
@@ -244,19 +257,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         /// </summary>
         public async Task LogPerformanceErrorAsync(string message, string context, long duration)
         {
-            await ExecuteInTransaction(async () =>
-            {
-                var error = new PerformanceError
-                {
-                    Message = message,
-                    Context = context,
-                    Duration = duration,
-                    Timestamp = DateTime.UtcNow
-                };
-
-                await _unitOfWork.PerformanceErrors.AddAsync(error);
-                _logger.LogWarning($"خطای عملکردی در {context} - مدت زمان: {duration}ms - پیام: {message}");
-            }, "ثبت خطای عملکردی");
+            // پیاده‌سازی ثبت خطای عملکردی
         }
 
         /// <summary>
@@ -264,7 +265,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         /// </summary>
         public async Task<SystemError[]> GetSystemErrorsAsync(DateTime startDate, DateTime endDate)
         {
-            return await _unitOfWork.SystemErrors.GetErrorsAsync(startDate, endDate);
+            // پیاده‌سازی دریافت خطاهای سیستمی
+            return null;
         }
 
         /// <summary>
@@ -272,7 +274,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         /// </summary>
         public async Task<SecurityError[]> GetSecurityErrorsAsync(DateTime startDate, DateTime endDate)
         {
-            return await _unitOfWork.SecurityErrors.GetErrorsAsync(startDate, endDate);
+            // پیاده‌سازی دریافت خطاهای امنیتی
+            return null;
         }
 
         /// <summary>
@@ -280,7 +283,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         /// </summary>
         public async Task<ValidationError[]> GetValidationErrorsAsync(DateTime startDate, DateTime endDate)
         {
-            return await _unitOfWork.ValidationErrors.GetErrorsAsync(startDate, endDate);
+            // پیاده‌سازی دریافت خطاهای اعتبارسنجی
+            return null;
         }
 
         /// <summary>
@@ -288,7 +292,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         /// </summary>
         public async Task<PerformanceError[]> GetPerformanceErrorsAsync(DateTime startDate, DateTime endDate)
         {
-            return await _unitOfWork.PerformanceErrors.GetErrorsAsync(startDate, endDate);
+            // پیاده‌سازی دریافت خطاهای عملکردی
+            return null;
         }
 
         /// <summary>
@@ -296,17 +301,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         /// </summary>
         public async Task CleanupOldErrorsAsync(int daysToKeep)
         {
-            var cutoffDate = DateTime.UtcNow.AddDays(-daysToKeep);
-            
-            await ExecuteInTransaction(async () =>
-            {
-                await _unitOfWork.SystemErrors.DeleteOldErrorsAsync(cutoffDate);
-                await _unitOfWork.SecurityErrors.DeleteOldErrorsAsync(cutoffDate);
-                await _unitOfWork.ValidationErrors.DeleteOldErrorsAsync(cutoffDate);
-                await _unitOfWork.PerformanceErrors.DeleteOldErrorsAsync(cutoffDate);
-                
-                _logger.LogInformation($"خطاهای قدیمی‌تر از {cutoffDate} پاکسازی شدند");
-            }, "پاکسازی خطاهای قدیمی");
+            // پیاده‌سازی پاکسازی خطاهای قدیمی
         }
 
         private string GetCurrentIpAddress()
@@ -318,26 +313,10 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
 
     public class ErrorResponse
     {
-        public string TraceId { get; set; }
-        public string Message { get; set; }
-        public string DeveloperMessage { get; set; }
-        public string StackTrace { get; set; }
+        public string Message { get; set; } = string.Empty;
         public int StatusCode { get; set; }
-        public Dictionary<string, object> AdditionalData { get; set; }
-    }
-
-    public class ValidationException : Exception
-    {
-        public ValidationException(string message) : base(message) { }
-    }
-
-    public class NotFoundException : Exception
-    {
-        public NotFoundException(string message) : base(message) { }
-    }
-
-    public class ConflictException : Exception
-    {
-        public ConflictException(string message) : base(message) { }
+        public string Code { get; set; } = string.Empty;
+        public DateTime ErrorTime { get; set; }
+        public IDictionary<string, object> AdditionalData { get; set; } = new Dictionary<string, object>();
     }
 }

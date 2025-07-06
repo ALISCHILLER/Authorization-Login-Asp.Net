@@ -10,7 +10,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
     /// مدل دسترسی‌ها (Permissions)
     /// این کلاس نماینده جدول Permissions در دیتابیس است و تعریف کننده دسترسی‌های سیستم است
     /// </summary>
-    public class Permission : BaseEntity
+    public class Permission : BaseEntity, IAuditable
     {
         /// <summary>
         /// کلید اصلی پرمیشن
@@ -24,6 +24,10 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         [Required]
         [MaxLength(100)]
         public string Name { get; private set; }
+        public string NormalizedName => Name?.ToUpperInvariant();
+        public string Group { get; private set; } = "Default";
+        public string Type { get; private set; } = "General";
+        public bool IsActive { get; private set; } = true;
 
         /// <summary>
         /// توضیح کامل‌تر یا اختیاری درباره عملکرد این دسترسی
@@ -41,12 +45,13 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// <summary>
         /// تاریخ ایجاد پرمیشن
         /// </summary>
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-        /// <summary>
-        /// وضعیت فعال یا غیرفعال بودن دسترسی
-        /// </summary>
-        public bool IsActive { get; private set; } = true;
+        public DateTime CreatedAt { get; set; }
+        public string CreatedBy { get; set; }
+        public DateTime? LastModifiedAt { get; set; }
+        public string LastModifiedBy { get; set; }
+        public bool IsDeleted { get; set; }
+        public DateTime? DeletedAt { get; set; }
+        public string DeletedBy { get; set; }
 
         /// <summary>
         /// ارتباط‌های این دسترسی با نقش‌ها
@@ -60,6 +65,11 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         public virtual IReadOnlyCollection<Role> Roles => _rolePermissions.Select(rp => rp.Role).ToList().AsReadOnly();
 
         /// <summary>
+        /// ارتباط‌های این دسترسی با کاربران
+        /// </summary>
+        public virtual ICollection<UserPermission> UserPermissions { get; set; }
+
+        /// <summary>
         /// سازنده پیش‌فرض برای EF Core
         /// </summary>
         protected Permission() { }
@@ -71,22 +81,20 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// <param name="systemName">نام سامانه</param>
         /// <param name="description">توضیح اختیاری</param>
         /// <returns>نمونه جدید از Permission</returns>
-        public static Permission Create(string name, string systemName, string description = null)
+        public Permission(string name, string systemName, string description = null, string group = "Default", string type = "General")
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("نام دسترسی نمی‌تواند خالی باشد", nameof(name));
             if (string.IsNullOrWhiteSpace(systemName))
                 throw new ArgumentException("نام سامانه نمی‌تواند خالی باشد", nameof(systemName));
 
-            return new Permission
-            {
-                Id = Guid.NewGuid(),
-                Name = name.Trim(),
-                SystemName = systemName.Trim(),
-                Description = description?.Trim(),
-                CreatedAt = DateTime.UtcNow,
-                IsActive = true
-            };
+            Id = Guid.NewGuid();
+            Name = name.Trim();
+            SystemName = systemName.Trim();
+            Description = description?.Trim();
+            Group = group;
+            Type = type;
+            CreatedAt = DateTime.UtcNow;
         }
 
         /// <summary>
@@ -95,7 +103,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// <param name="name">نام جدید</param>
         /// <param name="systemName">نام سامانه جدید</param>
         /// <param name="description">توضیح جدید</param>
-        public void Update(string name, string systemName, string description = null)
+        public void UpdateDetails(string name, string systemName, string description = null, string group = null, string type = null)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("نام دسترسی نمی‌تواند خالی باشد", nameof(name));
@@ -105,16 +113,37 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             Name = name.Trim();
             SystemName = systemName.Trim();
             Description = description?.Trim();
-            Update();
+            if (group != null) Group = group;
+            if (type != null) Type = type;
+            LastModifiedAt = DateTime.UtcNow;
+        }
+
+        public void Activate()
+        {
+            IsActive = true;
+            LastModifiedAt = DateTime.UtcNow;
+        }
+
+        public void Deactivate()
+        {
+            IsActive = false;
+            LastModifiedAt = DateTime.UtcNow;
+        }
+
+        public void MarkAsDeleted(string deletedBy)
+        {
+            IsDeleted = true;
+            DeletedAt = DateTime.UtcNow;
+            DeletedBy = deletedBy;
         }
 
         /// <summary>
-        /// تغییر وضعیت فعال/غیرفعال دسترسی
+        /// حذف دسترسی
         /// </summary>
-        /// <param name="isActive">وضعیت جدید</param>
-        public void SetActive(bool isActive)
+        public void Delete()
         {
-            IsActive = isActive;
+            IsDeleted = true;
+            DeletedAt = DateTime.UtcNow;
             Update();
         }
 

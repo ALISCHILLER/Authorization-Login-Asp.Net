@@ -2,83 +2,64 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Authorization_Login_Asp.Net.Core.Domain.Common;
-using Authorization_Login_Asp.Net.Core.Domain.Entities;
+using Authorization_Login_Asp.Net.Core.Domain.Exceptions;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.ValueObjects
 {
     /// <summary>
-    /// Value Object برای مدیریت دسترسی‌های یک نقش
-    /// این کلاس شامل مجموعه‌ای از دسترسی‌ها و متدهای مدیریت آن‌ها است
+    /// کلاس مقدار دسترسی‌های نقش
     /// </summary>
     public class RolePermissions : ValueObject
     {
-        private readonly List<Permission> _permissions = new();
-        public virtual IReadOnlyCollection<Permission> Permissions => _permissions.AsReadOnly();
+        private readonly HashSet<string> _permissions;
 
-        protected RolePermissions() { }
+        /// <summary>
+        /// دسترسی‌ها
+        /// </summary>
+        public IReadOnlyCollection<string> Permissions => _permissions.ToList().AsReadOnly();
+
+        protected RolePermissions()
+        {
+            _permissions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
 
         public static RolePermissions Create()
         {
             return new RolePermissions();
         }
 
-        public void AssignPermissions(IEnumerable<Permission> permissions)
+        public void AddPermission(string permission)
         {
-            if (permissions == null)
-                throw new ArgumentNullException(nameof(permissions));
+            if (string.IsNullOrWhiteSpace(permission))
+                throw new ArgumentException("نام دسترسی نمی‌تواند خالی باشد", nameof(permission));
 
-            foreach (var permission in permissions)
-            {
-                if (permission == null)
-                    continue;
-
-                if (!_permissions.Any(p => p.Id == permission.Id))
-                {
-                    _permissions.Add(permission);
-                }
-            }
+            _permissions.Add(permission.Trim());
         }
 
-        public void RemovePermissions(IEnumerable<Permission> permissions)
+        public void RemovePermission(string permission)
         {
-            if (permissions == null)
-                throw new ArgumentNullException(nameof(permissions));
+            if (string.IsNullOrWhiteSpace(permission))
+                throw new ArgumentException("نام دسترسی نمی‌تواند خالی باشد", nameof(permission));
 
-            foreach (var permission in permissions)
-            {
-                if (permission == null)
-                    continue;
-
-                var existingPermission = _permissions.FirstOrDefault(p => p.Id == permission.Id);
-                if (existingPermission != null)
-                {
-                    _permissions.Remove(existingPermission);
-                }
-            }
+            _permissions.Remove(permission.Trim());
         }
 
-        public bool HasPermission(Permission permission)
+        public bool HasPermission(string permission)
         {
-            return permission != null && _permissions.Any(p => p.Id == permission.Id);
+            if (string.IsNullOrWhiteSpace(permission))
+                throw new ArgumentException("نام دسترسی نمی‌تواند خالی باشد", nameof(permission));
+
+            return _permissions.Contains(permission.Trim());
         }
 
-        public bool HasPermission(string permissionName)
-        {
-            if (string.IsNullOrWhiteSpace(permissionName))
-                throw new ArgumentException("نام دسترسی نمی‌تواند خالی باشد", nameof(permissionName));
-
-            return _permissions.Any(p =>
-                p.Name.Equals(permissionName.Trim(), StringComparison.OrdinalIgnoreCase));
-        }
-
-        public void ClearPermissions()
+        public void Clear()
         {
             _permissions.Clear();
         }
 
         protected override IEnumerable<object> GetEqualityComponents()
         {
-            return _permissions.Select(p => p.Id);
+            return _permissions.OrderBy(x => x);
         }
     }
 } 

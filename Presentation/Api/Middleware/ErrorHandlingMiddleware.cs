@@ -1,4 +1,5 @@
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Threading.Tasks;
@@ -8,12 +9,12 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Middleware
     public class ErrorHandlingMiddleware
     {
         private readonly RequestDelegate _next;
-        private readonly IErrorHandlingService _errorHandlingService;
+        private readonly Authorization_Login_Asp.Net.Core.Application.Interfaces.IErrorHandlingService _errorHandlingService;
         private readonly ILogger<ErrorHandlingMiddleware> _logger;
 
         public ErrorHandlingMiddleware(
             RequestDelegate next,
-            IErrorHandlingService errorHandlingService,
+            Authorization_Login_Asp.Net.Core.Application.Interfaces.IErrorHandlingService errorHandlingService,
             ILogger<ErrorHandlingMiddleware> logger)
         {
             _next = next;
@@ -85,4 +86,4 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Middleware
             _ => "خطای سیستمی رخ داده است"
         };
     }
-} 
+}

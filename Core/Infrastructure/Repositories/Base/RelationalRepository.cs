@@ -9,6 +9,8 @@ using Authorization_Login_Asp.Net.Core.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
+using Authorization_Login_Asp.Net.Core.Domain.Common;
+
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories.Base
 {
     /// <summary>

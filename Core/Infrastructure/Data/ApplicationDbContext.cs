@@ -32,13 +32,10 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Data
         public DbSet<Permission> Permissions { get; set; }
         public DbSet<RolePermission> RolePermissions { get; set; }
         public DbSet<UserRole> UserRoles { get; set; }
+        public DbSet<UserPermission> UserPermissions { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<LoginHistory> LoginHistory { get; set; }
         public DbSet<Notification> Notifications { get; set; }
-        public DbSet<SystemError> SystemErrors { get; set; }
-        public DbSet<SecurityError> SecurityErrors { get; set; }
-        public DbSet<ValidationError> ValidationErrors { get; set; }
-        public DbSet<PerformanceError> PerformanceErrors { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         #endregion
 
@@ -52,13 +49,10 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Data
             modelBuilder.ApplyConfiguration(new PermissionConfiguration());
             modelBuilder.ApplyConfiguration(new RolePermissionConfiguration());
             modelBuilder.ApplyConfiguration(new UserRoleConfiguration());
+            modelBuilder.ApplyConfiguration(new UserPermissionConfiguration());
             modelBuilder.ApplyConfiguration(new RefreshTokenConfiguration());
             modelBuilder.ApplyConfiguration(new LoginHistoryConfiguration());
             modelBuilder.ApplyConfiguration(new NotificationConfiguration());
-            modelBuilder.ApplyConfiguration(new SystemErrorConfiguration());
-            modelBuilder.ApplyConfiguration(new SecurityErrorConfiguration());
-            modelBuilder.ApplyConfiguration(new ValidationErrorConfiguration());
-            modelBuilder.ApplyConfiguration(new PerformanceErrorConfiguration());
             modelBuilder.ApplyConfiguration(new AuditLogConfiguration());
 
             // اعمال فیلترهای سراسری

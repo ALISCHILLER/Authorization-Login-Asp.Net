@@ -1,4 +1,5 @@
 using System;
+using BCrypt.Net;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.ValueObjects
 {

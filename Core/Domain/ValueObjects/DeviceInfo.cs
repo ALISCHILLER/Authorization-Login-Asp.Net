@@ -93,6 +93,9 @@ namespace Authorization_Login_Asp.Net.Core.Domain.ValueObjects
         /// تبدیل به رشته
         /// </summary>
         public override string ToString() => $"{DeviceName} ({Type}) - {OperatingSystem} - {Browser} {BrowserVersion}";
+
+        public string DeviceType => Type.ToString();
+        public string BrowserName => Browser;
     }
 
     /// <summary>
@@ -135,4 +138,4 @@ namespace Authorization_Login_Asp.Net.Core.Domain.ValueObjects
         /// </summary>
         GameConsole
     }
-} 
+}

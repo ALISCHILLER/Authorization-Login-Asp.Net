@@ -7,11 +7,11 @@ namespace Authorization_Login_Asp.Net.Core.Application.Common.Models
     /// </summary>
     public abstract class AuthUserBaseDto
     {
-        public int Id { get; set; }
-        public int UserId { get; set; }
+        public Guid Id { get; set; }
         public string Username { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
+        public string UserName => Username;
     }
 
     /// <summary>
@@ -19,8 +19,10 @@ namespace Authorization_Login_Asp.Net.Core.Application.Common.Models
     /// </summary>
     public class UserDeviceDto : AuthUserBaseDto
     {
+        public string DeviceId { get; set; } = string.Empty;
         public string DeviceInfo { get; set; } = string.Empty;
         public string Location { get; set; } = string.Empty;
+        public DateTime LastUsed { get; set; }
     }
 
     /// <summary>
@@ -30,6 +32,8 @@ namespace Authorization_Login_Asp.Net.Core.Application.Common.Models
     {
         public string Token { get; set; } = string.Empty;
         public DateTime Expiration { get; set; }
+        public bool IsRevoked { get; set; }
+        public string DeviceId { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -38,5 +42,7 @@ namespace Authorization_Login_Asp.Net.Core.Application.Common.Models
     public class TwoFactorRecoveryCodeDto : AuthUserBaseDto
     {
         public string Code { get; set; } = string.Empty;
+        public bool IsUsed { get; set; }
+        public DateTime? UsedAt { get; set; }
     }
-} 
+}

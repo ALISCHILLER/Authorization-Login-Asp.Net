@@ -14,10 +14,20 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
 {
     public class UserAuditLogRepository : BaseRepository<UserAuditLog>, IUserAuditLogRepository
     {
+        private readonly ApplicationDbContext _context;
+        private readonly ILogger<UserAuditLogRepository> _logger;
+        private string _lastAction = string.Empty;
+        private string _lastDetails = string.Empty;
+        private string _lastIpAddress = string.Empty;
+        private string _lastUserAgent = string.Empty;
+
         public UserAuditLogRepository(
             ApplicationDbContext context,
-            ILogger<UserAuditLogRepository> logger) : base(context, logger)
+            ICacheService cacheService,
+            ILogger<UserAuditLogRepository> logger) : base(context, cacheService, logger)
         {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task<IEnumerable<UserAuditLog>> GetByUserAsync(
@@ -97,6 +107,9 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             DateTime endDate, 
             CancellationToken cancellationToken = default)
         {
+            if (startDate > endDate)
+                throw new ArgumentException("Start date cannot be after end date");
+
             try
             {
                 return await _dbSet
@@ -119,8 +132,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             Guid userId, 
             string action, 
             string details, 
-            string ipAddress = null, 
-            string userAgent = null, 
+            string? ipAddress = null, 
+            string? userAgent = null, 
             CancellationToken cancellationToken = default)
         {
             try
@@ -130,8 +143,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
                     UserId = userId,
                     Action = action,
                     Details = details,
-                    IpAddress = ipAddress,
-                    UserAgent = userAgent,
+                    IpAddress = ipAddress ?? string.Empty,
+                    UserAgent = userAgent ?? string.Empty,
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -177,6 +190,9 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             string ipAddress, 
             CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(ipAddress))
+                throw new ArgumentException("IP address cannot be empty", nameof(ipAddress));
+
             try
             {
                 return await _dbSet
@@ -198,6 +214,9 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             string userAgent, 
             CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(userAgent))
+                throw new ArgumentException("User agent cannot be empty", nameof(userAgent));
+
             try
             {
                 return await _dbSet
@@ -263,6 +282,249 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
                 _logger.LogError(ex, "خطا در دریافت آمار عملیات‌ها");
                 throw;
             }
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            if (userId == Guid.Empty)
+                throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+            return await _dbSet
+                .Where(log => log.UserId == userId && !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetByActionTypeAsync(string actionType, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(actionType))
+                throw new ArgumentException("Action type cannot be empty", nameof(actionType));
+
+            return await _dbSet
+                .Where(log => log.Action == actionType && !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetByStatusAsync(bool isSuccessful, CancellationToken cancellationToken = default)
+        {
+            return await _dbSet
+                .Where(log => log.IsSuccessful == isSuccessful && !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetByDetailsAsync(string details, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(details))
+                throw new ArgumentException("Details cannot be empty", nameof(details));
+
+            return await _dbSet
+                .Where(log => log.Details.Contains(details) && !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<int> GetCountByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            if (userId == Guid.Empty)
+                throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+            return await _dbSet
+                .CountAsync(log => log.UserId == userId && !log.IsDeleted, cancellationToken);
+        }
+
+        public async Task<int> GetCountByActionTypeAsync(string actionType, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(actionType))
+                throw new ArgumentException("Action type cannot be empty", nameof(actionType));
+
+            return await _dbSet
+                .CountAsync(log => log.Action == actionType && !log.IsDeleted, cancellationToken);
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetLatestLogsAsync(int count, CancellationToken cancellationToken = default)
+        {
+            if (count < 1)
+                throw new ArgumentException("Count must be greater than 0", nameof(count));
+
+            return await _dbSet
+                .Where(log => !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .Take(count)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetByUserAndActionTypeAsync(Guid userId, string actionType, CancellationToken cancellationToken = default)
+        {
+            if (userId == Guid.Empty)
+                throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+            if (string.IsNullOrWhiteSpace(actionType))
+                throw new ArgumentException("Action type cannot be empty", nameof(actionType));
+
+            return await _dbSet
+                .Where(log => log.UserId == userId && log.Action == actionType && !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetByUserAndDateRangeAsync(Guid userId, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
+        {
+            if (userId == Guid.Empty)
+                throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+            if (startDate > endDate)
+                throw new ArgumentException("Start date cannot be after end date");
+
+            return await _dbSet
+                .Where(log => log.UserId == userId && log.CreatedAt >= startDate && log.CreatedAt <= endDate && !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetByUserAndStatusAsync(Guid userId, bool isSuccessful, CancellationToken cancellationToken = default)
+        {
+            if (userId == Guid.Empty)
+                throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+            return await _dbSet
+                .Where(log => log.UserId == userId && log.IsSuccessful == isSuccessful && !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetByUserAndDetailsAsync(Guid userId, string details, CancellationToken cancellationToken = default)
+        {
+            if (userId == Guid.Empty)
+                throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+            if (string.IsNullOrWhiteSpace(details))
+                throw new ArgumentException("Details cannot be empty", nameof(details));
+
+            return await _dbSet
+                .Where(log => log.UserId == userId && log.Details.Contains(details) && !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetByUserAndIpAddressAsync(Guid userId, string ipAddress, CancellationToken cancellationToken = default)
+        {
+            if (userId == Guid.Empty)
+                throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+            if (string.IsNullOrWhiteSpace(ipAddress))
+                throw new ArgumentException("IP address cannot be empty", nameof(ipAddress));
+
+            return await _dbSet
+                .Where(log => log.UserId == userId && log.IpAddress == ipAddress && !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetByUserAndUserAgentAsync(Guid userId, string userAgent, CancellationToken cancellationToken = default)
+        {
+            if (userId == Guid.Empty)
+                throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+            if (string.IsNullOrWhiteSpace(userAgent))
+                throw new ArgumentException("User agent cannot be empty", nameof(userAgent));
+
+            return await _dbSet
+                .Where(log => log.UserId == userId && log.UserAgent == userAgent && !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetByUserAndActionTypeAndDateRangeAsync(Guid userId, string actionType, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
+        {
+            if (userId == Guid.Empty)
+                throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+            if (string.IsNullOrWhiteSpace(actionType))
+                throw new ArgumentException("Action type cannot be empty", nameof(actionType));
+
+            if (startDate > endDate)
+                throw new ArgumentException("Start date cannot be after end date");
+
+            return await _dbSet
+                .Where(log => log.UserId == userId && log.Action == actionType && log.CreatedAt >= startDate && log.CreatedAt <= endDate && !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetByUserAndActionTypeAndStatusAsync(Guid userId, string actionType, bool isSuccessful, CancellationToken cancellationToken = default)
+        {
+            if (userId == Guid.Empty)
+                throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+            if (string.IsNullOrWhiteSpace(actionType))
+                throw new ArgumentException("Action type cannot be empty", nameof(actionType));
+
+            return await _dbSet
+                .Where(log => log.UserId == userId && log.Action == actionType && log.IsSuccessful == isSuccessful && !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetByUserAndActionTypeAndDetailsAsync(Guid userId, string actionType, string details, CancellationToken cancellationToken = default)
+        {
+            if (userId == Guid.Empty)
+                throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+            if (string.IsNullOrWhiteSpace(actionType))
+                throw new ArgumentException("Action type cannot be empty", nameof(actionType));
+
+            if (string.IsNullOrWhiteSpace(details))
+                throw new ArgumentException("Details cannot be empty", nameof(details));
+
+            return await _dbSet
+                .Where(log => log.UserId == userId && log.Action == actionType && log.Details.Contains(details) && !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetByUserAndActionTypeAndIpAddressAsync(Guid userId, string actionType, string ipAddress, CancellationToken cancellationToken = default)
+        {
+            if (userId == Guid.Empty)
+                throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+            if (string.IsNullOrWhiteSpace(actionType))
+                throw new ArgumentException("Action type cannot be empty", nameof(actionType));
+
+            if (string.IsNullOrWhiteSpace(ipAddress))
+                throw new ArgumentException("IP address cannot be empty", nameof(ipAddress));
+
+            return await _dbSet
+                .Where(log => log.UserId == userId && log.Action == actionType && log.IpAddress == ipAddress && !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<UserAuditLog>> GetByUserAndActionTypeAndUserAgentAsync(Guid userId, string actionType, string userAgent, CancellationToken cancellationToken = default)
+        {
+            if (userId == Guid.Empty)
+                throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+            if (string.IsNullOrWhiteSpace(actionType))
+                throw new ArgumentException("Action type cannot be empty", nameof(actionType));
+
+            if (string.IsNullOrWhiteSpace(userAgent))
+                throw new ArgumentException("User agent cannot be empty", nameof(userAgent));
+
+            return await _dbSet
+                .Where(log => log.UserId == userId && log.Action == actionType && log.UserAgent == userAgent && !log.IsDeleted)
+                .OrderByDescending(log => log.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task AddAsync(UserAuditLog log)
+        {
+            if (log == null)
+                throw new ArgumentNullException(nameof(log), "لاگ نمی‌تواند خالی باشد");
+
+            await _context.UserAuditLogs.AddAsync(log);
+            await _context.SaveChangesAsync();
         }
     }
 } 

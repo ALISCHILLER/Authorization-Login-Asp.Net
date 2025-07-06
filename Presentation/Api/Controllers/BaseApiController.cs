@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Security.Claims;
+using System.Threading.Tasks;
+using MediatR;
 
-namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
+namespace Authorization_Login_Asp.Net.Core.Presentation.Api.Controllers
 {
     /// <summary>
     /// کلاس پایه برای کنترلرهای API
@@ -14,10 +16,12 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
     public abstract class BaseApiController : ControllerBase
     {
         protected readonly ILogger _logger;
+        protected readonly IMediator _mediator;
 
-        protected BaseApiController(ILogger logger)
+        protected BaseApiController(ILogger logger, IMediator mediator)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
         }
 
         /// <summary>
@@ -34,6 +38,9 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         /// </summary>
         protected bool HasRole(params string[] roles)
         {
+            if (roles == null || roles.Length == 0)
+                return false;
+
             foreach (var role in roles)
             {
                 if (User.IsInRole(role))
@@ -43,12 +50,35 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         }
 
         /// <summary>
+        /// اجرای ایمن دستور با مدیریت خطا
+        /// </summary>
+        protected async Task<IActionResult> ExecuteCommand<T>(IRequest<T> command, string errorMessage = null)
+        {
+            try
+            {
+                var result = await _mediator.Send(command);
+                return Success(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing command {Command}: {Message}", 
+                    command.GetType().Name, ex.Message);
+                return Error(errorMessage ?? "خطا در اجرای درخواست");
+            }
+        }
+
+        /// <summary>
         /// ایجاد پاسخ خطای استاندارد
         /// </summary>
         protected IActionResult Error(string message, int statusCode = 400)
         {
-            _logger.LogError(message);
-            return StatusCode(statusCode, new { error = message });
+            _logger.LogError("API Error: {Message}", message);
+            return StatusCode(statusCode, new 
+            { 
+                error = message,
+                timestamp = DateTime.UtcNow,
+                path = HttpContext?.Request?.Path.Value
+            });
         }
 
         /// <summary>
@@ -56,15 +86,33 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         /// </summary>
         protected IActionResult Success<T>(T data, string message = null)
         {
-            return Ok(new { data, message });
+            return Ok(new 
+            { 
+                data, 
+                message,
+                timestamp = DateTime.UtcNow
+            });
         }
 
         /// <summary>
-        /// ایجاد پاسخ موفقیت با پیام
+        /// بررسی اعتبار مدل و برگرداندن خطاهای اعتبارسنجی
         /// </summary>
-        protected IActionResult Success(string message)
+        protected IActionResult ValidateModel()
         {
-            return Ok(new { message });
+            if (ModelState.IsValid)
+                return null;
+
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+
+            return BadRequest(new 
+            { 
+                error = "خطای اعتبارسنجی",
+                details = errors,
+                timestamp = DateTime.UtcNow
+            });
         }
     }
 } 

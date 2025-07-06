@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Authorization_Login_Asp.Net.Core.Application.DTOs;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Roles;
 
 namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
 {
@@ -9,8 +10,8 @@ namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
     {
         Task<IEnumerable<RoleDto>> GetAllRolesAsync();
         Task<RoleDto> GetRoleByIdAsync(Guid id);
-        Task<RoleDto> CreateRoleAsync(CreateRoleDto dto);
-        Task<RoleDto> UpdateRoleAsync(Guid id, UpdateRoleDto dto);
+        Task<RoleDto> CreateRoleAsync(CreateRoleRequest dto);
+        Task<RoleDto> UpdateRoleAsync(Guid id, UpdateRoleRequest dto);
         Task DeleteRoleAsync(Guid id);
         Task AssignPermissionsToRoleAsync(Guid roleId, IEnumerable<Guid> permissionIds);
         Task RemovePermissionsFromRoleAsync(Guid roleId, IEnumerable<Guid> permissionIds);

@@ -1,5 +1,6 @@
 using FluentValidation;
 using Authorization_Login_Asp.Net.Core.Application.DTOs;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Auth;
 
 namespace Authorization_Login_Asp.Net.Core.Application.Common.Validators
 {

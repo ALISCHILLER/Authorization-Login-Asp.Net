@@ -1,20 +1,21 @@
 using System;
+using System.Collections.Generic;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Events
 {
     /// <summary>
-    /// رابط پایه برای رویدادهای دامنه
-    /// این رابط برای تمام رویدادهای دامنه استفاده می‌شود و شامل اطلاعات پایه مورد نیاز است
+    /// رابط رویداد دامنه
+    /// این اینترفیس اطلاعات پایه رویدادها را تعریف می‌کند
     /// </summary>
     public interface IDomainEvent
     {
         /// <summary>
-        /// شناسه یکتای رویداد
+        /// شناسه رویداد
         /// </summary>
         Guid Id { get; }
 
         /// <summary>
-        /// تاریخ وقوع رویداد
+        /// زمان رخداد
         /// </summary>
         DateTime OccurredOn { get; }
 
@@ -24,18 +25,28 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Events
         string EventType { get; }
 
         /// <summary>
-        /// شناسه موجودیت مرتبط با رویداد (در صورت وجود)
+        /// شناسه موجودیت مرتبط
         /// </summary>
-        Guid? EntityId { get; }
+        Guid EntityId { get; }
 
         /// <summary>
-        /// نام موجودیت مرتبط با رویداد (در صورت وجود)
+        /// نوع موجودیت مرتبط
         /// </summary>
         string EntityType { get; }
 
         /// <summary>
+        /// شناسه کاربر ایجاد کننده
+        /// </summary>
+        Guid? UserId { get; }
+
+        /// <summary>
+        /// نسخه رویداد
+        /// </summary>
+        int Version { get; }
+
+        /// <summary>
         /// اطلاعات اضافی رویداد
         /// </summary>
-        object AdditionalData { get; }
+        IReadOnlyDictionary<string, object> Metadata { get; }
     }
 }

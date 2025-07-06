@@ -1,12 +1,13 @@
 using FluentValidation;
 using Authorization_Login_Asp.Net.Core.Application.DTOs;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Auth;
 
 namespace Authorization_Login_Asp.Net.Core.Application.Common.Validators
 {
     /// <summary>
     /// اعتبارسنج برای مدل ChangePasswordRequest
     /// </summary>
-    public class ChangePasswordRequestValidator : AbstractValidator<ChangePasswordRequest>
+    public class ChangePasswordRequestValidator : BaseValidator<ChangePasswordRequest>
     {
         public ChangePasswordRequestValidator()
         {
@@ -14,14 +15,7 @@ namespace Authorization_Login_Asp.Net.Core.Application.Common.Validators
                 .NotEmpty().WithMessage("رمز عبور فعلی الزامی است")
                 .MaximumLength(100).WithMessage("رمز عبور فعلی نمی‌تواند بیشتر از 100 کاراکتر باشد");
 
-            RuleFor(x => x.NewPassword)
-                .NotEmpty().WithMessage("رمز عبور جدید الزامی است")
-                .MinimumLength(8).WithMessage("رمز عبور جدید باید حداقل 8 کاراکتر باشد")
-                .MaximumLength(100).WithMessage("رمز عبور جدید نمی‌تواند بیشتر از 100 کاراکتر باشد")
-                .Matches(@"[A-Z]").WithMessage("رمز عبور جدید باید حداقل یک حرف بزرگ داشته باشد")
-                .Matches(@"[a-z]").WithMessage("رمز عبور جدید باید حداقل یک حرف کوچک داشته باشد")
-                .Matches(@"[0-9]").WithMessage("رمز عبور جدید باید حداقل یک عدد داشته باشد")
-                .Matches(@"[^a-zA-Z0-9]").WithMessage("رمز عبور جدید باید حداقل یک کاراکتر خاص داشته باشد")
+            ValidatePassword(RuleFor(x => x.NewPassword))
                 .NotEqual(x => x.CurrentPassword).WithMessage("رمز عبور جدید نمی‌تواند با رمز عبور فعلی یکسان باشد");
 
             RuleFor(x => x.ConfirmNewPassword)

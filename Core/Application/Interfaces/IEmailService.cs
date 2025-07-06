@@ -1,43 +1,23 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Common;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Email;
+
 namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
 {
-    /// <summary>
-    /// اینترفیس مدیریت ارسال ایمیل
-    /// </summary>
     public interface IEmailService
     {
-        /// <summary>
-        /// ارسال ایمیل تأیید حساب کاربری
-        /// </summary>
-        /// <param name="email">آدرس ایمیل</param>
-        /// <param name="confirmationLink">لینک تأیید</param>
-        Task SendConfirmationEmailAsync(string email, string confirmationLink);
-
-        /// <summary>
-        /// ارسال ایمیل بازیابی رمز عبور
-        /// </summary>
-        /// <param name="email">آدرس ایمیل</param>
-        /// <param name="resetLink">لینک بازیابی</param>
-        Task SendPasswordResetEmailAsync(string email, string resetLink);
-
-        /// <summary>
-        /// ارسال کد یکبار مصرف برای احراز هویت دو مرحله‌ای
-        /// </summary>
-        /// <param name="email">آدرس ایمیل</param>
-        /// <param name="code">کد یکبار مصرف</param>
-        Task SendTwoFactorCodeAsync(string email, string code);
-
-        /// <summary>
-        /// ارسال ایمیل تغییر رمز عبور
-        /// </summary>
-        /// <param name="email">آدرس ایمیل</param>
-        Task SendPasswordChangedEmailAsync(string email);
-
-        /// <summary>
-        /// ارسال ایمیل اعلان ورود جدید
-        /// </summary>
-        /// <param name="email">آدرس ایمیل</param>
-        /// <param name="deviceInfo">اطلاعات دستگاه</param>
-        /// <param name="location">موقعیت مکانی</param>
-        Task SendNewLoginNotificationAsync(string email, string deviceInfo, string location);
+        Task SendVerificationEmailAsync(string email, Guid userId);
+        Task SendBackupCodesAsync(string email, List<string> codes);
+        Task SendEmailAsync(EmailRequest request);
+        Task SendEmailAsync(string to, string subject, string body, bool isHtml = false);
+        Task SendEmailAsync(string to, string subject, string body, List<EmailAttachment> attachments, bool isHtml = false);
+        Task SendEmailAsync(List<string> to, string subject, string body, bool isHtml = false);
+        Task SendEmailAsync(List<string> to, string subject, string body, List<EmailAttachment> attachments, bool isHtml = false);
+        Task SendTemplatedEmailAsync(string to, string template, Dictionary<string, string> parameters);
+        Task SendTemplatedEmailAsync(List<string> to, string template, Dictionary<string, string> parameters);
+        Task<bool> ValidateEmailAsync(string email);
+        Task<bool> IsEmailDeliveredAsync(string email);
+        Task<string> GetEmailStatusAsync(string email);
     }
 }

@@ -87,6 +87,75 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Security
             // این متد برای سازگاری با تغییرات آینده در پارامترهای هش کردن است
             return false;
         }
+
+        /// <summary>
+        /// هش کردن رمز عبور
+        /// </summary>
+        public async Task<string> HashPasswordAsync(User user, string password)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user), "کاربر نمی‌تواند خالی باشد");
+
+            if (string.IsNullOrWhiteSpace(password))
+                throw new ArgumentException("رمز عبور نمی‌تواند خالی باشد", nameof(password));
+
+            var salt = GenerateSalt();
+            var hash = await HashPasswordWithSaltAsync(password, salt);
+            return $"{salt}:{hash}";
+        }
+
+        /// <summary>
+        /// بررسی رمز عبور
+        /// </summary>
+        public async Task<bool> VerifyPasswordAsync(User user, string password)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user), "کاربر نمی‌تواند خالی باشد");
+
+            if (string.IsNullOrWhiteSpace(password))
+                throw new ArgumentException("رمز عبور نمی‌تواند خالی باشد", nameof(password));
+
+            if (string.IsNullOrWhiteSpace(user.PasswordHash))
+                throw new InvalidOperationException("رمز عبور کاربر تنظیم نشده است");
+
+            var parts = user.PasswordHash.Split(':');
+            if (parts.Length != 2)
+                throw new InvalidOperationException("فرمت رمز عبور نامعتبر است");
+
+            var salt = parts[0];
+            var storedHash = parts[1];
+
+            var computedHash = await HashPasswordWithSaltAsync(password, salt);
+            return storedHash == computedHash;
+        }
+
+        /// <summary>
+        /// تولید نمک تصادفی
+        /// </summary>
+        private string GenerateSalt()
+        {
+            var salt = new byte[16];
+            using (var rng = new RNGCryptoServiceProvider())
+            {
+                rng.GetBytes(salt);
+            }
+            return Convert.ToBase64String(salt);
+        }
+
+        /// <summary>
+        /// هش کردن رمز عبور با نمک
+        /// </summary>
+        private async Task<string> HashPasswordWithSaltAsync(string password, string salt)
+        {
+            var saltBytes = Convert.FromBase64String(salt);
+            var passwordBytes = Encoding.UTF8.GetBytes(password);
+
+            using (var pbkdf2 = new Rfc2898DeriveBytes(passwordBytes, saltBytes, 10000))
+            {
+                var hash = pbkdf2.GetBytes(32);
+                return await Task.FromResult(Convert.ToBase64String(hash));
+            }
+        }
     }
 
     /// <summary>

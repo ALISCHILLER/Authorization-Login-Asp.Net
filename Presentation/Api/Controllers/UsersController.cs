@@ -1,5 +1,3 @@
-using Authorization_Login_Asp.Net.Core.Application.Features.Users.Commands;
-using Authorization_Login_Asp.Net.Core.Application.Features.Users.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,8 +7,9 @@ using System.Threading.Tasks;
 using Authorization_Login_Asp.Net.Core.Application.DTOs;
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
 using System.Collections.Generic;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Common;
 
-namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
+namespace Authorization_Login_Asp.Net.Core.Presentation.Api.Controllers
 {
     /// <summary>
     /// کنترلر مدیریت کاربران
@@ -21,18 +20,13 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
     [Produces("application/json")]
     public class UsersController : BaseApiController
     {
-        private readonly IMediator _mediator;
-
         /// <summary>
         /// سازنده کنترلر
         /// </summary>
-        /// <param name="mediator">مدیتور</param>
-        /// <param name="logger">لاگر</param>
         public UsersController(
             IMediator mediator,
-            ILogger<UsersController> logger) : base(logger)
+            ILogger<UsersController> logger) : base(logger, mediator)
         {
-            _mediator = mediator;
         }
 
         #region مدیریت کاربران
@@ -45,7 +39,7 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         /// <response code="400">شناسه کاربر نامعتبر است</response>
         /// <response code="404">کاربر یافت نشد</response>
         [HttpGet("{id}")]
-        [ProducesResponseType(typeof(UserResponse), 200)]
+        [ProducesResponseType(typeof(UserDto), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetUserById(string id)
@@ -53,8 +47,7 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
             if (!Guid.TryParse(id, out Guid userId))
                 return Error("شناسه کاربر نامعتبر است");
 
-            var result = await _mediator.Send(new GetUserByIdQuery { UserId = userId });
-            return Success(result);
+            return await ExecuteCommand(new GetUserByIdQuery { UserId = userId });
         }
 
         /// <summary>
@@ -64,11 +57,10 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         /// <response code="200">دریافت موفق لیست کاربران</response>
         [HttpGet]
         [Authorize(Roles = "Admin,SuperAdmin")]
-        [ProducesResponseType(typeof(PaginatedList<UserResponse>), 200)]
+        [ProducesResponseType(typeof(PaginatedList<UserDto>), 200)]
         public async Task<IActionResult> GetAllUsers([FromQuery] GetUsersQuery query)
         {
-            var result = await _mediator.Send(query);
-            return Success(result);
+            return await ExecuteCommand(query);
         }
 
         /// <summary>
@@ -81,16 +73,22 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         /// <response code="401">دسترسی غیرمجاز</response>
         [HttpPost]
         [Authorize(Roles = "Admin,SuperAdmin")]
-        [ProducesResponseType(typeof(UserResponse), 201)]
+        [ProducesResponseType(typeof(UserDto), 201)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserCommand command)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            var validationResult = ValidateModel();
+            if (validationResult != null)
+                return validationResult;
 
-            var result = await _mediator.Send(command);
-            return CreatedAtAction(nameof(GetUserById), new { id = result.Id }, result);
+            var result = await ExecuteCommand(command, "خطا در ایجاد کاربر");
+            if (result is OkObjectResult okResult)
+            {
+                var userResponse = (UserDto)okResult.Value;
+                return CreatedAtAction(nameof(GetUserById), new { id = userResponse.Id }, userResponse);
+            }
+            return result;
         }
 
         /// <summary>
@@ -105,21 +103,21 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         /// <response code="404">کاربر یافت نشد</response>
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin,SuperAdmin")]
-        [ProducesResponseType(typeof(UserResponse), 200)]
+        [ProducesResponseType(typeof(UserDto), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateUserCommand command)
         {
+            var validationResult = ValidateModel();
+            if (validationResult != null)
+                return validationResult;
+
             if (!Guid.TryParse(id, out Guid userId))
                 return Error("شناسه کاربر نامعتبر است");
 
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
             command.UserId = userId;
-            var result = await _mediator.Send(command);
-            return Success(result);
+            return await ExecuteCommand(command, "خطا در به‌روزرسانی کاربر");
         }
 
         /// <summary>
@@ -142,7 +140,7 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
             if (!Guid.TryParse(id, out Guid userId))
                 return Error("شناسه کاربر نامعتبر است");
 
-            await _mediator.Send(new DeleteUserCommand { UserId = userId });
+            await ExecuteCommand(new DeleteUserCommand { UserId = userId }, "خطا در حذف کاربر");
             return NoContent();
         }
 
@@ -164,8 +162,7 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
             if (!Guid.TryParse(id, out Guid userId))
                 return Error("شناسه کاربر نامعتبر است");
 
-            await _mediator.Send(new ActivateUserCommand { UserId = userId });
-            return Success("حساب کاربری با موفقیت فعال شد");
+            return await ExecuteCommand(new ActivateUserCommand { UserId = userId }, "خطا در فعال‌سازی حساب کاربری");
         }
 
         /// <summary>

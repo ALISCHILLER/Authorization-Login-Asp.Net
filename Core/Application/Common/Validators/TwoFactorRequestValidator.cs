@@ -1,5 +1,5 @@
 using FluentValidation;
-using Authorization_Login_Asp.Net.Core.Application.DTOs;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Auth;
 
 namespace Authorization_Login_Asp.Net.Core.Application.Common.Validators
 {
@@ -18,24 +18,38 @@ namespace Authorization_Login_Asp.Net.Core.Application.Common.Validators
                 .Matches(@"^[0-9]{6}$").WithMessage("کد تایید باید 6 رقم باشد");
 
             RuleFor(x => x.Provider)
-                .NotEmpty().WithMessage("روش ارسال کد تایید الزامی است")
                 .IsInEnum().WithMessage("روش ارسال کد تایید نامعتبر است");
 
-            RuleFor(x => x.RememberDevice)
-                .NotNull().WithMessage("وضعیت به خاطر سپاری دستگاه الزامی است");
-
             RuleFor(x => x.DeviceInfo)
-                .NotEmpty().WithMessage("اطلاعات دستگاه الزامی است")
-                .MaximumLength(500).WithMessage("اطلاعات دستگاه نمی‌تواند بیشتر از 500 کاراکتر باشد");
+                .NotNull().WithMessage("اطلاعات دستگاه الزامی است");
+            When(x => x.DeviceInfo != null, () => {
+                RuleFor(x => x.DeviceInfo.DeviceId)
+                    .NotEmpty().WithMessage("شناسه دستگاه الزامی است")
+                    .MaximumLength(100).WithMessage("شناسه دستگاه نمی‌تواند بیشتر از 100 کاراکتر باشد");
+                RuleFor(x => x.DeviceInfo.DeviceName)
+                    .NotEmpty().WithMessage("نام دستگاه الزامی است")
+                    .MaximumLength(100).WithMessage("نام دستگاه نمی‌تواند بیشتر از 100 کاراکتر باشد");
+                RuleFor(x => x.DeviceInfo.DeviceType)
+                    .NotEmpty().WithMessage("نوع دستگاه الزامی است")
+                    .MaximumLength(50).WithMessage("نوع دستگاه نمی‌تواند بیشتر از 50 کاراکتر باشد");
+                RuleFor(x => x.DeviceInfo.OperatingSystem)
+                    .NotEmpty().WithMessage("سیستم عامل الزامی است")
+                    .MaximumLength(100).WithMessage("سیستم عامل نمی‌تواند بیشتر از 100 کاراکتر باشد");
+                RuleFor(x => x.DeviceInfo.Browser)
+                    .NotEmpty().WithMessage("مرورگر الزامی است")
+                    .MaximumLength(100).WithMessage("مرورگر نمی‌تواند بیشتر از 100 کاراکتر باشد");
+                RuleFor(x => x.DeviceInfo.UserAgent)
+                    .NotEmpty().WithMessage("User Agent الزامی است")
+                    .MaximumLength(500).WithMessage("User Agent نمی‌تواند بیشتر از 500 کاراکتر باشد");
+            });
 
-            RuleFor(x => x.IpAddress)
-                .NotEmpty().WithMessage("آدرس IP الزامی است")
-                .MaximumLength(45).WithMessage("آدرس IP نمی‌تواند بیشتر از 45 کاراکتر باشد")
-                .Matches(@"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$")
-                .WithMessage("فرمت آدرس IP نامعتبر است");
-
-            RuleFor(x => x.Location)
-                .MaximumLength(200).WithMessage("موقعیت مکانی نمی‌تواند بیشتر از 200 کاراکتر باشد");
+            When(x => x.Location != null, () =>
+            {
+                RuleFor(x => x.Location.Country)
+                    .MaximumLength(100).WithMessage("نام کشور نمی‌تواند بیشتر از 100 کاراکتر باشد");
+                RuleFor(x => x.Location.City)
+                    .MaximumLength(100).WithMessage("نام شهر نمی‌تواند بیشتر از 100 کاراکتر باشد");
+            });
         }
     }
 } 

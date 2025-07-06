@@ -4,6 +4,7 @@ using System.Linq;
 using Authorization_Login_Asp.Net.Core.Domain.Common;
 using Authorization_Login_Asp.Net.Core.Domain.Enums;
 using Authorization_Login_Asp.Net.Core.Domain.ValueObjects;
+using Authorization_Login_Asp.Net.Core.Domain.Exceptions;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Entities
 {
@@ -13,27 +14,41 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
     /// </summary>
     public class Role : AggregateRoot
     {
-        public string Name { get; private set; }
-        public string Description { get; private set; }
+        private const int MaxNameLength = 50;
+        private const int MaxDescriptionLength = 200;
+
+        public string? Name { get; private set; }
+        public string NormalizedName => Name?.ToUpperInvariant() ?? string.Empty;
+        public string? Description { get; private set; }
         public bool IsActive { get; private set; } = true;
         public bool IsSystem { get; private set; }
         public RoleType Type { get; private set; }
         public RolePermissions Permissions { get; private set; }
+        public DateTime? ExpiresAt { get; private set; }
 
         private readonly List<UserRole> _userRoles = new();
         public virtual IReadOnlyCollection<UserRole> UserRoles => _userRoles.AsReadOnly();
         public virtual IReadOnlyCollection<User> Users => _userRoles.Select(ur => ur.User).ToList().AsReadOnly();
 
-        protected Role() { }
+        // Navigation property for EF Core - RolePermissions
+        public virtual ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
+
+        protected Role() {
+            Name = string.Empty;
+            Description = string.Empty;
+            Permissions = Authorization_Login_Asp.Net.Core.Domain.ValueObjects.RolePermissions.Create();
+        }
 
         public static Role Create(
             string name,
             string description,
             RoleType type,
-            bool isSystem = false)
+            bool isSystem = false,
+            DateTime? expiresAt = null)
         {
-            if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("نام نقش نمی‌تواند خالی باشد", nameof(name));
+            ValidateName(name);
+            ValidateDescription(description);
+            ValidateExpiration(expiresAt);
 
             var role = new Role
             {
@@ -42,76 +57,114 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
                 Description = description?.Trim(),
                 Type = type,
                 IsSystem = isSystem,
-                Permissions = RolePermissions.Create(),
+                ExpiresAt = expiresAt,
+                Permissions = Authorization_Login_Asp.Net.Core.Domain.ValueObjects.RolePermissions.Create(),
                 CreatedAt = DateTime.UtcNow
             };
 
             return role;
         }
 
-        public void Update(string name, string description)
+        public void Update(string name, string description, RoleType type)
         {
-            if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("نام نقش نمی‌تواند خالی باشد", nameof(name));
-
             if (IsSystem)
-                throw new InvalidOperationException("نقش سیستمی قابل ویرایش نیست");
+                throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نقش سیستمی قابل ویرایش نیست");
+
+            ValidateName(name);
+            ValidateDescription(description);
 
             Name = name.Trim();
             Description = description?.Trim();
+            Type = type;
             Update();
         }
 
-        public void SetActive(bool isActive)
+        public void Deactivate()
         {
             if (IsSystem)
-                throw new InvalidOperationException("نقش سیستمی قابل غیرفعال‌سازی نیست");
+                throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نقش سیستمی قابل غیرفعال‌سازی نیست");
 
-            IsActive = isActive;
+            IsActive = false;
             Update();
         }
 
-        public void AssignPermissions(IEnumerable<Permission> permissions)
+        public void Activate()
         {
-            if (permissions == null)
-                throw new ArgumentNullException(nameof(permissions));
+            IsActive = true;
+            Update();
+        }
 
+        public void SetExpiration(DateTime? expirationDate)
+        {
             if (IsSystem)
-                throw new InvalidOperationException("نقش سیستمی قابل ویرایش نیست");
+                throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نقش سیستمی قابل محدود کردن نیست");
 
-            Permissions.AssignPermissions(permissions);
+            ValidateExpiration(expirationDate);
+            ExpiresAt = expirationDate;
             Update();
         }
 
-        public void RemovePermissions(IEnumerable<Permission> permissions)
+        public bool IsExpired()
         {
-            if (permissions == null)
-                throw new ArgumentNullException(nameof(permissions));
+            return ExpiresAt.HasValue && ExpiresAt.Value <= DateTime.UtcNow;
+        }
 
+        public bool IsValid()
+        {
+            return IsActive && !IsExpired();
+        }
+
+        #region Permission Management
+        public void AddPermission(string permissionName)
+        {
             if (IsSystem)
-                throw new InvalidOperationException("نقش سیستمی قابل ویرایش نیست");
+                throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نقش سیستمی قابل ویرایش نیست");
 
-            Permissions.RemovePermissions(permissions);
+            if (string.IsNullOrWhiteSpace(permissionName))
+                throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نام دسترسی نمی‌تواند خالی باشد");
+
+            Permissions.AddPermission(permissionName.Trim());
             Update();
         }
 
-        public bool HasPermission(Permission permission)
+        public void RemovePermission(string permissionName)
         {
-            return permission != null && Permissions.HasPermission(permission);
+            if (IsSystem)
+                throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نقش سیستمی قابل ویرایش نیست");
+
+            if (string.IsNullOrWhiteSpace(permissionName))
+                throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نام دسترسی نمی‌تواند خالی باشد");
+
+            Permissions.RemovePermission(permissionName.Trim());
+            Update();
         }
 
         public bool HasPermission(string permissionName)
         {
             if (string.IsNullOrWhiteSpace(permissionName))
-                throw new ArgumentException("نام دسترسی نمی‌تواند خالی باشد", nameof(permissionName));
+                throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نام دسترسی نمی‌تواند خالی باشد");
 
-            return Permissions.HasPermission(permissionName.Trim());
+            return IsValid() && Permissions.HasPermission(permissionName.Trim());
         }
 
+        public void ClearPermissions()
+        {
+            if (IsSystem)
+                throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نقش سیستمی قابل ویرایش نیست");
+
+            Permissions = Authorization_Login_Asp.Net.Core.Domain.ValueObjects.RolePermissions.Create();
+            Update();
+        }
+        #endregion
+
+        #region User Management
         public void AddUser(User user)
         {
             if (user == null)
                 throw new ArgumentNullException(nameof(user));
+
+            if (!IsValid())
+                throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نقش غیرفعال یا منقضی شده است");
 
             if (!_userRoles.Any(ur => ur.UserId == user.Id))
             {
@@ -137,7 +190,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         public void ClearUsers()
         {
             if (IsSystem)
-                throw new InvalidOperationException("نقش سیستمی قابل ویرایش نیست");
+                throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نقش سیستمی قابل ویرایش نیست");
 
             _userRoles.Clear();
             Update();
@@ -148,7 +201,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             if (users == null)
                 throw new ArgumentNullException(nameof(users));
 
-            foreach (var user in users)
+            foreach (var user in users.Where(u => u != null))
             {
                 AddUser(user);
             }
@@ -156,7 +209,47 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
 
         public IEnumerable<User> GetUsers()
         {
-            return _userRoles.Select(ur => ur.User).ToList();
+            return _userRoles.Select(ur => ur.User).Where(u => u != null).ToList();
+        }
+
+        public bool HasUser(User user)
+        {
+            return user != null && _userRoles.Any(ur => ur.UserId == user.Id);
+        }
+
+        public bool HasUser(Guid userId)
+        {
+            return _userRoles.Any(ur => ur.UserId == userId);
+        }
+        #endregion
+
+        #region Validation
+        private static void ValidateName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("نام نقش نمی‌تواند خالی باشد");
+
+            if (name.Length > MaxNameLength)
+                throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException($"نام نقش نمی‌تواند بیشتر از {MaxNameLength} کاراکتر باشد");
+        }
+
+        private static void ValidateDescription(string description)
+        {
+            if (!string.IsNullOrWhiteSpace(description) && description.Length > MaxDescriptionLength)
+                throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException($"توضیحات نقش نمی‌تواند بیشتر از {MaxDescriptionLength} کاراکتر باشد");
+        }
+
+        private static void ValidateExpiration(DateTime? expirationDate)
+        {
+            if (expirationDate.HasValue && expirationDate.Value <= DateTime.UtcNow)
+                throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException("تاریخ انقضا باید در آینده باشد");
+        }
+        #endregion
+
+        // Use explicit namespace for DomainException to resolve ambiguity
+        private static void ThrowDomainException(string message)
+        {
+            throw new Authorization_Login_Asp.Net.Core.Domain.Exceptions.DomainException(message);
         }
     }
 }

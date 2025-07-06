@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Authorization_Login_Asp.Net.Domain.Entities;
+using Authorization_Login_Asp.Net.Core.Domain.Interfaces;
 
 namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
 {

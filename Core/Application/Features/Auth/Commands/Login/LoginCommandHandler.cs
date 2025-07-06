@@ -1,5 +1,4 @@
 using Authorization_Login_Asp.Net.Core.Application.DTOs.Auth;
-using Authorization_Login_Asp.Net.Core.Application.DTOs.Users;
 using Authorization_Login_Asp.Net.Core.Application.Interfaces.Services;
 using MediatR;
 using Microsoft.Extensions.Logging;

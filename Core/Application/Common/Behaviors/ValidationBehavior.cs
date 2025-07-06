@@ -1,6 +1,7 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -30,8 +31,8 @@ namespace Authorization_Login_Asp.Net.Core.Application.Common.Behaviors
             IEnumerable<IValidator<TRequest>> validators,
             ILogger<ValidationBehavior<TRequest, TResponse>> logger)
         {
-            _validators = validators;
-            _logger = logger;
+            _validators = validators ?? throw new ArgumentNullException(nameof(validators));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>
@@ -47,35 +48,105 @@ namespace Authorization_Login_Asp.Net.Core.Application.Common.Behaviors
             RequestHandlerDelegate<TResponse> next,
             CancellationToken cancellationToken)
         {
-            if (!_validators.Any())
+            if (request == null)
             {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            var requestType = typeof(TRequest).Name;
+            var correlationId = Guid.NewGuid().ToString();
+
+            using var scope = _logger.BeginScope(new Dictionary<string, object>
+            {
+                ["CorrelationId"] = correlationId,
+                ["RequestType"] = requestType
+            });
+
+            try
+            {
+                if (!_validators.Any())
+                {
+                    _logger.LogDebug(
+                        "هیچ اعتبارسنجی برای درخواست {RequestType} با شناسه {CorrelationId} تعریف نشده است",
+                        requestType,
+                        correlationId);
+                    return await next();
+                }
+
+                _logger.LogInformation(
+                    "شروع اعتبارسنجی درخواست {RequestType} با شناسه {CorrelationId}",
+                    requestType,
+                    correlationId);
+
+                var context = new ValidationContext<TRequest>(request);
+                var validationResults = new List<ValidationResult>();
+
+                foreach (var validator in _validators)
+                {
+                    try
+                    {
+                        var result = await validator.ValidateAsync(context, cancellationToken);
+                        validationResults.Add(result);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(
+                            ex,
+                            "خطا در اجرای اعتبارسنج {ValidatorType} برای درخواست {RequestType} با شناسه {CorrelationId}",
+                            validator.GetType().Name,
+                            requestType,
+                            correlationId);
+                        throw;
+                    }
+                }
+
+                var failures = validationResults
+                    .SelectMany(r => r.Errors)
+                    .Where(f => f != null)
+                    .GroupBy(x => x.PropertyName)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.Select(x => x.ErrorMessage).Distinct().ToArray());
+
+                if (failures.Any())
+                {
+                    _logger.LogWarning(
+                        "اعتبارسنجی درخواست {RequestType} با شناسه {CorrelationId} ناموفق بود. تعداد خطاها: {ErrorCount}",
+                        requestType,
+                        correlationId,
+                        failures.Count);
+
+                    foreach (var failure in failures)
+                    {
+                        _logger.LogWarning(
+                            "خطای اعتبارسنجی در فیلد {PropertyName}: {ErrorMessages}",
+                            failure.Key,
+                            string.Join(", ", failure.Value));
+                    }
+
+                    throw new ValidationException(validationResults.SelectMany(r => r.Errors));
+                }
+
+                _logger.LogInformation(
+                    "اعتبارسنجی درخواست {RequestType} با شناسه {CorrelationId} با موفقیت انجام شد",
+                    requestType,
+                    correlationId);
+
                 return await next();
             }
-
-            _logger.LogInformation("شروع اعتبارسنجی درخواست {RequestType}", typeof(TRequest).Name);
-
-            var context = new ValidationContext<TRequest>(request);
-
-            var validationResults = await Task.WhenAll(
-                _validators.Select(v => v.ValidateAsync(context, cancellationToken)));
-
-            var failures = validationResults
-                .SelectMany(r => r.Errors)
-                .Where(f => f != null)
-                .ToList();
-
-            if (failures.Any())
+            catch (ValidationException)
             {
-                _logger.LogWarning(
-                    "اعتبارسنجی درخواست {RequestType} ناموفق بود. خطاها: {ValidationErrors}",
-                    typeof(TRequest).Name,
-                    string.Join(", ", failures.Select(f => f.ErrorMessage)));
-
-                throw new ValidationException(failures);
+                throw;
             }
-
-            _logger.LogInformation("اعتبارسنجی درخواست {RequestType} با موفقیت انجام شد", typeof(TRequest).Name);
-            return await next();
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "خطای غیرمنتظره در اعتبارسنجی درخواست {RequestType} با شناسه {CorrelationId}",
+                    requestType,
+                    correlationId);
+                throw;
+            }
         }
     }
 } 

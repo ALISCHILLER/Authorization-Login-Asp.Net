@@ -7,8 +7,6 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Authorization_Login_Asp.Net.Core.Domain.Entities;
 using Authorization_Login_Asp.Net.Core.Domain.Interfaces;
-using Authorization_Login_Asp.Net.Core.Infrastructure.Services.Base;
-using Authorization_Login_Asp.Net.Core.Infrastructure.Data;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Options;
 
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Security
@@ -16,17 +14,14 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Security
     /// <summary>
     /// سرویس مدیریت توکن‌های JWT
     /// </summary>
-    public class JwtService : BaseService, IJwtService
+    public class JwtService : IJwtService
     {
         private readonly JwtSettings _jwtSettings;
         private readonly SecurityKey _securityKey;
         private readonly SigningCredentials _signingCredentials;
 
         public JwtService(
-            IUnitOfWork unitOfWork,
-            ILogger<JwtService> logger,
-            IOptions<JwtSettings> jwtSettings) 
-            : base(unitOfWork, logger)
+            IOptions<JwtSettings> jwtSettings)
         {
             _jwtSettings = jwtSettings.Value;
             _securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));

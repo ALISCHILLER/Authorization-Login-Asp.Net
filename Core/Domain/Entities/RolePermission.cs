@@ -9,37 +9,62 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
     /// مدل ارتباط بین نقش‌ها و دسترسی‌ها
     /// این کلاس نماینده جدول RolePermissions در دیتابیس است
     /// </summary>
-    public class RolePermission : BaseEntity
+    public class RolePermission : IEntity
     {
         /// <summary>
         /// شناسه نقش
         /// </summary>
         [Required]
-        public Guid RoleId { get; private set; }
+        public Guid RoleId { get; set; }
 
         /// <summary>
         /// شناسه دسترسی
         /// </summary>
         [Required]
-        public Guid PermissionId { get; private set; }
+        public Guid PermissionId { get; set; }
 
         /// <summary>
         /// توضیح یا شرح اختیاری برای ارتباط نقش-دسترسی
         /// </summary>
         [MaxLength(200)]
-        public string Description { get; private set; }
+        public string Description { get; set; }
 
         /// <summary>
         /// نقش
         /// </summary>
         [ForeignKey(nameof(RoleId))]
-        public virtual Role Role { get; private set; }
+        public virtual Role Role { get; set; }
 
         /// <summary>
         /// دسترسی
         /// </summary>
         [ForeignKey(nameof(PermissionId))]
-        public virtual Permission Permission { get; private set; }
+        public virtual Permission Permission { get; set; }
+
+        /// <summary>
+        /// شناسه
+        /// </summary>
+        public Guid Id { get; set; }
+
+        /// <summary>
+        /// زمان ایجاد
+        /// </summary>
+        public DateTime CreatedAt { get; set; }
+
+        /// <summary>
+        /// زمان به‌روزرسانی
+        /// </summary>
+        public DateTime? UpdatedAt { get; set; }
+
+        /// <summary>
+        /// حذف شده
+        /// </summary>
+        public bool IsDeleted { get; set; }
+
+        /// <summary>
+        /// زمان حذف
+        /// </summary>
+        public DateTime? DeletedAt { get; set; }
 
         /// <summary>
         /// سازنده پیش‌فرض برای EF Core

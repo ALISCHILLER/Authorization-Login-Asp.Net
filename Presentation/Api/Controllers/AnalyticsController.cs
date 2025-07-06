@@ -1,5 +1,4 @@
-using Authorization_Login_Asp.Net.Core.Application.Features.Analytics.Commands;
-using Authorization_Login_Asp.Net.Core.Application.Features.Analytics.Queries;
+
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

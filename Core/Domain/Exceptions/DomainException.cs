@@ -5,8 +5,8 @@ using System.Runtime.Serialization;
 namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
 {
     /// <summary>
-    /// کلاس پایه برای استثناهای دامنه
-    /// این کلاس برای خطاهای مربوط به منطق کسب و کار و قوانین دامنه استفاده می‌شود
+    /// کلاس خطای دامنه
+    /// این کلاس برای خطاهای مرتبط با قوانین دامنه استفاده می‌شود
     /// </summary>
     [Serializable]
     public class DomainException : Exception
@@ -14,7 +14,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         /// <summary>
         /// کد خطا
         /// </summary>
-        public string ErrorCode { get; }
+        public string Code { get; }
 
         /// <summary>
         /// اطلاعات اضافی خطا
@@ -27,15 +27,37 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         public DateTime ErrorTime { get; }
 
         /// <summary>
+        /// سازنده پیش‌فرض
+        /// </summary>
+        public DomainException() : base() { }
+
+        /// <summary>
+        /// سازنده با پیام خطا
+        /// </summary>
+        /// <param name="message">پیام خطا</param>
+        public DomainException(string message) : base(message)
+        {
+        }
+
+        /// <summary>
+        /// سازنده با پیام خطا و خطای داخلی
+        /// </summary>
+        /// <param name="message">پیام خطا</param>
+        /// <param name="innerException">خطای داخلی</param>
+        public DomainException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
+
+        /// <summary>
         /// ایجاد یک نمونه جدید از استثنای دامنه
         /// </summary>
         /// <param name="message">پیام خطا</param>
-        /// <param name="errorCode">کد خطا</param>
+        /// <param name="code">کد خطا</param>
         /// <param name="additionalData">اطلاعات اضافی خطا</param>
-        public DomainException(string message, string errorCode = DomainErrorCodes.General.InvalidOperation, IDictionary<string, object> additionalData = null)
+        public DomainException(string message, string code, IDictionary<string, object> additionalData = null)
             : base(message)
         {
-            ErrorCode = errorCode;
+            Code = code;
             AdditionalData = additionalData ?? new Dictionary<string, object>();
             ErrorTime = DateTime.UtcNow;
         }
@@ -45,12 +67,12 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         /// </summary>
         /// <param name="message">پیام خطا</param>
         /// <param name="innerException">استثنای داخلی</param>
-        /// <param name="errorCode">کد خطا</param>
+        /// <param name="code">کد خطا</param>
         /// <param name="additionalData">اطلاعات اضافی خطا</param>
-        public DomainException(string message, Exception innerException, string errorCode = DomainErrorCodes.General.InvalidOperation, IDictionary<string, object> additionalData = null)
+        public DomainException(string message, Exception innerException, string code = DomainErrorCodes.General.InvalidOperation, IDictionary<string, object> additionalData = null)
             : base(message, innerException)
         {
-            ErrorCode = errorCode;
+            Code = code;
             AdditionalData = additionalData ?? new Dictionary<string, object>();
             ErrorTime = DateTime.UtcNow;
         }
@@ -61,7 +83,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         protected DomainException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
-            ErrorCode = info.GetString(nameof(ErrorCode)) ?? DomainErrorCodes.General.InvalidOperation;
+            Code = info.GetString(nameof(Code)) ?? DomainErrorCodes.General.InvalidOperation;
             AdditionalData = (IDictionary<string, object>)info.GetValue(nameof(AdditionalData), typeof(IDictionary<string, object>)) ?? new Dictionary<string, object>();
             ErrorTime = info.GetDateTime(nameof(ErrorTime));
         }
@@ -74,7 +96,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
 
-            info.AddValue(nameof(ErrorCode), ErrorCode);
+            info.AddValue(nameof(Code), Code);
             info.AddValue(nameof(AdditionalData), AdditionalData);
             info.AddValue(nameof(ErrorTime), ErrorTime);
 
@@ -99,7 +121,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         /// </summary>
         public override string ToString()
         {
-            var result = $"[{ErrorCode}] {Message}";
+            var result = $"[{Code}] {Message}";
             
             if (AdditionalData.Count > 0)
             {
@@ -116,6 +138,17 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// ایجاد خطای دامنه با فرمت پیام
+        /// </summary>
+        /// <param name="messageFormat">قالب پیام</param>
+        /// <param name="args">پارامترهای پیام</param>
+        /// <returns>خطای دامنه</returns>
+        public static DomainException Create(string messageFormat, params object[] args)
+        {
+            return new DomainException(string.Format(messageFormat, args));
         }
     }
 }

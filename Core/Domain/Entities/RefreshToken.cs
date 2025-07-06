@@ -1,13 +1,14 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Authorization_Login_Asp.Net.Core.Domain.Common;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Entities
 {
     /// <summary>
     /// مدل توکن رفرش
     /// </summary>
-    public class RefreshToken
+    public class RefreshToken : Authorization_Login_Asp.Net.Core.Domain.Common.IEntity
     {
         /// <summary>
         /// کلید اصلی
@@ -26,7 +27,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// </summary>
         [Required]
         [MaxLength(500)]
-        public string Token { get; set; }
+        public string Token { get; set; } = string.Empty;
 
         /// <summary>
         /// تاریخ انقضا
@@ -43,13 +44,13 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// آدرس IP ایجاد کننده توکن
         /// </summary>
         [MaxLength(50)]
-        public string CreatedByIp { get; set; }
+        public string CreatedByIp { get; set; } = string.Empty;
 
         /// <summary>
         /// آدرس IP توکن
         /// </summary>
         [MaxLength(50)]
-        public string IpAddress { get; set; }
+        public string IpAddress { get; set; } = string.Empty;
 
         /// <summary>
         /// تاریخ باطل شدن
@@ -60,7 +61,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// آدرس IP باطل کننده توکن
         /// </summary>
         [MaxLength(50)]
-        public string RevokedByIp { get; set; }
+        public string RevokedByIp { get; set; } = string.Empty;
 
         /// <summary>
         /// شناسه توکن جایگزین (برای چرخش توکن)
@@ -71,7 +72,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// دلیل باطل شدن
         /// </summary>
         [MaxLength(200)]
-        public string ReasonRevoked { get; set; }
+        public string ReasonRevoked { get; set; } = string.Empty;
 
         /// <summary>
         /// وضعیت انقضا
@@ -92,19 +93,19 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// کاربر
         /// </summary>
         [ForeignKey(nameof(UserId))]
-        public virtual User User { get; set; }
+        public virtual User User { get; set; } = null!;
 
         /// <summary>
         /// توکن جایگزین (برای چرخش توکن)
         /// </summary>
         [ForeignKey(nameof(ReplacedByTokenId))]
-        public virtual RefreshToken ReplacedByToken { get; set; }
+        public virtual RefreshToken ReplacedByToken { get; set; } = null!;
 
         /// <summary>
         /// دلیل باطل شدن
         /// </summary>
         [MaxLength(200)]
-        public string RevokedReason { get; set; }
+        public string RevokedReason { get; set; } = string.Empty;
         public DateTime ExpiresAt { get; internal set; }
 
         /// <summary>
@@ -120,10 +121,10 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// </summary>
         /// <param name="reason">دلیل باطل شدن</param>
         /// <param name="replacedByTokenId">شناسه توکن جایگزین (اختیاری)</param>
-        public void Revoke(string reason = null, Guid? replacedByTokenId = null)
+        public void Revoke(string? reason = null, Guid? replacedByTokenId = null)
         {
             RevokedAt = DateTime.UtcNow;
-            ReasonRevoked = reason;
+            ReasonRevoked = reason ?? string.Empty;
             ReplacedByTokenId = replacedByTokenId;
         }
 
@@ -132,5 +133,12 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             Id = Guid.NewGuid();
             CreatedAt = DateTime.UtcNow;
         }
+
+        public Guid? CreatedBy { get; set; }
+        public DateTime? LastModifiedAt { get; set; }
+        public Guid? LastModifiedBy { get; set; }
+        public DateTime? DeletedAt { get; set; }
+        public Guid? DeletedBy { get; set; }
+        public bool IsDeleted { get; set; }
     }
 }

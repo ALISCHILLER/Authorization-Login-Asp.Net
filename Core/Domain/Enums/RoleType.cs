@@ -9,14 +9,9 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Enums
     public enum RoleType
     {
         /// <summary>
-        /// کاربر عادی - دسترسی پایه به سیستم
+        /// کاربر تأیید نشده - ایمیل کاربر هنوز تأیید نشده است
         /// </summary>
-        User = 4,
-
-        /// <summary>
-        /// مدیر - دسترسی محدود به بخش‌های مدیریتی
-        /// </summary>
-        Admin = 2,
+        Unverified = 0,
 
         /// <summary>
         /// مدیر ارشد - دسترسی کامل به تمام بخش‌ها
@@ -24,21 +19,24 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Enums
         SuperAdmin = 1,
 
         /// <summary>
+        /// مدیر - دسترسی محدود به بخش‌های مدیریتی
+        /// </summary>
+        Admin = 2,
+
+        /// <summary>
+        /// نقش موقت - دسترسی محدود زمانی
+        /// </summary>
+        Temporary = 3,
+
+        /// <summary>
+        /// کاربر عادی - دسترسی پایه به سیستم
+        /// </summary>
+        User = 4,
+
+        /// <summary>
         /// کاربر مهمان - دسترسی محدود و بدون اجازه تغییرات
         /// </summary>
         Guest = 5,
-
-        /// <summary>
-        /// کاربر محدود شده - دسترسی محدود به منابع خاص
-        /// </summary>
-        Restricted = 3,
-
-        /// <summary>
-        /// کاربر تأیید نشده - ایمیل کاربر هنوز تأیید نشده است
-        /// </summary>
-        Unverified = 0,
-
-        // مقادیر جدید:
 
         /// <summary>
         /// اپراتور - کاربر با دسترسی عملیاتی محدود به سیستم
@@ -53,6 +51,16 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Enums
         /// <summary>
         /// پشتیبانی - کاربر با دسترسی به بخش پشتیبانی و خدمات کاربری
         /// </summary>
-        Support = 8
+        Support = 8,
+
+        /// <summary>
+        /// نقش محدود شده - دسترسی بسیار محدود به منابع خاص
+        /// </summary>
+        Restricted = 9,
+
+        /// <summary>
+        /// نقش سیستمی - برای عملیات‌های خودکار سیستم
+        /// </summary>
+        System = 10
     }
 }

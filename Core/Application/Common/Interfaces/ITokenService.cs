@@ -16,42 +16,47 @@ namespace Authorization_Login_Asp.Net.Core.Application.Common.Interfaces
         /// <summary>
         /// ایجاد توکن دسترسی و بازنشانی برای کاربر
         /// </summary>
-        Task<(string AccessToken, string RefreshToken)> GenerateTokensAsync(User user, string ipAddress = null);
+        Task<TokenResult> GenerateTokensAsync(User user, string ipAddress = null, string userAgent = null);
 
         /// <summary>
         /// ایجاد توکن دسترسی
         /// </summary>
-        Task<string> GenerateAccessTokenAsync(User user);
+        Task<TokenResult> GenerateAccessTokenAsync(User user, IEnumerable<Claim> additionalClaims = null);
 
         /// <summary>
         /// ایجاد توکن بازنشانی
         /// </summary>
-        Task<string> GenerateRefreshTokenAsync(User user);
+        Task<TokenResult> GenerateRefreshTokenAsync(User user, string ipAddress = null, string userAgent = null);
 
         /// <summary>
         /// بررسی اعتبار توکن دسترسی
         /// </summary>
-        Task<bool> ValidateAccessTokenAsync(string token);
+        Task<(bool IsValid, string Error)> ValidateAccessTokenAsync(string token);
 
         /// <summary>
         /// بررسی اعتبار توکن بازنشانی
         /// </summary>
-        Task<bool> ValidateRefreshTokenAsync(string refreshToken);
+        Task<(bool IsValid, string Error)> ValidateRefreshTokenAsync(string refreshToken, string ipAddress = null);
 
         /// <summary>
         /// باطل کردن توکن دسترسی
         /// </summary>
-        Task RevokeAccessTokenAsync(string token);
+        Task<bool> RevokeAccessTokenAsync(string token, string reason = null);
 
         /// <summary>
         /// باطل کردن توکن بازنشانی
         /// </summary>
-        Task RevokeRefreshTokenAsync(string refreshToken);
+        Task<bool> RevokeRefreshTokenAsync(string refreshToken, string reason = null);
 
         /// <summary>
         /// باطل کردن تمام توکن‌های کاربر
         /// </summary>
-        Task RevokeAllUserTokensAsync(Guid userId);
+        Task<bool> RevokeAllUserTokensAsync(Guid userId, string reason = null);
+
+        /// <summary>
+        /// نوسازی توکن‌ها با استفاده از توکن بازنشانی
+        /// </summary>
+        Task<TokenResult> RefreshTokenAsync(string refreshToken, string ipAddress = null, string userAgent = null);
         #endregion
 
         #region اطلاعات توکن
@@ -73,29 +78,71 @@ namespace Authorization_Login_Asp.Net.Core.Application.Common.Interfaces
         /// <summary>
         /// دریافت شناسه کاربر از توکن
         /// </summary>
-        Guid GetUserIdFromToken(string token);
+        Task<Guid?> GetUserIdFromTokenAsync(string token);
 
         /// <summary>
         /// دریافت نقش کاربر از توکن
         /// </summary>
-        string GetUserRoleFromToken(string token);
+        Task<string> GetUserRoleFromTokenAsync(string token);
+
+        /// <summary>
+        /// دریافت نام کاربری از توکن
+        /// </summary>
+        Task<string> GetUsernameFromTokenAsync(string token);
+
+        /// <summary>
+        /// دریافت آدرس IP از توکن
+        /// </summary>
+        Task<string> GetIpAddressFromTokenAsync(string token);
+
+        /// <summary>
+        /// دریافت مرورگر کاربر از توکن
+        /// </summary>
+        Task<string> GetUserAgentFromTokenAsync(string token);
         #endregion
 
         #region احراز هویت دو مرحله‌ای
         /// <summary>
         /// تولید کلید محرمانه و کد QR برای احراز هویت دو مرحله‌ای
         /// </summary>
-        (string Secret, string QrCode) GenerateTwoFactorSecret(User user);
+        Task<(string Secret, string QrCodeUri)> GenerateTwoFactorSecretAsync(User user);
 
         /// <summary>
         /// بررسی اعتبار کد احراز هویت دو مرحله‌ای
         /// </summary>
-        bool ValidateTwoFactorCode(string secret, string code);
+        Task<bool> ValidateTwoFactorCodeAsync(string secret, string code);
 
         /// <summary>
         /// تولید کدهای بازیابی
         /// </summary>
-        IEnumerable<string> GenerateRecoveryCodes();
+        Task<IEnumerable<string>> GenerateRecoveryCodesAsync(int count = 8);
+
+        /// <summary>
+        /// بررسی اعتبار کد بازیابی
+        /// </summary>
+        Task<bool> ValidateRecoveryCodeAsync(User user, string code);
+
+        /// <summary>
+        /// غیرفعال کردن احراز هویت دو مرحله‌ای
+        /// </summary>
+        Task<bool> DisableTwoFactorAsync(User user);
+        #endregion
+
+        #region مدیریت نشست‌ها
+        /// <summary>
+        /// دریافت لیست نشست‌های فعال کاربر
+        /// </summary>
+        Task<IEnumerable<UserSession>> GetActiveSessionsAsync(Guid userId);
+
+        /// <summary>
+        /// پایان دادن به نشست
+        /// </summary>
+        Task<bool> TerminateSessionAsync(Guid sessionId, string reason = null);
+
+        /// <summary>
+        /// پایان دادن به تمام نشست‌های کاربر به جز نشست فعلی
+        /// </summary>
+        Task<bool> TerminateOtherSessionsAsync(Guid userId, Guid currentSessionId, string reason = null);
         #endregion
     }
 
@@ -105,34 +152,74 @@ namespace Authorization_Login_Asp.Net.Core.Application.Common.Interfaces
     public class TokenResult
     {
         /// <summary>
-        /// توکن ایجاد شده
-        /// </summary>
-        public string Token { get; set; } = string.Empty;
-
-        /// <summary>
-        /// زمان انقضای توکن
-        /// </summary>
-        public DateTime ExpiresAt { get; set; }
-
-        /// <summary>
-        /// نوع توکن
-        /// </summary>
-        public TokenType Type { get; set; }
-    }
-
-    /// <summary>
-    /// نوع توکن
-    /// </summary>
-    public enum TokenType
-    {
-        /// <summary>
         /// توکن دسترسی
         /// </summary>
-        AccessToken,
+        public string AccessToken { get; set; }
 
         /// <summary>
         /// توکن بازنشانی
         /// </summary>
-        RefreshToken
+        public string RefreshToken { get; set; }
+
+        /// <summary>
+        /// زمان انقضای توکن دسترسی
+        /// </summary>
+        public DateTime AccessTokenExpiresAt { get; set; }
+
+        /// <summary>
+        /// زمان انقضای توکن بازنشانی
+        /// </summary>
+        public DateTime RefreshTokenExpiresAt { get; set; }
+
+        /// <summary>
+        /// نوع توکن
+        /// </summary>
+        public string TokenType { get; set; } = "Bearer";
+    }
+
+    /// <summary>
+    /// اطلاعات نشست کاربر
+    /// </summary>
+    public class UserSession
+    {
+        /// <summary>
+        /// شناسه نشست
+        /// </summary>
+        public Guid Id { get; set; }
+
+        /// <summary>
+        /// شناسه کاربر
+        /// </summary>
+        public Guid UserId { get; set; }
+
+        /// <summary>
+        /// آدرس IP
+        /// </summary>
+        public string IpAddress { get; set; }
+
+        /// <summary>
+        /// مرورگر کاربر
+        /// </summary>
+        public string UserAgent { get; set; }
+
+        /// <summary>
+        /// زمان شروع نشست
+        /// </summary>
+        public DateTime CreatedAt { get; set; }
+
+        /// <summary>
+        /// آخرین زمان فعالیت
+        /// </summary>
+        public DateTime LastActivityAt { get; set; }
+
+        /// <summary>
+        /// زمان پایان نشست
+        /// </summary>
+        public DateTime? EndedAt { get; set; }
+
+        /// <summary>
+        /// دلیل پایان نشست
+        /// </summary>
+        public string EndReason { get; set; }
     }
 } 

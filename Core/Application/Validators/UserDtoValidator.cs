@@ -32,10 +32,6 @@ namespace Authorization_Login_Asp.Net.Core.Application.Validators
                 .MaximumLength(100)
                 .WithMessage("نام کامل نمی‌تواند بیشتر از ۱۰۰ کاراکتر باشد.");
 
-            RuleFor(x => x.RoleId)
-                .NotEmpty()
-                .WithMessage("نقش کاربر الزامی است.");
-
             RuleFor(x => x.PhoneNumber)
                 .MaximumLength(15)
                 .WithMessage("شماره تلفن نمی‌تواند بیشتر از ۱۵ کاراکتر باشد.")
@@ -55,9 +51,9 @@ namespace Authorization_Login_Asp.Net.Core.Application.Validators
     /// <summary>
     /// اعتبارسنجی مدل ایجاد کاربر
     /// </summary>
-    public class CreateUserDtoValidator : AbstractValidator<CreateUserDto>
+    public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
     {
-        public CreateUserDtoValidator()
+        public CreateUserRequestValidator()
         {
             RuleFor(x => x.Username)
                 .NotEmpty()
@@ -80,82 +76,77 @@ namespace Authorization_Login_Asp.Net.Core.Application.Validators
                 .WithMessage("رمز عبور الزامی است.")
                 .MinimumLength(8)
                 .WithMessage("رمز عبور باید حداقل ۸ کاراکتر باشد.")
-                .Matches(@"[A-Z]")
+                .Matches("[A-Z]")
                 .WithMessage("رمز عبور باید حداقل شامل یک حرف بزرگ باشد.")
-                .Matches(@"[a-z]")
+                .Matches("[a-z]")
                 .WithMessage("رمز عبور باید حداقل شامل یک حرف کوچک باشد.")
-                .Matches(@"[0-9]")
-                .WithMessage("رمز عبور باید حداقل شامل یک عدد باشد.")
-                .Matches(@"[!@#$%^&*(),.?""':{}|<>]")
-                .WithMessage("رمز عبور باید حداقل شامل یک کاراکتر خاص باشد.");
+                .Matches("[0-9]")
+                .WithMessage("رمز عبور باید حداقل شامل یک عدد باشد.");
+                // .Matches("[!@#$%^&*(),.?\\"':{}|<>"]")
+                // .WithMessage("رمز عبور باید حداقل شامل یک کاراکتر خاص باشد.");
 
-            RuleFor(x => x.FullName)
-                .MaximumLength(100)
-                .WithMessage("نام کامل نمی‌تواند بیشتر از ۱۰۰ کاراکتر باشد.");
-
-            RuleFor(x => x.RoleId)
+            RuleFor(x => x.FirstName)
                 .NotEmpty()
-                .WithMessage("نقش کاربر الزامی است.");
+                .WithMessage("نام الزامی است.")
+                .MaximumLength(50)
+                .WithMessage("نام نمی‌تواند بیشتر از ۵۰ کاراکتر باشد.");
+
+            RuleFor(x => x.LastName)
+                .NotEmpty()
+                .WithMessage("نام خانوادگی الزامی است.")
+                .MaximumLength(50)
+                .WithMessage("نام خانوادگی نمی‌تواند بیشتر از ۵۰ کاراکتر باشد.");
 
             RuleFor(x => x.PhoneNumber)
+                .NotEmpty()
+                .WithMessage("شماره تلفن الزامی است.")
                 .MaximumLength(15)
                 .WithMessage("شماره تلفن نمی‌تواند بیشتر از ۱۵ کاراکتر باشد.")
-                .Matches(@"^\+?[0-9]{10,15}$")
-                .When(x => !string.IsNullOrEmpty(x.PhoneNumber))
-                .WithMessage("فرمت شماره تلفن معتبر نیست.");
-
-            RuleFor(x => x.ProfileImageUrl)
-                .MaximumLength(500)
-                .WithMessage("آدرس تصویر پروفایل نمی‌تواند بیشتر از ۵۰۰ کاراکتر باشد.")
-                .Must(uri => Uri.TryCreate(uri, UriKind.Absolute, out _))
-                .When(x => !string.IsNullOrEmpty(x.ProfileImageUrl))
-                .WithMessage("آدرس تصویر پروفایل باید یک URL معتبر باشد.");
-
-            RuleFor(x => x.TwoFactorType)
-                .IsInEnum()
-                .When(x => x.EnableTwoFactor)
-                .WithMessage("روش احراز هویت دو مرحله‌ای نامعتبر است.");
+                .Matches(@"^09[0-9]{9}$")
+                .WithMessage("شماره تلفن باید با 09 شروع شود و 11 رقم باشد.");
         }
     }
 
     /// <summary>
     /// اعتبارسنجی مدل به‌روزرسانی کاربر
     /// </summary>
-    public class UpdateUserDtoValidator : AbstractValidator<UpdateUserDto>
+    public class UpdateUserRequestValidator : AbstractValidator<UpdateUserRequest>
     {
-        public UpdateUserDtoValidator()
+        public UpdateUserRequestValidator()
         {
-            RuleFor(x => x.FullName)
+            RuleFor(x => x.Username)
+                .MaximumLength(50)
+                .WithMessage("نام کاربری نمی‌تواند بیشتر از ۵۰ کاراکتر باشد.");
+
+            RuleFor(x => x.Email)
+                .EmailAddress()
+                .WithMessage("فرمت ایمیل نامعتبر است.")
                 .MaximumLength(100)
-                .WithMessage("نام کامل نمی‌تواند بیشتر از ۱۰۰ کاراکتر باشد.");
+                .WithMessage("ایمیل نمی‌تواند بیشتر از ۱۰۰ کاراکتر باشد.");
+
+            RuleFor(x => x.FirstName)
+                .MaximumLength(50)
+                .WithMessage("نام نمی‌تواند بیشتر از ۵۰ کاراکتر باشد.");
+
+            RuleFor(x => x.LastName)
+                .MaximumLength(50)
+                .WithMessage("نام خانوادگی نمی‌تواند بیشتر از ۵۰ کاراکتر باشد.");
 
             RuleFor(x => x.PhoneNumber)
                 .MaximumLength(15)
                 .WithMessage("شماره تلفن نمی‌تواند بیشتر از ۱۵ کاراکتر باشد.")
-                .Matches(@"^\+?[0-9]{10,15}$")
+                .Matches(@"^09[0-9]{9}$")
                 .When(x => !string.IsNullOrEmpty(x.PhoneNumber))
-                .WithMessage("فرمت شماره تلفن معتبر نیست.");
-
-            RuleFor(x => x.ProfileImageUrl)
-                .MaximumLength(500)
-                .WithMessage("آدرس تصویر پروفایل نمی‌تواند بیشتر از ۵۰۰ کاراکتر باشد.")
-                .Must(uri => Uri.TryCreate(uri, UriKind.Absolute, out _))
-                .When(x => !string.IsNullOrEmpty(x.ProfileImageUrl))
-                .WithMessage("آدرس تصویر پروفایل باید یک URL معتبر باشد.");
-
-            RuleFor(x => x.TwoFactorType)
-                .IsInEnum()
-                .When(x => x.EnableTwoFactor == true)
-                .WithMessage("روش احراز هویت دو مرحله‌ای نامعتبر است.");
+                .WithMessage("شماره تلفن باید با 09 شروع شود و 11 رقم باشد.");
         }
     }
 
     /// <summary>
     /// اعتبارسنجی مدل تغییر رمز عبور
     /// </summary>
-    public class ChangePasswordDtoValidator : AbstractValidator<ChangePasswordDto>
+    public class ChangePasswordRequestDtoValidator : AbstractValidator<ChangePasswordRequestDto>
     {
-        public ChangePasswordDtoValidator()
+        public ChangePasswordRequestDtoValidator()
         {
             RuleFor(x => x.CurrentPassword)
                 .NotEmpty()
@@ -166,14 +157,14 @@ namespace Authorization_Login_Asp.Net.Core.Application.Validators
                 .WithMessage("رمز عبور جدید الزامی است.")
                 .MinimumLength(8)
                 .WithMessage("رمز عبور جدید باید حداقل ۸ کاراکتر باشد.")
-                .Matches(@"[A-Z]")
+                .Matches("[A-Z]")
                 .WithMessage("رمز عبور جدید باید حداقل شامل یک حرف بزرگ باشد.")
-                .Matches(@"[a-z]")
+                .Matches("[a-z]")
                 .WithMessage("رمز عبور جدید باید حداقل شامل یک حرف کوچک باشد.")
-                .Matches(@"[0-9]")
+                .Matches("[0-9]")
                 .WithMessage("رمز عبور جدید باید حداقل شامل یک عدد باشد.")
-                .Matches(@"[!@#$%^&*(),.?""':{}|<>]")
-                .WithMessage("رمز عبور جدید باید حداقل شامل یک کاراکتر خاص باشد.")
+                // .Matches("[!@#$%^&*(),.?\\"':{}|<>"]")
+                // .WithMessage("رمز عبور باید حداقل شامل یک کاراکتر خاص باشد.");
                 .NotEqual(x => x.CurrentPassword)
                 .WithMessage("رمز عبور جدید نمی‌تواند با رمز عبور فعلی یکسان باشد.");
 
@@ -198,28 +189,17 @@ namespace Authorization_Login_Asp.Net.Core.Application.Validators
                 .LessThanOrEqualTo(10)
                 .WithMessage("تعداد حداکثر تلاش‌های ناموفق ورود نمی‌تواند بیشتر از ۱۰ باشد.");
 
-            RuleFor(x => x.AccountLockoutDurationMinutes)
-                .GreaterThan(0)
-                .WithMessage("مدت زمان قفل شدن حساب باید بزرگتر از صفر باشد.")
+            RuleFor(x => x.AccountLockoutDuration)
+                .GreaterThanOrEqualTo(5)
+                .WithMessage("مدت زمان قفل شدن حساب باید حداقل ۵ دقیقه باشد.")
                 .LessThanOrEqualTo(1440)
-                .WithMessage("مدت زمان قفل شدن حساب نمی‌تواند بیشتر از ۲۴ ساعت باشد.");
+                .WithMessage("مدت زمان قفل شدن حساب نمی‌تواند بیشتر از ۱۴۴۰ دقیقه باشد.");
 
-            RuleFor(x => x.RefreshTokenExpiryDays)
-                .GreaterThan(0)
-                .WithMessage("مدت زمان اعتبار توکن رفرش باید بزرگتر از صفر باشد.")
-                .LessThanOrEqualTo(30)
-                .WithMessage("مدت زمان اعتبار توکن رفرش نمی‌تواند بیشتر از ۳۰ روز باشد.");
-
-            RuleFor(x => x.RecoveryCodesCount)
-                .GreaterThan(0)
-                .WithMessage("تعداد کدهای بازیابی باید بزرگتر از صفر باشد.")
-                .LessThanOrEqualTo(10)
-                .WithMessage("تعداد کدهای بازیابی نمی‌تواند بیشتر از ۱۰ باشد.");
-
-            RuleFor(x => x.PasswordExpiryDate)
-                .GreaterThan(DateTime.UtcNow)
-                .When(x => x.PasswordExpiryDate.HasValue)
-                .WithMessage("تاریخ انقضای رمز عبور باید در آینده باشد.");
+            RuleFor(x => x.PasswordExpirationDays)
+                .GreaterThanOrEqualTo(30)
+                .WithMessage("مدت زمان اعتبار رمز عبور باید حداقل ۳۰ روز باشد.")
+                .LessThanOrEqualTo(365)
+                .WithMessage("مدت زمان اعتبار رمز عبور نمی‌تواند بیشتر از ۳۶۵ روز باشد.");
         }
     }
 }

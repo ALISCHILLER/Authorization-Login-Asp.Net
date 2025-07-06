@@ -1,92 +1,64 @@
 using System;
+using Authorization_Login_Asp.Net.Core.Domain.Enums;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Entities
 {
     /// <summary>
-    /// موجودیت اعلان‌های سیستم
+    /// موجودیت اعلان
     /// </summary>
-    public class Notification
+    public class Notification // حذف : IEntity چون اینترفیس موجود نیست یا تعریف نشده
     {
-        /// <summary>
-        /// شناسه یکتای اعلان
-        /// </summary>
-        public Guid Id { get; private set; }
+        public Guid Id { get; set; }
+        public Guid UserId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
+        public bool IsRead { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? ReadAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public bool IsDeleted { get; set; }
+        public DateTime? DeletedAt { get; set; }
+        public NotificationType NotificationType { get; set; }
+        public NotificationPriority NotificationPriority { get; set; }
+        public string ActionUrl { get; set; } = string.Empty;
+        public string ActionText { get; set; } = string.Empty;
+        public string Icon { get; set; } = string.Empty;
+        public string Color { get; set; } = string.Empty;
+        public DateTime? ExpiresAt { get; set; }
+        public virtual User? User { get; set; } // nullable برای جلوگیری از خطا
 
-        /// <summary>
-        /// عنوان اعلان
-        /// </summary>
-        public string Title { get; private set; }
+        protected Notification() { }
 
-        /// <summary>
-        /// متن پیام اعلان
-        /// </summary>
-        public string Message { get; private set; }
-
-        /// <summary>
-        /// نوع اعلان (سیستمی، امنیتی، عملکردی، خطا)
-        /// </summary>
-        public NotificationType Type { get; private set; }
-
-        /// <summary>
-        /// سطح اهمیت اعلان (اطلاعات، هشدار، خطا، بحرانی)
-        /// </summary>
-        public AlertSeverity Severity { get; private set; }
-
-        /// <summary>
-        /// زمان ایجاد اعلان
-        /// </summary>
-        public DateTime CreatedAt { get; private set; }
-
-        /// <summary>
-        /// وضعیت خوانده شدن اعلان
-        /// </summary>
-        public bool IsRead { get; private set; }
-
-        /// <summary>
-        /// شناسه کاربر دریافت‌کننده اعلان (در صورت خالی بودن، اعلان عمومی است)
-        /// </summary>
-        public Guid? UserId { get; private set; }
-
-        /// <summary>
-        /// تاریخ انقضای اعلان
-        /// </summary>
-        public DateTime? ExpiryDate { get; private set; }
-
-        /// <summary>
-        /// زمان خوانده شدن اعلان
-        /// </summary>
-        public DateTime? ReadAt { get; private set; }
-
-        // سازنده خصوصی برای EF Core
-        private Notification() { }
-
-        /// <summary>
-        /// ایجاد یک اعلان جدید
-        /// </summary>
-        public static Notification Create(
+        public Notification(
+            Guid userId,
             string title,
             string message,
-            NotificationType type,
-            AlertSeverity severity,
-            Guid? userId = null,
-            DateTime? expiryDate = null)
+            NotificationType type = NotificationType.Info,
+            NotificationPriority priority = NotificationPriority.Normal,
+            string actionUrl = "",
+            string actionText = "",
+            string icon = "",
+            string color = "",
+            DateTime? expiresAt = null)
         {
-            return new Notification
-            {
-                Id = Guid.NewGuid(),
-                Title = title,
-                Message = message,
-                Type = type,
-                Severity = severity,
-                CreatedAt = DateTime.UtcNow,
-                IsRead = false,
-                UserId = userId,
-                ExpiryDate = expiryDate
-            };
+            Id = Guid.NewGuid();
+            UserId = userId;
+            Title = title;
+            Message = message;
+            NotificationType = type;
+            NotificationPriority = priority;
+            ActionUrl = actionUrl;
+            ActionText = actionText;
+            Icon = icon;
+            Color = color;
+            ExpiresAt = expiresAt;
+            IsRead = false;
+            CreatedAt = DateTime.UtcNow;
         }
 
         /// <summary>
-        /// علامت‌گذاری اعلان به عنوان خوانده شده
+        /// علامت‌گذاری به عنوان خوانده شده
         /// </summary>
         public void MarkAsRead()
         {
@@ -98,73 +70,37 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         }
 
         /// <summary>
-        /// بررسی منقضی شدن اعلان
+        /// آیا منقضی شده است؟
         /// </summary>
         public bool IsExpired()
         {
-            return ExpiryDate.HasValue && ExpiryDate.Value < DateTime.UtcNow;
+            return ExpiresAt.HasValue && ExpiresAt.Value <= DateTime.UtcNow;
         }
 
         /// <summary>
         /// به‌روزرسانی اطلاعات اعلان
         /// </summary>
-        public void Update(string title, string message, AlertSeverity severity)
+        public void Update(
+            string title = "",
+            string message = "",
+            NotificationType? type = null,
+            NotificationPriority? priority = null,
+            string actionUrl = "",
+            string actionText = "",
+            string icon = "",
+            string color = "",
+            DateTime? expiresAt = null)
         {
-            Title = title;
-            Message = message;
-            Severity = severity;
+            Title = string.IsNullOrEmpty(title) ? Title : title;
+            Message = string.IsNullOrEmpty(message) ? Message : message;
+            NotificationType = type ?? NotificationType;
+            NotificationPriority = priority ?? NotificationPriority;
+            ActionUrl = string.IsNullOrEmpty(actionUrl) ? ActionUrl : actionUrl;
+            ActionText = string.IsNullOrEmpty(actionText) ? ActionText : actionText;
+            Icon = string.IsNullOrEmpty(icon) ? Icon : icon;
+            Color = string.IsNullOrEmpty(color) ? Color : color;
+            ExpiresAt = expiresAt ?? ExpiresAt;
+            UpdatedAt = DateTime.UtcNow;
         }
-    }
-
-    /// <summary>
-    /// انواع اعلان‌های سیستم
-    /// </summary>
-    public enum NotificationType
-    {
-        /// <summary>
-        /// اعلان‌های سیستمی
-        /// </summary>
-        System = 1,
-
-        /// <summary>
-        /// اعلان‌های امنیتی
-        /// </summary>
-        Security = 2,
-
-        /// <summary>
-        /// اعلان‌های مربوط به عملکرد
-        /// </summary>
-        Performance = 3,
-
-        /// <summary>
-        /// اعلان‌های خطا
-        /// </summary>
-        Error = 4
-    }
-
-    /// <summary>
-    /// سطوح اهمیت اعلان‌ها
-    /// </summary>
-    public enum AlertSeverity
-    {
-        /// <summary>
-        /// سطح اطلاعاتی
-        /// </summary>
-        Info = 1,
-
-        /// <summary>
-        /// سطح هشدار
-        /// </summary>
-        Warning = 2,
-
-        /// <summary>
-        /// سطح خطا
-        /// </summary>
-        Error = 3,
-
-        /// <summary>
-        /// سطح بحرانی
-        /// </summary>
-        Critical = 4
     }
 }

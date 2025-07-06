@@ -16,12 +16,12 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Middleware
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<GlobalExceptionHandlingMiddleware> _logger;
-        private readonly IErrorHandlingService _errorHandlingService;
+        private readonly Authorization_Login_Asp.Net.Core.Application.Interfaces.IErrorHandlingService _errorHandlingService;
 
         public GlobalExceptionHandlingMiddleware(
             RequestDelegate next,
             ILogger<GlobalExceptionHandlingMiddleware> logger,
-            IErrorHandlingService errorHandlingService)
+            Authorization_Login_Asp.Net.Core.Application.Interfaces.IErrorHandlingService errorHandlingService)
         {
             _next = next;
             _logger = logger;

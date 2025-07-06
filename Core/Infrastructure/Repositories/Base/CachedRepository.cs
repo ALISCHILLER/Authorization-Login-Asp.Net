@@ -9,13 +9,15 @@ using Authorization_Login_Asp.Net.Core.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
+using Authorization_Login_Asp.Net.Core.Domain.Common;
+
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories.Base
 {
     /// <summary>
     /// کلاس پایه برای مخازن با پشتیبانی از کش
     /// </summary>
     /// <typeparam name="T">نوع موجودیت</typeparam>
-    public abstract class CachedRepository<T> : BaseRepository<T> where T : class, IEntity
+    public abstract class CachedRepository<T> : BaseRepository<T> where T : class, IEntity, IDeletable
     {
         protected readonly ICacheService _cacheService;
         protected readonly ILogger _logger;
@@ -90,10 +92,10 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories.Base
         /// <summary>
         /// به‌روزرسانی موجودیت با مدیریت کش
         /// </summary>
-        public override async Task UpdateAsync(T entity, CancellationToken cancellationToken = default)
+        public async Task UpdateAsync(T entity, CancellationToken cancellationToken = default)
         {
             ValidateEntity(entity, nameof(entity));
-            entity.UpdatedAt = DateTime.UtcNow;
+            if (entity is BaseEntity be) be.Update();
             await _dbSet.Update(entity).ReloadAsync(cancellationToken);
             await InvalidateEntityCacheAsync(entity, cancellationToken);
             _logger.LogInformation("موجودیت با شناسه {Id} با موفقیت به‌روزرسانی شد", entity.Id);
@@ -102,11 +104,17 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories.Base
         /// <summary>
         /// حذف موجودیت با مدیریت کش
         /// </summary>
-        public override async Task DeleteAsync(T entity, CancellationToken cancellationToken = default)
+        public async Task DeleteAsync(T entity, CancellationToken cancellationToken = default)
         {
             ValidateEntity(entity, nameof(entity));
-            entity.IsDeleted = true;
-            entity.DeletedAt = DateTime.UtcNow;
+            if (entity is BaseEntity be)
+            {
+                be.Update();
+                var isDeletedProp = typeof(BaseEntity).GetProperty("_isDeleted", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var deletedAtProp = typeof(BaseEntity).GetProperty("_deletedAt", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                isDeletedProp?.SetValue(be, true);
+                deletedAtProp?.SetValue(be, DateTime.UtcNow);
+            }
             await _dbSet.Update(entity).ReloadAsync(cancellationToken);
             await InvalidateEntityCacheAsync(entity, cancellationToken);
             _logger.LogInformation("موجودیت با شناسه {Id} با موفقیت حذف شد", entity.Id);
@@ -115,11 +123,10 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories.Base
         /// <summary>
         /// افزودن موجودیت با مدیریت کش
         /// </summary>
-        public override async Task AddAsync(T entity, CancellationToken cancellationToken = default)
+        public async Task AddAsync(T entity, CancellationToken cancellationToken = default)
         {
             ValidateEntity(entity, nameof(entity));
-            entity.CreatedAt = DateTime.UtcNow;
-            entity.UpdatedAt = DateTime.UtcNow;
+            if (entity is BaseEntity be) be.Create();
             await _dbSet.AddAsync(entity, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
             await InvalidateEntityCacheAsync(entity, cancellationToken);
@@ -131,4 +138,4 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories.Base
         /// </summary>
         protected abstract Task InvalidateEntityCacheAsync(T entity, CancellationToken cancellationToken = default);
     }
-} 
+}

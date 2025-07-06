@@ -14,53 +14,40 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Mappings
         /// </summary>
         public MappingProfile()
         {
-            // نگاشت از موجودیت User به DTO (UserDto) با تبدیل فیلدهای خاص (مثلاً تبدیل Email به مقدار رشته‌ای و تبدیل Role به رشته)
+            // نگاشت از موجودیت User به DTO (UserDto)
             CreateMap<User, UserDto>()
                 .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email.Value))
-                .ForMember(dest => dest.RoleType, opt => opt.MapFrom(src => src.Role))
-                .ForMember(dest => dest.Roles, opt => opt.MapFrom(src => src.GetRoles()))
-                .ForMember(dest => dest.PrimaryRole, opt => opt.MapFrom(src => src.PrimaryRole));
+                .ForMember(dest => dest.Roles, opt => opt.MapFrom(src => src.Roles))
+                .ForMember(dest => dest.PrimaryRole, opt => opt.MapFrom(src => src.Roles.Count > 0 ? src.Roles.First().Name : string.Empty));
 
-            // نگاشت از درخواست ثبت‌نام (RegisterRequest) به موجودیت User (با تبدیل فیلدهای خاص و نادیده گرفتن فیلدهای هش رمز عبور و رفرش توکن‌ها)
+            // نگاشت از درخواست ثبت‌نام (RegisterRequest) به موجودیت User
             CreateMap<RegisterRequest, User>()
                 .ForMember(dest => dest.Email, opt => opt.MapFrom(src => new Domain.ValueObjects.Email(src.Email)))
-                .ForMember(dest => dest.Role, opt => opt.MapFrom(src => Enum.Parse<Domain.Enums.UserRole>(src.Role)))
-                .ForMember(dest => dest.PasswordHash, opt => opt.Ignore()) // رمز عبور هش می‌شود جای دیگر
-                .ForMember(dest => dest.Username, opt => opt.MapFrom(src => src.Email)) // به عنوان مثال Username = Email
+                .ForMember(dest => dest.Username, opt => opt.MapFrom(src => src.Username))
+                .ForMember(dest => dest.FirstName, opt => opt.MapFrom(src => src.FirstName))
+                .ForMember(dest => dest.LastName, opt => opt.MapFrom(src => src.LastName))
+                .ForMember(dest => dest.PhoneNumber, opt => opt.MapFrom(src => src.PhoneNumber))
+                .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
+                .ForMember(dest => dest.Roles, opt => opt.Ignore())
                 .ForMember(dest => dest.RefreshTokens, opt => opt.Ignore());
 
-            // نگاشت از موجودیت User به پاسخ احراز هویت (AuthResponse) با تبدیل فیلدهای خاص و نادیده گرفتن فیلدهای توکن و پرمیشن‌ها (که معمولاً جداگانه پر می‌شوند)
+            // نگاشت از موجودیت User به پاسخ احراز هویت (AuthResponse)
             CreateMap<User, AuthResponse>()
-                .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.Id))
-                .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email.Value))
-                .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.Role.ToString()))
-                .ForMember(dest => dest.Permissions, opt => opt.Ignore()) // معمولاً جداگانه پر می‌شود
-                .ForMember(dest => dest.AccessToken, opt => opt.Ignore())
-                .ForMember(dest => dest.AccessTokenExpiresAt, opt => opt.Ignore())
-                .ForMember(dest => dest.RefreshToken, opt => opt.Ignore())
-                .ForMember(dest => dest.RefreshTokenExpiresAt, opt => opt.Ignore());
+                .ForMember(dest => dest.User, opt => opt.MapFrom(src => src));
 
             // نگاشت از موجودیت LoginHistory به DTO (LoginHistoryDto)
             CreateMap<LoginHistory, LoginHistoryDto>()
-                .ForMember(dest => dest.DeviceId, opt => opt.MapFrom(src => src.DeviceId.ToString()))
-                .ForMember(dest => dest.Browser, opt => opt.MapFrom(src => src.BrowserName))
-                .ForMember(dest => dest.SessionDuration, opt => opt.MapFrom(src => src.SessionDuration.HasValue ? TimeSpan.FromSeconds(src.SessionDuration.Value) : (TimeSpan?)null));
-
-            // نگاشت از درخواست ثبت ورود (LoginHistoryRequestDto) به موجودیت LoginHistory
-            CreateMap<LoginHistoryRequestDto, LoginHistory>()
-                .ForMember(dest => dest.Id, opt => opt.Ignore()) // شناسه توسط سرویس تولید می‌شود
-                .ForMember(dest => dest.UserId, opt => opt.Ignore()) // شناسه کاربر توسط سرویس تنظیم می‌شود
-                .ForMember(dest => dest.LoginTime, opt => opt.Ignore()) // زمان ورود توسط سرویس تنظیم می‌شود
-                .ForMember(dest => dest.IsSuccessful, opt => opt.Ignore()) // وضعیت موفقیت توسط سرویس تنظیم می‌شود
-                .ForMember(dest => dest.LogoutTime, opt => opt.Ignore()) // زمان خروج توسط سرویس تنظیم می‌شود
-                .ForMember(dest => dest.SessionDuration, opt => opt.Ignore()) // مدت زمان حضور توسط سرویس محاسبه می‌شود
-                .ForMember(dest => dest.User, opt => opt.Ignore()); // رابطه با کاربر توسط سرویس تنظیم می‌شود
+                .ForMember(dest => dest.Browser, opt => opt.MapFrom(src => src.Browser))
+                .ForMember(dest => dest.Device, opt => opt.MapFrom(src => src.DeviceName))
+                .ForMember(dest => dest.Location, opt => opt.MapFrom(src => src.Location))
+                .ForMember(dest => dest.SessionDuration, opt => opt.MapFrom(src => src.SessionDuration));
 
             // نگاشت از DTO (LoginHistoryDto) به موجودیت LoginHistory
             CreateMap<LoginHistoryDto, LoginHistory>()
-                .ForMember(dest => dest.DeviceId, opt => opt.MapFrom(src => string.IsNullOrEmpty(src.DeviceId) ? Guid.Empty : Guid.Parse(src.DeviceId)))
-                .ForMember(dest => dest.BrowserName, opt => opt.MapFrom(src => src.Browser))
-                .ForMember(dest => dest.SessionDuration, opt => opt.MapFrom(src => src.SessionDuration.HasValue ? (int)src.SessionDuration.Value.TotalSeconds : (int?)null));
+                .ForMember(dest => dest.Browser, opt => opt.MapFrom(src => src.Browser))
+                .ForMember(dest => dest.DeviceName, opt => opt.MapFrom(src => src.Device))
+                .ForMember(dest => dest.Location, opt => opt.MapFrom(src => src.Location))
+                .ForMember(dest => dest.SessionDuration, opt => opt.MapFrom(src => src.SessionDuration));
         }
     }
 }
