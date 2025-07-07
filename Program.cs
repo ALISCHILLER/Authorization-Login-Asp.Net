@@ -336,35 +336,24 @@ app.UseSecurityHeaders();
 app.UseHsts();
 app.UseHttpsRedirection();
 
-// Exception handling first
-app.UseMiddleware<ExceptionHandlingMiddleware>();
+// Global Error Handling Middleware should be one of the first to catch all subsequent errors.
+app.UseMiddleware<ErrorHandlingMiddleware>(); // Moved Presentation.Api.Middleware.ErrorHandlingMiddleware here
 
-// Then logging
+// Security and monitoring middleware
+// app.UseMiddleware<ExceptionHandlingMiddleware>(); // Already removed
+
 app.UseMiddleware<RequestLoggingMiddleware>();
+app.UseMiddleware<MetricsMiddleware>(); // Metrics can be after logging but before auth/CORS if they don't depend on user context
 
-// Then metrics
-app.UseMiddleware<MetricsMiddleware>();
-
-// Then rate limiting
+// Then security features that might deny requests
 app.UseRateLimiter();
+app.UseCors("DefaultCorsPolicy"); // CORS should be before Authentication/Authorization
 
-// Then CORS with validation
-var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>();
-if (allowedOrigins == null || !allowedOrigins.Any())
-{
-    throw new InvalidOperationException("No allowed origins configured for CORS.");
-}
-app.UseCors("DefaultCorsPolicy");
-
-// Then authentication and authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Then compression
+// Other features
 app.UseResponseCompression();
-
-// Then error handling
-app.UseMiddleware<ErrorHandlingMiddleware>();
 
 // Then endpoints
 app.MapControllers();

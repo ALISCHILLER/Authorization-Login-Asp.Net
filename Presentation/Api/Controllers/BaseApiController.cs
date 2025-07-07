@@ -5,7 +5,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using MediatR;
 
-namespace Authorization_Login_Asp.Net.Core.Presentation.Api.Controllers
+namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers // Removed .Core
 {
     /// <summary>
     /// کلاس پایه برای کنترلرهای API

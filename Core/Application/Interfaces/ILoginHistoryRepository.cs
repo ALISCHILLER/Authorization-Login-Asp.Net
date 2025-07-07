@@ -127,7 +127,8 @@ namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
             DateTime endTime,
             CancellationToken cancellationToken = default);
 
-        Task AddAsync(LoginHistory loginHistory);
-        Task<int> SaveChangesAsync();
+        // Removed specific AddAsync and SaveChangesAsync as they should be inherited from IGenericRepository
+        // Task AddAsync(LoginHistory loginHistory);
+        // Task<int> SaveChangesAsync();
     }
 }

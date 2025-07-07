@@ -3,22 +3,28 @@ using Authorization_Login_Asp.Net.Core.Domain.Enums;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Entities
 {
+using Authorization_Login_Asp.Net.Core.Domain.Common; // Added for BaseEntity
+
+namespace Authorization_Login_Asp.Net.Core.Domain.Entities
+{
     /// <summary>
     /// موجودیت اعلان
     /// </summary>
-    public class Notification // حذف : IEntity چون اینترفیس موجود نیست یا تعریف نشده
+    public class Notification : BaseEntity // Inherit from BaseEntity
     {
-        public Guid Id { get; set; }
-        public Guid UserId { get; set; }
+        // Id, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy, IsDeleted, DeletedAt, DeletedBy are inherited.
+
+        public Guid UserId { get; set; } // Assuming this is the recipient user
         public string Title { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
+
+        // 'Type' string property might be redundant if NotificationType enum is used effectively.
+        // Consider removing if NotificationType covers all needs. For now, keeping it.
         public string Type { get; set; } = string.Empty;
+
         public bool IsRead { get; set; }
-        public DateTime CreatedAt { get; set; }
         public DateTime? ReadAt { get; set; }
-        public DateTime? UpdatedAt { get; set; }
-        public bool IsDeleted { get; set; }
-        public DateTime? DeletedAt { get; set; }
+
         public NotificationType NotificationType { get; set; }
         public NotificationPriority NotificationPriority { get; set; }
         public string ActionUrl { get; set; } = string.Empty;
@@ -41,8 +47,9 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             string icon = "",
             string color = "",
             DateTime? expiresAt = null)
+            : base() // Calls BaseEntity constructor for Id and CreatedAt
         {
-            Id = Guid.NewGuid();
+            // Id and CreatedAt are set by BaseEntity constructor
             UserId = userId;
             Title = title;
             Message = message;
@@ -54,18 +61,19 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             Color = color;
             ExpiresAt = expiresAt;
             IsRead = false;
-            CreatedAt = DateTime.UtcNow;
+            // CreatedBy would be set by the service/context if needed
         }
 
         /// <summary>
         /// علامت‌گذاری به عنوان خوانده شده
         /// </summary>
-        public void MarkAsRead()
+        public void MarkAsRead(string? updatedByUserId = null)
         {
             if (!IsRead)
             {
                 IsRead = true;
                 ReadAt = DateTime.UtcNow;
+                MarkAsUpdated(updatedByUserId); // Record this change
             }
         }
 
@@ -89,7 +97,8 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             string actionText = "",
             string icon = "",
             string color = "",
-            DateTime? expiresAt = null)
+            DateTime? expiresAt = null,
+            string? updatedByUserId = null)
         {
             Title = string.IsNullOrEmpty(title) ? Title : title;
             Message = string.IsNullOrEmpty(message) ? Message : message;
@@ -100,7 +109,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             Icon = string.IsNullOrEmpty(icon) ? Icon : icon;
             Color = string.IsNullOrEmpty(color) ? Color : color;
             ExpiresAt = expiresAt ?? ExpiresAt;
-            UpdatedAt = DateTime.UtcNow;
+            MarkAsUpdated(updatedByUserId);
         }
     }
 }

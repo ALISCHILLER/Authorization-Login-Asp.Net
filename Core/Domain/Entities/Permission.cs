@@ -10,13 +10,10 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
     /// مدل دسترسی‌ها (Permissions)
     /// این کلاس نماینده جدول Permissions در دیتابیس است و تعریف کننده دسترسی‌های سیستم است
     /// </summary>
-    public class Permission : BaseEntity, IAuditable
+    public class Permission : AggregateRoot // Changed from BaseEntity, IAuditable to AggregateRoot
     {
-        /// <summary>
-        /// کلید اصلی پرمیشن
-        /// </summary>
-        [Key]
-        public Guid Id { get; set; }
+        // Id is inherited from BaseEntity (via AggregateRoot)
+        // Auditing fields (CreatedAt, CreatedBy, UpdatedAt, UpdatedBy, IsDeleted, DeletedAt, DeletedBy) are inherited.
 
         /// <summary>
         /// نام یکتا و کوتاه دسترسی (مثلاً "CanEdit", "CanDelete")
@@ -42,16 +39,14 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         [MaxLength(100)]
         public string SystemName { get; private set; }
 
-        /// <summary>
-        /// تاریخ ایجاد پرمیشن
-        /// </summary>
-        public DateTime CreatedAt { get; set; }
-        public string CreatedBy { get; set; }
-        public DateTime? LastModifiedAt { get; set; }
-        public string LastModifiedBy { get; set; }
-        public bool IsDeleted { get; set; }
-        public DateTime? DeletedAt { get; set; }
-        public string DeletedBy { get; set; }
+        // Removed manual Auditing properties as they are inherited.
+        // public DateTime CreatedAt { get; set; }
+        // public string CreatedBy { get; set; }
+        // public DateTime? LastModifiedAt { get; set; }
+        // public string LastModifiedBy { get; set; }
+        // public bool IsDeleted { get; set; }
+        // public DateTime? DeletedAt { get; set; }
+        // public string DeletedBy { get; set; }
 
         /// <summary>
         /// ارتباط‌های این دسترسی با نقش‌ها
@@ -88,13 +83,13 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             if (string.IsNullOrWhiteSpace(systemName))
                 throw new ArgumentException("نام سامانه نمی‌تواند خالی باشد", nameof(systemName));
 
-            Id = Guid.NewGuid();
+            // Id and CreatedAt are set by BaseEntity constructor
             Name = name.Trim();
             SystemName = systemName.Trim();
             Description = description?.Trim();
             Group = group;
             Type = type;
-            CreatedAt = DateTime.UtcNow;
+            // MarkAsCreated(null); // Optional: if you need to set CreatedBy immediately and not rely on DbContext
         }
 
         /// <summary>
@@ -115,36 +110,35 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             Description = description?.Trim();
             if (group != null) Group = group;
             if (type != null) Type = type;
-            LastModifiedAt = DateTime.UtcNow;
+            UpdateAuditable(null); // Assuming modifiedByUserId will be set by the caller or DbContext
         }
 
-        public void Activate()
+        public void Activate(string? activatedByUserId = null)
         {
             IsActive = true;
-            LastModifiedAt = DateTime.UtcNow;
+            UpdateAuditable(activatedByUserId);
         }
 
-        public void Deactivate()
+        public void Deactivate(string? deactivatedByUserId = null)
         {
             IsActive = false;
-            LastModifiedAt = DateTime.UtcNow;
+            UpdateAuditable(deactivatedByUserId);
         }
 
-        public void MarkAsDeleted(string deletedBy)
-        {
-            IsDeleted = true;
-            DeletedAt = DateTime.UtcNow;
-            DeletedBy = deletedBy;
-        }
+        // MarkAsDeleted is inherited from BaseEntity, no need to redefine unless specific logic is needed.
+        // public void MarkAsDeleted(string deletedBy)
+        // {
+        //     IsDeleted = true;
+        //     DeletedAt = DateTime.UtcNow;
+        //     DeletedBy = deletedBy;
+        // }
 
         /// <summary>
-        /// حذف دسترسی
+        /// حذف دسترسی (soft delete)
         /// </summary>
-        public void Delete()
+        public void DeletePermission(string? deletedByUserId = null)
         {
-            IsDeleted = true;
-            DeletedAt = DateTime.UtcNow;
-            Update();
+            DeleteAuditable(deletedByUserId);
         }
 
         /// <summary>
@@ -161,7 +155,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             {
                 var rolePermission = RolePermission.Create(role.Id, Id, description);
                 _rolePermissions.Add(rolePermission);
-                Update();
+                UpdateAuditable(null); // Assuming modifiedByUserId will be set by the caller or DbContext
             }
         }
 
@@ -178,7 +172,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             if (rolePermission != null)
             {
                 _rolePermissions.Remove(rolePermission);
-                Update();
+                UpdateAuditable(null); // Assuming modifiedByUserId will be set by the caller or DbContext
             }
         }
 

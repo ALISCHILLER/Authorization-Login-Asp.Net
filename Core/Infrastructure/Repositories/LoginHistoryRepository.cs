@@ -42,7 +42,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             {
                 var query = _dbSet
                     .Where(lh => lh.UserId == userId && !lh.IsDeleted)
-                    .OrderByDescending(lh => lh.LoginTime);
+                    .OrderByDescending(lh => lh.CreatedAt); // Changed LoginTime to CreatedAt
 
                 if (limit.HasValue)
                 {
@@ -77,9 +77,9 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
                 return await _dbSet
                     .Where(lh => lh.UserId == userId && 
                                 !lh.IsDeleted && 
-                                lh.LoginTime >= startDate && 
-                                lh.LoginTime <= endDate)
-                    .OrderByDescending(lh => lh.LoginTime)
+                                lh.CreatedAt >= startDate && // Changed LoginTime to CreatedAt
+                                lh.CreatedAt <= endDate)    // Changed LoginTime to CreatedAt
+                    .OrderByDescending(lh => lh.CreatedAt) // Changed LoginTime to CreatedAt
                     .ToListAsync(cancellationToken);
             }
             catch (Exception ex)
@@ -107,7 +107,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
                     .Where(lh => lh.UserId == userId && 
                                 lh.DeviceId == deviceId && 
                                 !lh.IsDeleted)
-                    .OrderByDescending(lh => lh.LoginTime)
+                    .OrderByDescending(lh => lh.CreatedAt) // Changed LoginTime to CreatedAt
                     .ToListAsync(cancellationToken);
             }
             catch (Exception ex)
@@ -131,7 +131,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             {
                 return await _dbSet
                     .Where(lh => lh.UserId == userId && !lh.IsDeleted)
-                    .OrderByDescending(lh => lh.LoginTime)
+                    .OrderByDescending(lh => lh.CreatedAt) // Changed LoginTime to CreatedAt
                     .FirstOrDefaultAsync(cancellationToken);
             }
             catch (Exception ex)
@@ -160,7 +160,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
                     .CountAsync(lh => lh.UserId == userId && 
                                      !lh.IsDeleted && 
                                      !lh.IsSuccessful && 
-                                     lh.LoginTime >= cutoffTime,
+                                     lh.CreatedAt >= cutoffTime, // Changed LoginTime to CreatedAt
                                cancellationToken);
             }
             catch (Exception ex)
@@ -183,7 +183,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             try
             {
                 var oldRecords = await _dbSet
-                    .Where(lh => lh.LoginTime < olderThan && !lh.IsDeleted)
+                    .Where(lh => lh.CreatedAt < olderThan && !lh.IsDeleted) // Changed LoginTime to CreatedAt
                     .ToListAsync(cancellationToken);
 
                 if (!oldRecords.Any())
@@ -191,8 +191,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
 
                 foreach (var record in oldRecords)
                 {
-                    record.IsDeleted = true;
-                    record.DeletedAt = DateTime.UtcNow;
+                    record.MarkAsDeleted(null); // Use BaseEntity method, assuming system/null user for this operation
+                    Update(record); // Mark for update by DbContext
                 }
 
                 return await _context.SaveChangesAsync(cancellationToken);
@@ -214,10 +214,10 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
                 return await _dbSet
                     .Include(lh => lh.User)
                     .Where(lh => 
-                        lh.LoginTime >= startDate && 
-                        lh.LoginTime <= endDate && 
+                        lh.CreatedAt >= startDate && // Changed LoginTime to CreatedAt
+                        lh.CreatedAt <= endDate && // Changed LoginTime to CreatedAt
                         !lh.IsDeleted)
-                    .OrderByDescending(lh => lh.LoginTime)
+                    .OrderByDescending(lh => lh.CreatedAt) // Changed LoginTime to CreatedAt
                     .ToListAsync(cancellationToken);
             }
             catch (Exception ex)
@@ -240,16 +240,16 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
 
                 if (startDate.HasValue)
                 {
-                    query = query.Where(lh => lh.LoginTime >= startDate.Value);
+                    query = query.Where(lh => lh.CreatedAt >= startDate.Value); // Changed LoginTime to CreatedAt
                 }
 
                 if (endDate.HasValue)
                 {
-                    query = query.Where(lh => lh.LoginTime <= endDate.Value);
+                    query = query.Where(lh => lh.CreatedAt <= endDate.Value); // Changed LoginTime to CreatedAt
                 }
 
                 return await query
-                    .OrderByDescending(lh => lh.LoginTime)
+                    .OrderByDescending(lh => lh.CreatedAt) // Changed LoginTime to CreatedAt
                     .ToListAsync(cancellationToken);
             }
             catch (Exception ex)
@@ -273,7 +273,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
                         lh.UserId == userId && 
                         !lh.IsSuccessful && 
                         !lh.IsDeleted && 
-                        lh.LoginTime >= cutoffTime, 
+                        lh.CreatedAt >= cutoffTime, // Changed LoginTime to CreatedAt
                         cancellationToken) >= maxAttempts;
             }
             catch (Exception ex)
@@ -291,7 +291,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             {
                 var cutoffDate = DateTime.UtcNow.AddDays(-daysToKeep);
                 var oldRecords = await _dbSet
-                    .Where(lh => lh.LoginTime < cutoffDate && !lh.IsDeleted)
+                    .Where(lh => lh.CreatedAt < cutoffDate && !lh.IsDeleted) // Changed LoginTime to CreatedAt
                     .ToListAsync(cancellationToken);
 
                 if (!oldRecords.Any())
@@ -301,8 +301,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
 
                 foreach (var record in oldRecords)
                 {
-                    record.IsDeleted = true;
-                    record.DeletedAt = DateTime.UtcNow;
+                    record.MarkAsDeleted(null); // Use BaseEntity method
+                    Update(record); // Mark for update by DbContext
                 }
 
                 return await _context.SaveChangesAsync(cancellationToken);

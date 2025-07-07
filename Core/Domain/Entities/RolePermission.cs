@@ -9,8 +9,10 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
     /// مدل ارتباط بین نقش‌ها و دسترسی‌ها
     /// این کلاس نماینده جدول RolePermissions در دیتابیس است
     /// </summary>
-    public class RolePermission : IEntity
+    public class RolePermission : BaseEntity // Inherit from BaseEntity
     {
+        // Id, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy, IsDeleted, DeletedAt, DeletedBy are inherited.
+
         /// <summary>
         /// شناسه نقش
         /// </summary>
@@ -41,30 +43,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         [ForeignKey(nameof(PermissionId))]
         public virtual Permission Permission { get; set; }
 
-        /// <summary>
-        /// شناسه
-        /// </summary>
-        public Guid Id { get; set; }
-
-        /// <summary>
-        /// زمان ایجاد
-        /// </summary>
-        public DateTime CreatedAt { get; set; }
-
-        /// <summary>
-        /// زمان به‌روزرسانی
-        /// </summary>
-        public DateTime? UpdatedAt { get; set; }
-
-        /// <summary>
-        /// حذف شده
-        /// </summary>
-        public bool IsDeleted { get; set; }
-
-        /// <summary>
-        /// زمان حذف
-        /// </summary>
-        public DateTime? DeletedAt { get; set; }
+        // Manual Id and Auditing properties removed.
 
         /// <summary>
         /// سازنده پیش‌فرض برای EF Core
@@ -85,37 +64,37 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             if (permissionId == Guid.Empty)
                 throw new ArgumentException("شناسه دسترسی نمی‌تواند خالی باشد", nameof(permissionId));
 
+            // Id and CreatedAt are set by BaseEntity constructor
             return new RolePermission
             {
-                Id = Guid.NewGuid(),
                 RoleId = roleId,
                 PermissionId = permissionId,
-                Description = description,
-                CreatedAt = DateTime.UtcNow
+                Description = description
             };
+            // rp.MarkAsCreated(null); // Optional: if you need to set CreatedBy immediately
         }
 
         /// <summary>
         /// به‌روزرسانی توضیحات
         /// </summary>
         /// <param name="description">توضیح جدید</param>
-        public void UpdateDescription(string description)
+        public void UpdateDescription(string description, string? updatedByUserId = null)
         {
             Description = description;
-            Update();
+            MarkAsUpdated(updatedByUserId);
         }
 
         /// <summary>
         /// به‌روزرسانی دسترسی
         /// </summary>
         /// <param name="newPermissionId">شناسه دسترسی جدید</param>
-        public void UpdatePermission(Guid newPermissionId)
+        public void UpdatePermission(Guid newPermissionId, string? updatedByUserId = null)
         {
             if (newPermissionId == Guid.Empty)
                 throw new ArgumentException("شناسه دسترسی نمی‌تواند خالی باشد", nameof(newPermissionId));
 
             PermissionId = newPermissionId;
-            Update();
+            MarkAsUpdated(updatedByUserId);
         }
     }
 }

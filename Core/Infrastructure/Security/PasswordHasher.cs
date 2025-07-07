@@ -83,79 +83,21 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Security
             if (string.IsNullOrWhiteSpace(hash))
                 throw new ArgumentException("Hash cannot be empty", nameof(hash));
 
-            // در حال حاضر، هش‌ها همیشه با آخرین پارامترها تولید می‌شوند
-            // این متد برای سازگاری با تغییرات آینده در پارامترهای هش کردن است
+            // TODO: Implement actual rehash check if parameters (e.g., iterations) change over time.
+            // For now, assume hashes are always generated with current options.
             return false;
         }
 
-        /// <summary>
-        /// هش کردن رمز عبور
-        /// </summary>
-        public async Task<string> HashPasswordAsync(User user, string password)
-        {
-            if (user == null)
-                throw new ArgumentNullException(nameof(user), "کاربر نمی‌تواند خالی باشد");
+        // The following methods specific to 'User' entity and combined salt:hash string are removed
+        // as they promote weaker hashing (lower iteration count) and duplicate logic.
+        // Consumers should call HashPasswordAsync(string password) to get a separate hash and salt,
+        // and store them accordingly. When verifying, they should retrieve the separate hash and salt
+        // and call VerifyPasswordAsync(string password, string hash, string salt).
 
-            if (string.IsNullOrWhiteSpace(password))
-                throw new ArgumentException("رمز عبور نمی‌تواند خالی باشد", nameof(password));
-
-            var salt = GenerateSalt();
-            var hash = await HashPasswordWithSaltAsync(password, salt);
-            return $"{salt}:{hash}";
-        }
-
-        /// <summary>
-        /// بررسی رمز عبور
-        /// </summary>
-        public async Task<bool> VerifyPasswordAsync(User user, string password)
-        {
-            if (user == null)
-                throw new ArgumentNullException(nameof(user), "کاربر نمی‌تواند خالی باشد");
-
-            if (string.IsNullOrWhiteSpace(password))
-                throw new ArgumentException("رمز عبور نمی‌تواند خالی باشد", nameof(password));
-
-            if (string.IsNullOrWhiteSpace(user.PasswordHash))
-                throw new InvalidOperationException("رمز عبور کاربر تنظیم نشده است");
-
-            var parts = user.PasswordHash.Split(':');
-            if (parts.Length != 2)
-                throw new InvalidOperationException("فرمت رمز عبور نامعتبر است");
-
-            var salt = parts[0];
-            var storedHash = parts[1];
-
-            var computedHash = await HashPasswordWithSaltAsync(password, salt);
-            return storedHash == computedHash;
-        }
-
-        /// <summary>
-        /// تولید نمک تصادفی
-        /// </summary>
-        private string GenerateSalt()
-        {
-            var salt = new byte[16];
-            using (var rng = new RNGCryptoServiceProvider())
-            {
-                rng.GetBytes(salt);
-            }
-            return Convert.ToBase64String(salt);
-        }
-
-        /// <summary>
-        /// هش کردن رمز عبور با نمک
-        /// </summary>
-        private async Task<string> HashPasswordWithSaltAsync(string password, string salt)
-        {
-            var saltBytes = Convert.FromBase64String(salt);
-            var passwordBytes = Encoding.UTF8.GetBytes(password);
-
-            using (var pbkdf2 = new Rfc2898DeriveBytes(passwordBytes, saltBytes, 10000))
-            {
-                var hash = pbkdf2.GetBytes(32);
-                return await Task.FromResult(Convert.ToBase64String(hash));
-            }
-        }
+        // Removed: public async Task<string> HashPasswordAsync(User user, string password)
+        // Removed: public async Task<bool> VerifyPasswordAsync(User user, string password)
+        // Removed: private string GenerateSalt()
+        // Removed: private async Task<string> HashPasswordWithSaltAsync(string password, string salt)
     }
 
     /// <summary>

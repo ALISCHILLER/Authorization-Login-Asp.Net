@@ -59,21 +59,21 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
             ValidateIds(userId, roleId);
             ValidateExpiration(expiresAt);
 
+            // Id and CreatedAt are set by BaseEntity constructor
             return new UserRole
             {
-                Id = Guid.NewGuid(),
                 UserId = userId,
                 RoleId = roleId,
                 IsPrimary = isPrimary,
-                ExpiresAt = expiresAt,
-                CreatedAt = DateTime.UtcNow
+                ExpiresAt = expiresAt
             };
+            // ur.MarkAsCreated(null); // Optional
         }
 
         /// <summary>
         /// به‌روزرسانی نقش
         /// </summary>
-        public void UpdateRole(Guid newRoleId)
+        public void UpdateRole(Guid newRoleId, string? updatedByUserId = null)
         {
             ValidateIds(UserId, newRoleId);
             
@@ -81,13 +81,13 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
                 throw new DomainException("نقش اصلی قابل تغییر نیست");
 
             RoleId = newRoleId;
-            Update();
+            MarkAsUpdated(updatedByUserId);
         }
 
         /// <summary>
         /// تمدید تاریخ انقضا
         /// </summary>
-        public void ExtendExpiration(DateTime newExpirationDate)
+        public void ExtendExpiration(DateTime newExpirationDate, string? updatedByUserId = null)
         {
             ValidateExpiration(newExpirationDate);
             
@@ -95,7 +95,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
                 throw new DomainException("تاریخ انقضای جدید باید بزرگتر از تاریخ فعلی باشد");
 
             ExpiresAt = newExpirationDate;
-            Update();
+            MarkAsUpdated(updatedByUserId);
         }
 
         /// <summary>
@@ -109,10 +109,10 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         /// <summary>
         /// تغییر وضعیت نقش اصلی
         /// </summary>
-        public void SetPrimary(bool isPrimary)
+        public void SetPrimary(bool isPrimary, string? updatedByUserId = null)
         {
             IsPrimary = isPrimary;
-            Update();
+            MarkAsUpdated(updatedByUserId);
         }
 
         private static void ValidateIds(Guid userId, Guid roleId)

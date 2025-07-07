@@ -171,11 +171,14 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         }
 
         /// <inheritdoc />
-        public async Task SendVerificationEmailAsync(string email)
+        // Changed signature to match interface and common use case (passing a link or token)
+        public async Task SendVerificationEmailAsync(string email, string verificationIdentifier)
         {
+            // Assuming verificationIdentifier is a link or a token to be embedded in the link
             var subject = "تایید ایمیل";
-            var body = "کد تایید یا لینک تایید ایمیل";
-            await SendEmailAsync(new Authorization_Login_Asp.Net.Core.Application.DTOs.Common.EmailRequest { To = email, Subject = subject, Body = body });
+            // TODO: The body should actually use the verificationIdentifier to build a proper confirmation link.
+            var body = $"لطفا برای تایید ایمیل خود از این شناسه استفاده کنید: {verificationIdentifier}";
+            await SendEmailAsync(new EmailRequest { To = email, Subject = subject, Body = body, IsHtml = true });
         }
 
         public async Task SendBackupCodesAsync(string email, System.Collections.Generic.List<string> codes)
@@ -246,7 +249,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         /// <summary>
         /// ارسال ایمیل با استفاده از SmtpClient
         /// </summary>
-        private async Task SendEmailAsync(EmailRequest request)
+        public async Task SendEmailAsync(EmailRequest request) // Made public to match interface
         {
             using var activity = _tracingService.StartActivity("EmailService.SendEmailAsync");
             try

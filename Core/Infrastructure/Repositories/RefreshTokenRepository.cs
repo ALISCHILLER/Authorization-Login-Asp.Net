@@ -66,10 +66,12 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
                     return false;
                 }
 
-                refreshToken.IsRevoked = true;
-                refreshToken.RevokedAt = DateTime.UtcNow;
-                refreshToken.ReasonRevoked = reason;
-
+                // refreshToken.IsRevoked = true; // Let the entity method handle this
+                // refreshToken.RevokedAt = DateTime.UtcNow;
+                // refreshToken.ReasonRevoked = reason;
+                refreshToken.Revoke(reason, null, null, null); // Assuming current user is not directly available here for updatedByUserId
+                                                              // Pass IP if available for RevokedByIp
+                Update(refreshToken); // Mark for update by DbContext
                 return await _context.SaveChangesAsync(cancellationToken) > 0;
             }
             catch (Exception ex)
@@ -94,9 +96,11 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
 
                 foreach (var token in tokens)
                 {
-                    token.IsRevoked = true;
-                    token.RevokedAt = DateTime.UtcNow;
-                    token.ReasonRevoked = reason;
+                    // token.IsRevoked = true;
+                    // token.RevokedAt = DateTime.UtcNow;
+                    // token.ReasonRevoked = reason;
+                    token.Revoke(reason, null, null, null);
+                    Update(token);
                 }
 
                 return await _context.SaveChangesAsync(cancellationToken) > 0;
@@ -143,8 +147,10 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
 
                 foreach (var token in expiredTokens)
                 {
-                    token.IsDeleted = true;
-                    token.DeletedAt = DateTime.UtcNow;
+                    // token.IsDeleted = true; // Let the entity method handle this
+                    // token.DeletedAt = DateTime.UtcNow;
+                    token.MarkAsDeleted(null); // Pass system/admin user ID if appropriate
+                    Update(token);
                 }
 
                 return await _context.SaveChangesAsync(cancellationToken);
