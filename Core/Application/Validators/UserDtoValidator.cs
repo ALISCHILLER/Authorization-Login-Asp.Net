@@ -189,17 +189,17 @@ namespace Authorization_Login_Asp.Net.Core.Application.Validators
                 .LessThanOrEqualTo(10)
                 .WithMessage("تعداد حداکثر تلاش‌های ناموفق ورود نمی‌تواند بیشتر از ۱۰ باشد.");
 
-            RuleFor(x => x.AccountLockoutDuration)
+            RuleFor(x => x.LockoutDurationMinutes) // Corrected to use LockoutDurationMinutes from DTO
                 .GreaterThanOrEqualTo(5)
                 .WithMessage("مدت زمان قفل شدن حساب باید حداقل ۵ دقیقه باشد.")
-                .LessThanOrEqualTo(1440)
+                .LessThanOrEqualTo(1440) // 24 hours
                 .WithMessage("مدت زمان قفل شدن حساب نمی‌تواند بیشتر از ۱۴۴۰ دقیقه باشد.");
 
-            RuleFor(x => x.PasswordExpirationDays)
-                .GreaterThanOrEqualTo(30)
-                .WithMessage("مدت زمان اعتبار رمز عبور باید حداقل ۳۰ روز باشد.")
-                .LessThanOrEqualTo(365)
-                .WithMessage("مدت زمان اعتبار رمز عبور نمی‌تواند بیشتر از ۳۶۵ روز باشد.");
+            // RuleFor(x => x.PasswordExpirationDays) // Removed as PasswordExpirationDays does not exist in UserSecuritySettingsDto
+            //     .GreaterThanOrEqualTo(30)
+            //     .WithMessage("مدت زمان اعتبار رمز عبور باید حداقل ۳۰ روز باشد.")
+            //     .LessThanOrEqualTo(365)
+            //     .WithMessage("مدت زمان اعتبار رمز عبور نمی‌تواند بیشتر از ۳۶۵ روز باشد.");
         }
     }
 }

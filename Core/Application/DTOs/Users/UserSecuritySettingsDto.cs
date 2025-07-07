@@ -5,7 +5,7 @@ namespace Authorization_Login_Asp.Net.Core.Application.DTOs.Users
         public bool TwoFactorEnabled { get; set; }
         public int MaxFailedLoginAttempts { get; set; }
         public int LockoutDurationMinutes { get; set; }
-        public bool HasTwoFactorEnabled { get; set; }
+        // public bool HasTwoFactorEnabled { get; set; } // Removed as redundant with TwoFactorEnabled
         public DateTime? LastPasswordChangeDate { get; set; }
         public bool RequiresPasswordChange { get; set; }
     }

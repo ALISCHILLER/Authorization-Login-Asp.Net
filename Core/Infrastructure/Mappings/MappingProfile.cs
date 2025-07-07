@@ -1,6 +1,8 @@
 using AutoMapper;
 using Authorization_Login_Asp.Net.Core.Domain.Entities;
-using Authorization_Login_Asp.Net.Core.Application.DTOs;
+// using Authorization_Login_Asp.Net.Core.Application.DTOs; // Removed as no longer needed
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Users; // For UserDto, LoginHistoryDto, CreateUserRequest
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Auth; // For AuthResponse
 
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Mappings
 {
@@ -20,8 +22,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Mappings
                 .ForMember(dest => dest.Roles, opt => opt.MapFrom(src => src.Roles))
                 .ForMember(dest => dest.PrimaryRole, opt => opt.MapFrom(src => src.Roles.Count > 0 ? src.Roles.First().Name : string.Empty));
 
-            // نگاشت از درخواست ثبت‌نام (RegisterRequest) به موجودیت User
-            CreateMap<RegisterRequest, User>()
+            // نگاشت از درخواست ثبت‌نام (CreateUserRequest) به موجودیت User
+            CreateMap<CreateUserRequest, User>()
                 .ForMember(dest => dest.Email, opt => opt.MapFrom(src => new Domain.ValueObjects.Email(src.Email)))
                 .ForMember(dest => dest.Username, opt => opt.MapFrom(src => src.Username))
                 .ForMember(dest => dest.FirstName, opt => opt.MapFrom(src => src.FirstName))

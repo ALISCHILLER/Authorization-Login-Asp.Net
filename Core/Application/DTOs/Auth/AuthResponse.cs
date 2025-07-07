@@ -1,7 +1,7 @@
-using Authorization_Login_Asp.Net.Core.Application.DTOs;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Users; // Assuming UserDto will be moved to Users folder
 using System.Collections.Generic;
 
-namespace Authorization_Login_Asp.Net.Core.Application.DTOs
+namespace Authorization_Login_Asp.Net.Core.Application.DTOs.Auth
 {
     public class AuthResponse
     {

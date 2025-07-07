@@ -1,17 +1,16 @@
 using FluentValidation;
-using Authorization_Login_Asp.Net.Core.Application.DTOs;
-using Authorization_Login_Asp.Net.Core.Application.DTOs.Auth;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Users; // Changed to Users for CreateUserRequest
 using System;
 using System.Linq;
 
 namespace Authorization_Login_Asp.Net.Core.Application.Common.Validators
 {
     /// <summary>
-    /// اعتبارسنج برای مدل RegisterRequest
+    /// اعتبارسنج برای مدل CreateUserRequest
     /// </summary>
-    public class RegisterRequestValidator : BaseValidator<RegisterRequest>
+    public class CreateUserRequestValidator : BaseValidator<CreateUserRequest>
     {
-        public RegisterRequestValidator()
+        public CreateUserRequestValidator()
         {
             ValidateUsername(RuleFor(x => x.Username));
             ValidateEmail(RuleFor(x => x.Email));

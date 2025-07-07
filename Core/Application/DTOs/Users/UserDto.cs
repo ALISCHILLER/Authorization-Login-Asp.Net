@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Authorization_Login_Asp.Net.Core.Application.DTOs.Roles;
 
-namespace Authorization_Login_Asp.Net.Core.Application.DTOs
+namespace Authorization_Login_Asp.Net.Core.Application.DTOs.Users
 {
     public class UserDto
     {

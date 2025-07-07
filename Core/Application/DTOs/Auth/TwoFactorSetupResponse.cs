@@ -1,4 +1,4 @@
-namespace Authorization_Login_Asp.Net.Core.Application.DTOs
+namespace Authorization_Login_Asp.Net.Core.Application.DTOs.Auth
 {
     public class TwoFactorSetupResponse
     {

@@ -1,4 +1,6 @@
-using Authorization_Login_Asp.Net.Core.Application.DTOs;
+using Authorization_Login_Asp.Net.Core.Application.DTOs; // This might become redundant if all DTOs are moved
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Auth;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Users; // Added for UserDto
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

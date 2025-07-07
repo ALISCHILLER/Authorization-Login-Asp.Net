@@ -4,10 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
-using Authorization_Login_Asp.Net.Core.Application.DTOs;
+using Authorization_Login_Asp.Net.Core.Application.DTOs; // May become redundant
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Users; // Added for UserDto
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
 using System.Collections.Generic;
-using Authorization_Login_Asp.Net.Core.Application.DTOs.Common;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Common; // For PaginatedList
 
 namespace Authorization_Login_Asp.Net.Core.Presentation.Api.Controllers
 {
