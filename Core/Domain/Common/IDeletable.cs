@@ -5,8 +5,8 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Common
 {
     public interface IDeletable
     {
-        bool IsDeleted { get; set; }
-        DateTime? DeletedAt { get; set; }
-        string DeletedBy { get; set; }
+        bool IsDeleted { get; /*protected*/ set; } // Setter might be protected if only BaseEntity should set it
+        DateTime? DeletedAt { get; /*protected*/ set; }
+        string? DeletedBy { get; /*protected*/ set; } // Changed to string?
     }
 }

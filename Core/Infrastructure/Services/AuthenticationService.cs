@@ -141,44 +141,46 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         }
 
         // ثبت تاریخچه ورود موفق
-        public async Task<LoginHistory> LogSuccessfulLoginAsync(Guid userId, string ipAddress, string userAgent, DeviceInfo deviceInfo)
+        public async Task LogSuccessfulLoginAsync(Guid userId, string ipAddress, string? userAgent, DeviceInfo? deviceInfo)
         {
             var loginHistory = new LoginHistory
             {
                 UserId = userId,
-                LoginTime = DateTime.UtcNow,
+                // LoginTime will be set by BaseEntity.CreatedAt
                 IpAddress = ipAddress,
-                UserAgent = userAgent,
-                DeviceName = deviceInfo.DeviceName,
-                DeviceType = deviceInfo.DeviceType,
-                OperatingSystem = deviceInfo.OperatingSystem,
-                Browser = deviceInfo.BrowserName,
+                UserAgent = userAgent ?? string.Empty,
+                DeviceName = deviceInfo?.DeviceName ?? string.Empty,
+                DeviceType = deviceInfo?.DeviceType ?? string.Empty,
+                OperatingSystem = deviceInfo?.OperatingSystem ?? string.Empty,
+                Browser = deviceInfo?.BrowserName ?? string.Empty,
                 IsSuccessful = true
             };
+            // loginHistory.MarkAsCreated(userId.ToString()); // Or system user if appropriate for logs
             await _userRepository.AddLoginHistoryAsync(loginHistory);
             await _userRepository.SaveChangesAsync();
-            return loginHistory;
+            // No return value (Task instead of Task<LoginHistory>)
         }
 
         // ثبت تاریخچه ورود ناموفق
-        public async Task<LoginHistory> LogFailedLoginAsync(Guid userId, string ipAddress, string userAgent, DeviceInfo deviceInfo, string failureReason)
+        public async Task LogFailedLoginAsync(Guid userId, string ipAddress, string? userAgent, DeviceInfo? deviceInfo, string failureReason)
         {
             var loginHistory = new LoginHistory
             {
                 UserId = userId,
-                LoginTime = DateTime.UtcNow,
+                // LoginTime will be set by BaseEntity.CreatedAt
                 IpAddress = ipAddress,
-                UserAgent = userAgent,
-                DeviceName = deviceInfo.DeviceName,
-                DeviceType = deviceInfo.DeviceType,
-                OperatingSystem = deviceInfo.OperatingSystem,
-                Browser = deviceInfo.BrowserName,
+                UserAgent = userAgent ?? string.Empty,
+                DeviceName = deviceInfo?.DeviceName ?? string.Empty,
+                DeviceType = deviceInfo?.DeviceType ?? string.Empty,
+                OperatingSystem = deviceInfo?.OperatingSystem ?? string.Empty,
+                Browser = deviceInfo?.BrowserName ?? string.Empty,
                 IsSuccessful = false,
                 FailureReason = failureReason
             };
+            // loginHistory.MarkAsCreated(userId.ToString()); // Or system user
             await _userRepository.AddLoginHistoryAsync(loginHistory);
             await _userRepository.SaveChangesAsync();
-            return loginHistory;
+            // No return value
         }
 
         // ثبت خروج کاربر

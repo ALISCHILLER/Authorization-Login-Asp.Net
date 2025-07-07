@@ -97,17 +97,13 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Data
                         }
                         break;
 
-                    case EntityState.Deleted: // This case handles hard deletes if soft-delete is not implemented via IsDeleted flag
-                        // For hard deletes, audit log will capture it. No specific BaseEntity fields to set here other than what EF does.
-                        // If we want to enforce soft-delete for all BaseEntity, this case might throw an exception
-                        // or convert to a soft delete (though that's usually done via setting IsDeleted = true and State = Modified).
-                        // The current soft-delete logic in BaseEntity.MarkAsDeleted should set State to Modified.
-                        // So, this case might be less common if soft-delete is consistently used.
-                        // For now, let's assume it means a hard delete if not caught by IsDeleted = true & Modified state.
-                        // We can add a final check for DeletedAt/DeletedBy if that's desired for hard deletes too.
-                        // entry.Property(nameof(BaseEntity.DeletedAt)).CurrentValue = now;
-                        // entry.Property(nameof(BaseEntity.DeletedBy)).CurrentValue = userId;
-                        break;
+                    // case EntityState.Deleted: // This case is likely unreachable if soft delete is consistently used
+                        // Soft deletes are handled when State is Modified and IsDeleted is true.
+                        // If an entity somehow reaches here with State == Deleted, it implies a hard delete
+                        // not going through the BaseEntity.MarkAsDeleted() flow, which should be avoided.
+                        // The AuditLog will capture the 'Deleted' action anyway.
+                        // Removing this case to prevent "unreachable code" warnings if all deletes are soft.
+                        // break;
                 }
             }
 

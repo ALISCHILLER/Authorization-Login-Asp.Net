@@ -14,13 +14,13 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
     [Authorize(Roles = "Admin")]
     public class AnalyticsController : BaseApiController
     {
-        private readonly IMediator _mediator;
+        // _mediator is inherited from BaseApiController
 
         public AnalyticsController(
             IMediator mediator,
-            ILogger<AnalyticsController> logger) : base(logger)
+            ILogger<AnalyticsController> logger) : base(logger, mediator) // Pass both to base
         {
-            _mediator = mediator;
+            // _mediator is already set by base constructor
         }
 
         #region متریک‌ها

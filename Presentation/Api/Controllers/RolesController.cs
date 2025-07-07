@@ -18,13 +18,14 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
     [Authorize(Roles = "Admin,SuperAdmin")]
     public class RolesController : BaseApiController
     {
-        private readonly IMediator _mediator;
+        // _mediator is inherited from BaseApiController and initialized there.
+        // No need to declare or assign it here if BaseApiController handles it.
 
         public RolesController(
             IMediator mediator,
-            ILogger<RolesController> logger) : base(logger)
+            ILogger<RolesController> logger) : base(logger, mediator) // Pass both to base
         {
-            _mediator = mediator;
+            // _mediator is already set by base constructor
         }
 
         #region مدیریت نقش‌ها

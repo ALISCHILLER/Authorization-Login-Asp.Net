@@ -2,7 +2,7 @@ using System;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Common
 {
-    public abstract class BaseEntity : IEntity
+    public abstract class BaseEntity : IEntity, IDeletable // Added IDeletable
     {
         public Guid Id { get; protected set; }
         public DateTime CreatedAt { get; protected set; }

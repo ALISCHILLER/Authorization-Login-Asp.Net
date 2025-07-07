@@ -15,13 +15,13 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
     [Authorize(Policy = "RequireAdminRole")]
     public class NotificationsController : BaseApiController
     {
-        private readonly IMediator _mediator;
+        // _mediator is inherited from BaseApiController
 
         public NotificationsController(
             IMediator mediator,
-            ILogger<NotificationsController> logger) : base(logger)
+            ILogger<NotificationsController> logger) : base(logger, mediator) // Pass both to base
         {
-            _mediator = mediator;
+            // _mediator is already set by base constructor
         }
 
         /// <summary>
