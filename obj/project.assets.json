@@ -17051,11 +17051,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\Authorization Login Asp.Net.csproj",
+      "projectUniqueName": "F:\\projct2025\\asp.net\\Authorization Login Asp.Net.csproj",
       "projectName": "Authorization Login Asp.Net",
-      "projectPath": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\Authorization Login Asp.Net.csproj",
+      "projectPath": "F:\\projct2025\\asp.net\\Authorization Login Asp.Net.csproj",
       "packagesPath": "C:\\Users\\Ali Soleimani\\.nuget\\packages\\",
-      "outputPath": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\obj\\",
+      "outputPath": "F:\\projct2025\\asp.net\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

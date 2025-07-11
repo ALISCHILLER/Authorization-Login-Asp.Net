@@ -1,10 +1,6 @@
 using System.Threading.Tasks;
-
 using System; // For Exception
 using System.Threading.Tasks;
-
-namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
-{
 using Authorization_Login_Asp.Net.Core.Application.DTOs.Common; // Added for ErrorDetailDto
 using Microsoft.AspNetCore.Http; // Added for HttpContext
 

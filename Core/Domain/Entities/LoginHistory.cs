@@ -1,10 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-
-namespace Authorization_Login_Asp.Net.Core.Domain.Entities
-{
-    /// <summary>
 using Authorization_Login_Asp.Net.Core.Domain.Common; // Added for BaseEntity
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Entities

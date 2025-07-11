@@ -1,8 +1,5 @@
 using System;
 using Authorization_Login_Asp.Net.Core.Domain.Enums;
-
-namespace Authorization_Login_Asp.Net.Core.Domain.Entities
-{
 using Authorization_Login_Asp.Net.Core.Domain.Common; // Added for BaseEntity
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Entities

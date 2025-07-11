@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "+I0rUyizTDU=",
+  "dgSpecHash": "z/dv2GtKs1I=",
   "success": true,
-  "projectFilePath": "F:\\projct2025\\asp.net\\Authorization-Login-Asp.Net\\Authorization Login Asp.Net.csproj",
+  "projectFilePath": "F:\\projct2025\\asp.net\\Authorization Login Asp.Net.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Ali Soleimani\\.nuget\\packages\\amazon.lambda.apigatewayevents\\2.7.0\\amazon.lambda.apigatewayevents.2.7.0.nupkg.sha512",
     "C:\\Users\\Ali Soleimani\\.nuget\\packages\\amazon.lambda.applicationloadbalancerevents\\2.2.0\\amazon.lambda.applicationloadbalancerevents.2.2.0.nupkg.sha512",

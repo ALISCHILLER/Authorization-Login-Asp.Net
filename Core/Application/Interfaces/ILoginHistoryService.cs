@@ -1,9 +1,6 @@
 using System;
 using System.Threading.Tasks;
 using Authorization_Login_Asp.Net.Core.Domain.ValueObjects;
-
-namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
-{
 using Authorization_Login_Asp.Net.Core.Application.DTOs.Auth; // For DeviceInfo
 
 namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
