@@ -3,6 +3,7 @@ using Authorization_Login_Asp.Net.Core.Infrastructure.Logging;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Repositories;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Security;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Services;
+using Authorization_Login_Asp.Net.Core.Infrastructure.Services.Common; // Added for DateTimeService
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -26,8 +27,10 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Extensions
 
             // ثبت سرویس‌های امنیتی
             services.AddScoped<IJwtService, JwtService>();
-            services.AddScoped<IUserService, AuthenticationService>();
-            services.AddScoped<ILoginHistoryService, AuthenticationService>();
+            // IUserService is now registered in ApplicationExtensions pointing to Infrastructure.Services.UserService
+            // services.AddScoped<IUserService, AuthenticationService>();
+            // ILoginHistoryService is now registered in ApplicationExtensions pointing to Infrastructure.Services.LoginHistoryService
+            // services.AddScoped<ILoginHistoryService, AuthenticationService>();
 
             // ثبت سرویس‌های ارتباطی
             services.AddScoped<IEmailService, EmailService>();
@@ -50,6 +53,17 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Extensions
                 .AddDbContextCheck<ApplicationDbContext>()
                 .AddCheck<ExternalServiceHealthCheck>("External Services")
                 .AddCheck<DatabaseHealthCheck>("Database");
+
+            // Services moved from Program.cs or to be centralized here
+            services.AddScoped<ICurrentUserService, CurrentUserService>(); // CurrentUserService is in Infrastructure.Services
+            services.AddScoped<IAuditService, AuditService>();             // AuditService is in Infrastructure.Services
+            services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();   // JwtTokenGenerator is in Infrastructure.Security
+            services.AddScoped<IPasswordHasher, PasswordHasher>();         // PasswordHasher is in Infrastructure.Security
+            // ILoginHistoryRepository is already registered above.
+            services.AddScoped<ITwoFactorService, TwoFactorService>();     // TwoFactorService is in Infrastructure.Security (moved from Program.cs)
+
+            // Register DateTimeService
+            services.AddSingleton<IDateTimeService, Common.DateTimeService>(); // DateTimeService is in Infrastructure.Services.Common
 
             return services;
         }

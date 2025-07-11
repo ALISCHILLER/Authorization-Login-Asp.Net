@@ -4,45 +4,45 @@ using Authorization_Login_Asp.Net.Core.Application.DTOs.Common;
 namespace Authorization_Login_Asp.Net.Core.Application.DTOs.Auth
 {
     /// <summary>
-    /// درخواست تغییر رمز عبور
+    /// Represents the request to change a user's password.
     /// </summary>
-    public class ChangePasswordRequest : AuthRequest
+    public class ChangePasswordRequest // Removed inheritance from AuthRequest
     {
         /// <summary>
-        /// رمز عبور فعلی
+        /// The current password of the user.
         /// </summary>
-        [Required(ErrorMessage = "رمز عبور فعلی الزامی است")]
+        [Required(ErrorMessage = "Current password is required.")]
         public string CurrentPassword { get; set; }
 
         /// <summary>
-        /// رمز عبور جدید
+        /// The new password.
         /// </summary>
-        [Required(ErrorMessage = "رمز عبور جدید الزامی است")]
-        [StringLength(100, MinimumLength = 8, ErrorMessage = "رمز عبور باید بین 8 تا 100 کاراکتر باشد")]
+        [Required(ErrorMessage = "New password is required.")]
+        [StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be between 8 and 100 characters.")]
         [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$",
-            ErrorMessage = "رمز عبور باید شامل حداقل یک حرف کوچک، یک حرف بزرگ، یک عدد و یک کاراکتر خاص باشد")]
+            ErrorMessage = "Password must contain at least one lowercase letter, one uppercase letter, one digit, and one special character.")]
         public string NewPassword { get; set; }
 
         /// <summary>
-        /// تأیید رمز عبور جدید
+        /// Confirmation of the new password.
         /// </summary>
-        [Required(ErrorMessage = "تأیید رمز عبور جدید الزامی است")]
-        [Compare("NewPassword", ErrorMessage = "رمز عبور جدید و تأیید آن مطابقت ندارند")]
+        [Required(ErrorMessage = "Confirm new password is required.")]
+        [Compare("NewPassword", ErrorMessage = "The new password and confirmation password do not match.")]
         public string ConfirmNewPassword { get; set; }
 
         /// <summary>
-        /// اطلاعات دستگاه
+        /// Information about the device making the request.
         /// </summary>
-        [Required(ErrorMessage = "اطلاعات دستگاه الزامی است")]
+        [Required(ErrorMessage = "Device information is required.")]
         public DeviceInfoDto DeviceInfo { get; set; }
 
         /// <summary>
-        /// موقعیت مکانی
+        /// Location from where the request is made.
         /// </summary>
-        public LocationDto Location { get; set; }
+        public LocationDto? Location { get; set; } // Made nullable as it's not always required
 
         /// <summary>
-        /// آیا تغییر رمز عبور اجباری است؟
+        /// Indicates if the password change is mandatory (e.g., after a reset or first login).
         /// </summary>
         public bool RequirePasswordChange { get; set; }
     }

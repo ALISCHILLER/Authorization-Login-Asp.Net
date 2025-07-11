@@ -12,13 +12,24 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
     /// کنترلر مدیریت تحلیل‌ها و گزارش‌های سیستم
     /// </summary>
     [Authorize(Roles = "Admin")]
+using Authorization_Login_Asp.Net.Core.Application.Interfaces; // For IDateTimeService
+
+// ... (other usings might be needed if not already present)
+
+namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
+{
+    /// <summary>
+    /// کنترلر مدیریت تحلیل‌ها و گزارش‌های سیستم
+    /// </summary>
+    [Authorize(Roles = "Admin")]
     public class AnalyticsController : BaseApiController
     {
         // _mediator is inherited from BaseApiController
 
         public AnalyticsController(
             IMediator mediator,
-            ILogger<AnalyticsController> logger) : base(logger, mediator) // Pass both to base
+            ILogger<AnalyticsController> logger,
+            IDateTimeService dateTimeService) : base(logger, mediator, dateTimeService) // Pass all to base
         {
             // _mediator is already set by base constructor
         }

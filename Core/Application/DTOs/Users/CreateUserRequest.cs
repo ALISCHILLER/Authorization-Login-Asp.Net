@@ -7,7 +7,7 @@ namespace Authorization_Login_Asp.Net.Core.Application.DTOs.Users
         [Required]
         [StringLength(50)]
         public string Username { get; set; }
-        public string UserName { get => Username; set => Username = value; }
+        // public string UserName { get => Username; set => Username = value; } // Removed redundant property
 
         [Required]
         [EmailAddress]

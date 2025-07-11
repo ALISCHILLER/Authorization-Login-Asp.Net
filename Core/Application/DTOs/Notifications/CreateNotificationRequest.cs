@@ -17,6 +17,6 @@ namespace Authorization_Login_Asp.Net.Core.Application.DTOs.Notifications
         public string Icon { get; set; } = string.Empty;
         public string Color { get; set; } = string.Empty;
         public DateTime? ExpiresAt { get; set; }
-        public Dictionary<string, string> Metadata { get; set; } = new();
+        public Dictionary<string, string> Data { get; set; } = new(); // Renamed from Metadata
     }
 }

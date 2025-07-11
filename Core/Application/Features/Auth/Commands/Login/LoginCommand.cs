@@ -5,35 +5,35 @@ using System.ComponentModel.DataAnnotations;
 namespace Authorization_Login_Asp.Net.Core.Application.Features.Auth.Commands.Login
 {
     /// <summary>
-    /// دستور ورود کاربر
+    /// Command to log in a user.
     /// </summary>
-    public class LoginCommand : IRequest<LoginResponse>
+    public class LoginCommand : IRequest<LoginResponse> // Assuming LoginResponse is the DTO for the login result
     {
         /// <summary>
-        /// نام کاربری یا ایمیل
+        /// The username or email of the user.
         /// </summary>
-        [Required(ErrorMessage = "نام کاربری یا ایمیل الزامی است")]
+        [Required(ErrorMessage = "Username or email is required.")]
         public string UsernameOrEmail { get; set; }
 
         /// <summary>
-        /// رمز عبور
+        /// The user's password.
         /// </summary>
-        [Required(ErrorMessage = "رمز عبور الزامی است")]
+        [Required(ErrorMessage = "Password is required.")]
         public string Password { get; set; }
 
         /// <summary>
-        /// به خاطر سپردن من
+        /// Indicates whether to remember the user's session.
         /// </summary>
         public bool RememberMe { get; set; }
 
         /// <summary>
-        /// آدرس IP کاربر
+        /// The IP address of the user making the request.
         /// </summary>
-        public string IpAddress { get; set; }
+        public string? IpAddress { get; set; } // Made nullable as it might not always be available or required
 
         /// <summary>
-        /// توکن دستگاه
+        /// The device token, if available (e.g., for push notifications or device identification).
         /// </summary>
-        public string DeviceToken { get; set; }
+        public string? DeviceToken { get; set; } // Made nullable
     }
 } 

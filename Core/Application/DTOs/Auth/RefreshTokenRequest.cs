@@ -3,20 +3,20 @@ using System.ComponentModel.DataAnnotations;
 namespace Authorization_Login_Asp.Net.Core.Application.DTOs.Auth
 {
     /// <summary>
-    /// درخواست تمدید توکن
+    /// Represents the request to refresh an access token.
     /// </summary>
-    public class RefreshTokenRequest : AuthRequest
+    public class RefreshTokenRequest // Removed inheritance from AuthRequest
     {
         /// <summary>
-        /// توکن رفرش
+        /// The refresh token.
         /// </summary>
-        [Required(ErrorMessage = "توکن رفرش الزامی است")]
+        [Required(ErrorMessage = "Refresh token is required.")]
         public string RefreshToken { get; set; }
 
         /// <summary>
-        /// توکن دسترسی منقضی شده
+        /// The expired access token.
         /// </summary>
-        [Required(ErrorMessage = "توکن دسترسی الزامی است")]
+        [Required(ErrorMessage = "Expired access token is required.")]
         public string ExpiredAccessToken { get; set; }
     }
 } 

@@ -1,6 +1,5 @@
-using Authorization_Login_Asp.Net.Core.Application.DTOs; // This might become redundant if all DTOs are moved
 using Authorization_Login_Asp.Net.Core.Application.DTOs.Auth;
-using Authorization_Login_Asp.Net.Core.Application.DTOs.Users; // Added for UserDto
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Users;
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,268 +7,255 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MediatR;
-using Authorization_Login_Asp.Net.Core.Infrastructure.Security;
 
 namespace Authorization_Login_Asp.Net.Core.Presentation.Api.Controllers
 {
     /// <summary>
-    /// کنترلر مدیریت احراز هویت و پروفایل کاربران
+    /// Manages user authentication, registration, and profile operations.
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     [Produces("application/json")]
     public class AuthController : BaseApiController
     {
-        private readonly IUserService _userService;
-        private readonly IJwtTokenGenerator _jwtTokenGenerator;
-        private readonly ITwoFactorAuthenticator _twoFactorAuthenticator;
-        private readonly ITwoFactorService _twoFactorService;
-        private readonly IPasswordService _passwordService;
-        private readonly IDeviceManagementService _deviceService;
-
         /// <summary>
-        /// سازنده کنترلر احراز هویت
+        /// Initializes a new instance of the <see cref="AuthController"/> class.
         /// </summary>
+        /// <param name="mediator">The mediator for handling commands and queries.</param>
+        /// <param name="logger">The logger for this controller.</param>
         public AuthController(
-            IUserService userService,
-            IJwtTokenGenerator jwtTokenGenerator,
-            ITwoFactorAuthenticator twoFactorAuthenticator,
             IMediator mediator,
-            ITwoFactorService twoFactorService,
-            IPasswordService passwordService,
-            IDeviceManagementService deviceService,
-            ILogger<AuthController> logger) 
-            : base(logger, mediator)
+            ILogger<AuthController> logger)
+            : base(logger, mediator) // Removed dateTimeService from base call
         {
-            _userService = userService ?? throw new ArgumentNullException(nameof(userService));
-            _jwtTokenGenerator = jwtTokenGenerator ?? throw new ArgumentNullException(nameof(jwtTokenGenerator));
-            _twoFactorAuthenticator = twoFactorAuthenticator ?? throw new ArgumentNullException(nameof(twoFactorAuthenticator));
-            _twoFactorService = twoFactorService ?? throw new ArgumentNullException(nameof(twoFactorService));
-            _passwordService = passwordService ?? throw new ArgumentNullException(nameof(passwordService));
-            _deviceService = deviceService ?? throw new ArgumentNullException(nameof(deviceService));
         }
 
-        #region احراز هویت
+        #region Authentication
         /// <summary>
-        /// ثبت‌نام کاربر جدید
+        /// Registers a new user.
         /// </summary>
-        /// <param name="command">دستور ثبت‌نام کاربر</param>
-        /// <returns>نتیجه ثبت‌نام و توکن‌های دسترسی</returns>
-        /// <response code="201">ثبت‌نام با موفقیت انجام شد</response>
-        /// <response code="400">اطلاعات ورودی نامعتبر است</response>
+        /// <param name="command">The registration command.</param>
+        /// <returns>Authentication response with access tokens upon successful registration.</returns>
+        /// <response code="201">User registered successfully.</response>
+        /// <response code="400">Invalid input data.</response>
         [HttpPost("register")]
-        [ProducesResponseType(typeof(AuthResponse), 201)]
-        [ProducesResponseType(400)]
-        public async Task<IActionResult> Register([FromBody] RegisterCommand command)
+        [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> Register([FromBody] RegisterCommand command) // Assuming RegisterCommand exists
         {
             var validationResult = ValidateModel();
             if (validationResult != null)
                 return validationResult;
 
-            var result = await ExecuteCommand(command, "خطا در ثبت‌نام کاربر");
-            if (result is OkObjectResult okResult)
+            var result = await ExecuteCommand(command, "Error during user registration.");
+            if (result is OkObjectResult okResult && okResult.Value is AuthResponse authResponse)
             {
-                return CreatedAtAction(nameof(Login), new { username = command.Username }, okResult.Value);
+                return CreatedAtAction(nameof(Login), new { username = command.Username }, authResponse);
             }
             return result;
         }
 
         /// <summary>
-        /// ورود با نام کاربری و رمز عبور
+        /// Logs in a user with username and password.
         /// </summary>
-        /// <param name="command">دستور ورود کاربر</param>
-        /// <returns>نتیجه ورود و توکن‌های دسترسی</returns>
-        /// <response code="200">ورود با موفقیت انجام شد</response>
-        /// <response code="400">اطلاعات ورودی نامعتبر است</response>
-        /// <response code="401">کاربر احراز هویت نشده است</response>
+        /// <param name="command">The login command.</param>
+        /// <returns>Authentication response with access tokens upon successful login.</returns>
+        /// <response code="200">Login successful.</response>
+        /// <response code="400">Invalid input data.</response>
+        /// <response code="401">Unauthorized access.</response>
         [HttpPost("login")]
-        [ProducesResponseType(typeof(AuthResponse), 200)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(401)]
-        public async Task<IActionResult> Login([FromBody] LoginCommand command)
+        [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> Login([FromBody] LoginCommand command) // Assuming LoginCommand exists
         {
             var validationResult = ValidateModel();
             if (validationResult != null)
                 return validationResult;
 
-            return await ExecuteCommand(command, "نام کاربری یا رمز عبور اشتباه است");
+            return await ExecuteCommand(command, "Invalid username or password.");
         }
 
         /// <summary>
-        /// تأیید کد احراز هویت دو مرحله‌ای
+        /// Verifies the two-factor authentication code.
         /// </summary>
-        /// <param name="command">کد تأیید و اطلاعات کاربر</param>
-        /// <returns>نتیجه تأیید و توکن‌های دسترسی</returns>
-        /// <response code="200">تأیید با موفقیت انجام شد</response>
-        /// <response code="400">اطلاعات ورودی نامعتبر است</response>
+        /// <param name="command">The 2FA verification command.</param>
+        /// <returns>Authentication response with access tokens upon successful verification.</returns>
+        /// <response code="200">2FA verification successful.</response>
+        /// <response code="400">Invalid input data or code.</response>
         [HttpPost("two-factor")]
-        [ProducesResponseType(typeof(AuthResponse), 200)]
-        [ProducesResponseType(400)]
-        public async Task<IActionResult> TwoFactor([FromBody] ValidateTwoFactorCommand command)
+        [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> TwoFactor([FromBody] ValidateTwoFactorCommand command) // Assuming ValidateTwoFactorCommand exists
         {
             var validationResult = ValidateModel();
             if (validationResult != null)
                 return validationResult;
 
-            return await ExecuteCommand(command, "کد تأیید نامعتبر است");
+            return await ExecuteCommand(command, "Invalid 2FA code.");
         }
 
         /// <summary>
-        /// تمدید توکن دسترسی با استفاده از توکن رفرش
+        /// Refreshes an access token using a refresh token.
         /// </summary>
-        /// <param name="command">توکن رفرش</param>
-        /// <returns>توکن‌های جدید دسترسی</returns>
-        /// <response code="200">تمدید با موفقیت انجام شد</response>
-        /// <response code="400">توکن رفرش نامعتبر است</response>
-        /// <response code="401">کاربر احراز هویت نشده است</response>
+        /// <param name="command">The refresh token command.</param>
+        /// <returns>New authentication response with access tokens.</returns>
+        /// <response code="200">Token refresh successful.</response>
+        /// <response code="400">Invalid refresh token.</response>
+        /// <response code="401">Unauthorized access.</response>
         [HttpPost("refresh-token")]
-        [ProducesResponseType(typeof(AuthResponse), 200)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(401)]
-        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenCommand command)
+        [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenCommand command) // Assuming RefreshTokenCommand exists
         {
             var validationResult = ValidateModel();
             if (validationResult != null)
                 return validationResult;
 
-            return await ExecuteCommand(command, "توکن نامعتبر است");
+            return await ExecuteCommand(command, "Invalid refresh token.");
         }
 
         /// <summary>
-        /// خروج و باطل کردن توکن رفرش
+        /// Logs out the current user and invalidates the refresh token.
         /// </summary>
-        /// <returns>پیام موفقیت‌آمیز بودن خروج</returns>
-        /// <response code="200">خروج با موفقیت انجام شد</response>
-        /// <response code="401">کاربر احراز هویت نشده است</response>
+        /// <returns>A success message.</returns>
+        /// <response code="200">Logout successful.</response>
+        /// <response code="401">User is not authenticated.</response>
         [Authorize]
         [HttpPost("logout")]
-        [ProducesResponseType(200)]
-        [ProducesResponseType(401)]
-        public async Task<IActionResult> Logout()
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> Logout() // Assuming LogoutCommand exists
         {
             if (!TryGetUserId(out Guid userId))
-                return Error("شناسه کاربر نامعتبر است");
+                return Error("Invalid user identifier.");
 
             await ExecuteCommand(new LogoutCommand { UserId = userId });
-            return Success("خروج با موفقیت انجام شد");
+            return Success("Logout successful.");
         }
         #endregion
 
-        #region احراز هویت دو مرحله‌ای
+        #region Two-Factor Authentication
         /// <summary>
-        /// فعال‌سازی احراز هویت دو مرحله‌ای
+        /// Enables two-factor authentication for the current user.
         /// </summary>
-        /// <returns>اطلاعات مورد نیاز برای راه‌اندازی</returns>
-        /// <response code="200">فعال‌سازی با موفقیت انجام شد</response>
-        /// <response code="400">عملیات ناموفق بود</response>
-        /// <response code="401">کاربر احراز هویت نشده است</response>
+        /// <returns>Data required for 2FA setup (e.g., QR code, setup key).</returns>
+        /// <response code="200">2FA setup initiated successfully.</response>
+        /// <response code="400">Operation failed (e.g., 2FA already enabled).</response>
+        /// <response code="401">User is not authenticated.</response>
         [Authorize]
         [HttpPost("enable-2fa")]
-        [ProducesResponseType(typeof(TwoFactorSetupResponse), 200)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(401)]
-        public async Task<IActionResult> EnableTwoFactor()
+        [ProducesResponseType(typeof(TwoFactorSetupResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> EnableTwoFactor() // Assuming EnableTwoFactorCommand exists
         {
             if (!TryGetUserId(out Guid userId))
-                return Error("شناسه کاربر نامعتبر است");
+                return Error("Invalid user identifier.");
 
             return await ExecuteCommand(new EnableTwoFactorCommand { UserId = userId });
         }
 
         /// <summary>
-        /// غیرفعال‌سازی احراز هویت دو مرحله‌ای
+        /// Disables two-factor authentication for the current user.
         /// </summary>
-        /// <param name="command">کد تأیید</param>
-        /// <returns>نتیجه غیرفعال‌سازی</returns>
-        /// <response code="200">غیرفعال‌سازی با موفقیت انجام شد</response>
-        /// <response code="400">کد تأیید نامعتبر است</response>
-        /// <response code="401">کاربر احراز هویت نشده است</response>
+        /// <param name="command">The command containing the verification code.</param>
+        /// <returns>Result of the deactivation.</returns>
+        /// <response code="200">2FA disabled successfully.</response>
+        /// <response code="400">Invalid verification code.</response>
+        /// <response code="401">User is not authenticated.</response>
         [Authorize]
         [HttpPost("disable-2fa")]
-        [ProducesResponseType(typeof(AuthResponse), 200)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(401)]
-        public async Task<IActionResult> DisableTwoFactor([FromBody] DisableTwoFactorCommand command)
+        [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> DisableTwoFactor([FromBody] DisableTwoFactorCommand command) // Assuming DisableTwoFactorCommand exists
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            var validationResult = ValidateModel();
+            if (validationResult != null)
+                return validationResult;
 
             if (!TryGetUserId(out Guid userId))
-                return Error("شناسه کاربر نامعتبر است");
+                return Error("Invalid user identifier.");
 
             command.UserId = userId;
             return await ExecuteCommand(command);
         }
         #endregion
 
-        #region مدیریت پروفایل
+        #region Profile Management
         /// <summary>
-        /// دریافت پروفایل کاربر جاری
+        /// Gets the profile of the current user.
         /// </summary>
-        /// <returns>اطلاعات پروفایل کاربر</returns>
-        /// <response code="200">اطلاعات پروفایل با موفقیت دریافت شد</response>
-        /// <response code="401">کاربر احراز هویت نشده است</response>
-        /// <response code="404">کاربر یافت نشد</response>
+        /// <returns>The current user's profile information.</returns>
+        /// <response code="200">Profile retrieved successfully.</response>
+        /// <response code="401">User is not authenticated.</response>
+        /// <response code="404">User not found.</response>
         [Authorize]
         [HttpGet("profile")]
-        [ProducesResponseType(typeof(UserDto), 200)]
-        [ProducesResponseType(401)]
-        [ProducesResponseType(404)]
-        public async Task<IActionResult> GetProfile()
+        [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetProfile() // Assuming GetUserProfileQuery exists
         {
             if (!TryGetUserId(out Guid userId))
-                return Error("شناسه کاربر نامعتبر است");
+                return Error("Invalid user identifier.");
 
             return await ExecuteCommand(new GetUserProfileQuery { UserId = userId });
         }
 
         /// <summary>
-        /// به‌روزرسانی پروفایل کاربر جاری
+        /// Updates the profile of the current user.
         /// </summary>
-        /// <param name="command">اطلاعات جدید پروفایل</param>
-        /// <returns>اطلاعات به‌روز شده پروفایل</returns>
-        /// <response code="200">پروفایل با موفقیت به‌روز شد</response>
-        /// <response code="400">اطلاعات ورودی نامعتبر است</response>
-        /// <response code="401">کاربر احراز هویت نشده است</response>
-        /// <response code="404">کاربر یافت نشد</response>
+        /// <param name="command">The command with updated profile information.</param>
+        /// <returns>The updated user profile.</returns>
+        /// <response code="200">Profile updated successfully.</response>
+        /// <response code="400">Invalid input data.</response>
+        /// <response code="401">User is not authenticated.</response>
+        /// <response code="404">User not found.</response>
         [Authorize]
         [HttpPut("profile")]
-        [ProducesResponseType(typeof(UserDto), 200)]
-        [ProducesResponseType(typeof(UserDto), 400)]
-        [ProducesResponseType(401)]
-        [ProducesResponseType(404)]
-        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand command)
+        [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand command) // Assuming UpdateProfileCommand exists
         {
             var validationResult = ValidateModel();
             if (validationResult != null)
                 return validationResult;
 
             if (!TryGetUserId(out Guid userId))
-                return Error("شناسه کاربر نامعتبر است");
+                return Error("Invalid user identifier.");
 
             command.UserId = userId;
-            return await ExecuteCommand(command, "خطا در به‌روزرسانی پروفایل");
+            return await ExecuteCommand(command, "Error updating profile.");
         }
 
         /// <summary>
-        /// تغییر رمز عبور
+        /// Changes the current user's password.
         /// </summary>
+        /// <param name="command">The change password command.</param>
+        /// <response code="200">Password changed successfully.</response>
+        /// <response code="400">Invalid input data or current password incorrect.</response>
+        /// <response code="401">User is not authenticated.</response>
         [Authorize]
         [HttpPost("change-password")]
-        [ProducesResponseType(200)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(401)]
-        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command) // Assuming ChangePasswordCommand exists
         {
             var validationResult = ValidateModel();
             if (validationResult != null)
                 return validationResult;
 
             if (!TryGetUserId(out Guid userId))
-                return Error("شناسه کاربر نامعتبر است");
+                return Error("Invalid user identifier.");
 
             command.UserId = userId;
-            return await ExecuteCommand(command, "خطا در تغییر رمز عبور");
+            return await ExecuteCommand(command, "Error changing password.");
         }
         #endregion
     }

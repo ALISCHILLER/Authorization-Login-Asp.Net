@@ -6,43 +6,43 @@ using Authorization_Login_Asp.Net.Core.Domain.Enums;
 namespace Authorization_Login_Asp.Net.Core.Application.DTOs.Auth
 {
     /// <summary>
-    /// درخواست تأیید دو مرحله‌ای
+    /// Represents the request for two-factor authentication verification.
     /// </summary>
-    public class TwoFactorRequest : AuthRequest
+    public class TwoFactorRequest // Removed inheritance from AuthRequest
     {
         /// <summary>
-        /// شناسه کاربر
+        /// The user's unique identifier.
         /// </summary>
-        [Required(ErrorMessage = "شناسه کاربر الزامی است")]
+        [Required(ErrorMessage = "User ID is required.")]
         public Guid UserId { get; set; }
 
         /// <summary>
-        /// کد تأیید
+        /// The verification code.
         /// </summary>
-        [Required(ErrorMessage = "کد تأیید الزامی است")]
-        [RegularExpression(@"^[0-9]{6}$", ErrorMessage = "کد تأیید باید 6 رقمی باشد")]
+        [Required(ErrorMessage = "Verification code is required.")]
+        [RegularExpression(@"^[0-9]{6}$", ErrorMessage = "Verification code must be 6 digits.")]
         public string Code { get; set; }
 
         /// <summary>
-        /// روش ارسال کد تأیید
+        /// The two-factor authentication provider type.
         /// </summary>
-        [Required(ErrorMessage = "روش ارسال کد تأیید الزامی است")]
+        [Required(ErrorMessage = "Two-factor provider is required.")]
         public TwoFactorType Provider { get; set; }
 
         /// <summary>
-        /// به خاطر سپاری دستگاه
+        /// Indicates whether to remember the device for future logins.
         /// </summary>
         public bool RememberDevice { get; set; }
 
         /// <summary>
-        /// اطلاعات دستگاه
+        /// Information about the device making the request.
         /// </summary>
-        [Required(ErrorMessage = "اطلاعات دستگاه الزامی است")]
+        [Required(ErrorMessage = "Device information is required.")]
         public DeviceInfoDto DeviceInfo { get; set; }
 
         /// <summary>
-        /// موقعیت مکانی
+        /// Location from where the request is made.
         /// </summary>
-        public LocationDto Location { get; set; }
+        public LocationDto? Location { get; set; } // Made nullable
     }
 } 

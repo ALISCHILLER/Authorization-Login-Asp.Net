@@ -15,16 +15,5 @@ namespace Authorization_Login_Asp.Net.Core.Application.DTOs.Notifications
         public DateTime? ExpiryDate { get; set; }
     }
 
-    public class NotificationTemplate
-    {
-        public string Id { get; set; }
-        public string Name { get; set; }
-        public string Title { get; set; }
-        public string Message { get; set; }
-        public string Type { get; set; }
-        public string Priority { get; set; }
-        public bool IsActive { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public DateTime? UpdatedAt { get; set; }
-    }
+    // NotificationTemplate class has been moved to its own file: NotificationTemplateDto.cs
 } 

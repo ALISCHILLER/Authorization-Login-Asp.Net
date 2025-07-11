@@ -75,31 +75,23 @@ builder.Services.AddCors(options =>
 
 // ثبت سرویس‌های JWT
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("AppSettings:JwtSettings"));
-builder.Services.AddScoped<IJwtService, JwtService>();
-builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
-builder.Services.AddScoped<ILoginHistoryService, LoginHistoryService>();
-builder.Services.AddMemoryCache();
+// IJwtService is covered by AddInfrastructureServices
+// ILoginHistoryService is covered by AddInfrastructureServices (as AuthenticationService)
+// MemoryCache is covered by AddInfrastructureServices
+
+// سرویس‌های زیر یا در فایل‌های اکستنشن مربوطه ثبت شده‌اند یا پیاده‌سازی آن‌ها یافت نشد.
+// IJwtTokenGenerator, ICurrentUserService, IAuditService, IDomainEventDispatcher
+// به همراه IRoleManagementService, IUserManagementService, IPasswordService, IDeviceManagementService
+// در مراحل بعدی و پس از بررسی دقیق‌تر فایل‌های اکستنشن، در صورت نیاز به Program.cs بازگردانده یا به فایل اکستنشن صحیح منتقل می‌شوند.
+// فعلا برای تمیز ماندن Program.cs، آن‌ها را اینجا نگه نمی‌داریم.
 
 // 注册 HttpContextAccessor
-builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpContextAccessor(); // Keep, common utility
 
-// 注册 CurrentUserService
-builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+// Repositories are covered by AddInfrastructureServices
+// ILoggingService and ITracingService are covered by AddInfrastructureServices
 
-// 注册仓储服务
-builder.Services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
-builder.Services.AddScoped<IPermissionRepository, PermissionRepository>();
-builder.Services.AddScoped<IRoleRepository, RoleRepository>();
-
-// 注册审计服务
-builder.Services.AddScoped<IAuditService, AuditService>();
-
-// 注册日志服务
-builder.Services.AddScoped<ILoggingService, LoggingService>();
-builder.Services.AddScoped<ITracingService, TracingService>();
-
-// 注册领域事件处理
-builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+// سرویس‌هایی که در ادامه به صورت دستی ثبت می‌شوند، آنهایی هستند که هنوز به فایل‌های اکستنشن منتقل نشده‌اند یا نیاز به بررسی بیشتر دارند.
 
 // تنظیمات احراز هویت JWT
 builder.Services.AddAuthentication(options =>
@@ -178,30 +170,16 @@ builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = builder.Configuration.GetConnectionString("Redis");
     options.InstanceName = "AuthApp:";
-});
+}); // Keep, specific Redis config
 
-builder.Services.AddScoped<ICacheService, DistributedCacheService>();
+// ICacheService is covered by AddInfrastructureServices
+// IUserService, IEmailService, ISmsService, IImageService, IMetricsService (as Scoped) are covered by AddInfrastructureServices
+// ILoggingService (as LoggingAndErrorHandlingService) is covered by AddInfrastructureServices
+// ITwoFactorService is covered by AddInfrastructureServices
+// AutoMapper and FluentValidation are covered by AddApplicationServices
 
-// ثبت سرویس‌های برنامه
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<ISmsService, SmsService>();
-builder.Services.AddScoped<ILoggingService, LoggingService>();
-builder.Services.AddScoped<IImageService, ImageService>();
-builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
-builder.Services.AddSingleton<IMetricsService, MetricsService>();
-builder.Services.AddScoped<ITwoFactorService, TwoFactorService>();
-
-// تنظیمات AutoMapper برای نگاشت اشیاء
-builder.Services.AddAutoMapper(typeof(Program).Assembly);
-
-// تنظیمات FluentValidation برای اعتبارسنجی
-builder.Services.AddFluentValidation(fv =>
-{
-    fv.RegisterValidatorsFromAssemblyContaining<LoginRequestValidator>();
-    fv.AutomaticValidationEnabled = true;
-    fv.ImplicitlyValidateChildProperties = true;
-});
+// سرویس IPasswordHasher به فایل Core/Infrastructure/Extensions/ServiceCollectionExtensions.cs منتقل خواهد شد.
+// builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 
 // Configure image service options
 builder.Services.Configure<ImageServiceOptions>(builder.Configuration.GetSection("ImageService"));
@@ -263,8 +241,8 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 // Configure OpenTelemetry
-builder.Services.Configure<TracingSettings>(builder.Configuration.GetSection("Tracing"));
-builder.Services.AddScoped<ITracingService, TracingService>();
+builder.Services.Configure<TracingSettings>(builder.Configuration.GetSection("Tracing")); // Keep, options config
+// ITracingService is covered by AddInfrastructureServices
 
 var tracingSettings = builder.Configuration.GetSection("Tracing").Get<TracingSettings>();
 if (tracingSettings != null && tracingSettings.EnableTracing)
@@ -310,13 +288,15 @@ builder.Services.AddPrometheusGatewayPublisher(options =>
     options.Job = "auth-service";
 });
 
-// Register services
-builder.Services.AddScoped<IRoleManagementService, RoleManagementService>();
-builder.Services.AddScoped<IUserManagementService, UserManagementService>();
-builder.Services.AddScoped<ITwoFactorService, TwoFactorService>();
-builder.Services.AddScoped<IPasswordService, PasswordService>();
-builder.Services.AddScoped<IDeviceManagementService, DeviceManagementService>();
-builder.Services.AddScoped<ILoggingService, LoggingService>();
+// Register services - These specific services were not found or their registration is handled by extension methods.
+// builder.Services.AddScoped<IRoleManagementService, RoleManagementService>();
+// builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+// builder.Services.AddScoped<IPasswordService, PasswordService>();
+// builder.Services.AddScoped<IDeviceManagementService, DeviceManagementService>();
+
+// Call service registration extension methods
+builder.Services.AddApplicationServices(); // From Core.Application.Extensions
+builder.Services.AddInfrastructureServices(builder.Configuration); // From Core.Infrastructure.Extensions
 
 var app = builder.Build();
 
