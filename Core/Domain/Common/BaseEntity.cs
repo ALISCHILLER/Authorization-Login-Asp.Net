@@ -50,7 +50,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Common
             }
         }
 
-        public virtual void Restore(string? restoredByUserId)
+        public virtual void MarkAsRestored(string? restoredByUserId) // Renamed from Restore
         {
             if (IsDeleted)
             {

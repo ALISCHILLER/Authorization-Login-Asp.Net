@@ -5,16 +5,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
-
-namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
-{
-    /// <summary>
-    /// کنترلر مدیریت تحلیل‌ها و گزارش‌های سیستم
-    /// </summary>
-    [Authorize(Roles = "Admin")]
-using Authorization_Login_Asp.Net.Core.Application.Interfaces; // For IDateTimeService
-
-// ... (other usings might be needed if not already present)
+using Authorization_Login_Asp.Net.Core.Application.Features.Analytics.Queries;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Analytics;
 
 namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
 {
@@ -24,14 +16,14 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
     [Authorize(Roles = "Admin")]
     public class AnalyticsController : BaseApiController
     {
-        // _mediator is inherited from BaseApiController
+        // _mediator is inherited from BaseApiController and initialized by BaseApiController constructor
+        // _logger is inherited from BaseApiController and initialized by BaseApiController constructor
 
         public AnalyticsController(
-            IMediator mediator,
             ILogger<AnalyticsController> logger,
-            IDateTimeService dateTimeService) : base(logger, mediator, dateTimeService) // Pass all to base
+            IMediator mediator) : base(logger, mediator)
         {
-            // _mediator is already set by base constructor
+            // Base constructor handles assignment of logger and mediator
         }
 
         #region متریک‌ها
@@ -161,4 +153,4 @@ namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
         }
         #endregion
     }
-} 
+}
