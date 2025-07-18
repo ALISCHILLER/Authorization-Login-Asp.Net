@@ -17,12 +17,12 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
     /// </summary>
     public class PermissionService : IPermissionService
     {
-        private readonly AppDbContext _context;
+        private readonly ApplicationDbContext _context;
 
         public PermissionService(
             ILogger<PermissionService> logger,
             IMemoryCache cache,
-            AppDbContext context)
+            ApplicationDbContext context)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
         }

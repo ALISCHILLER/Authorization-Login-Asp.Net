@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Authorization_Login_Asp.Net.Core.Application.DTOs.Common;
-using Authorization_Login_Asp.Net.Core.Application.DTOs.Email;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Common;
 
 namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
 {

@@ -1,0 +1,8 @@
+/app/obj/Debug/net8.0/Authorization Login Asp.Net.csproj.AssemblyReference.cache
+/app/obj/Debug/net8.0/Authorization Login Asp.Net.GeneratedMSBuildEditorConfig.editorconfig
+/app/obj/Debug/net8.0/Authorization Login Asp.Net.AssemblyInfoInputs.cache
+/app/obj/Debug/net8.0/Authorization Login Asp.Net.AssemblyInfo.cs
+/app/obj/Debug/net8.0/Authorization Login Asp.Net.csproj.CoreCompileInputs.cache
+/app/obj/Debug/net8.0/Authorization Login Asp.Net.MvcApplicationPartsAssemblyInfo.cs
+/app/obj/Debug/net8.0/Authorization Login Asp.Net.MvcApplicationPartsAssemblyInfo.cache
+/app/obj/Debug/net8.0/Authorization Login Asp.Net.sourcelink.json

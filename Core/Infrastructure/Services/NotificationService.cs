@@ -16,7 +16,7 @@ using SystemNotification = Authorization_Login_Asp.Net.Core.Domain.Entities.Syst
 using SecurityNotification = Authorization_Login_Asp.Net.Core.Domain.Entities.SecurityNotification;
 using Authorization_Login_Asp.Net.Core.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using Authorization_Login_Asp.Net.Core.Application.DTOs.Email;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Common;
 using Authorization_Login_Asp.Net.Core.Application.DTOs.Sms;
 using System.Threading;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Data;

@@ -1,33 +1,38 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
-using Authorization_Login_Asp.Net.Core.Application.Interfaces; // Added for ICurrentUserService, IDateTimeService
+using Microsoft.EntityFrameworkCore.Storage;
+using Authorization_Login_Asp.Net.Core.Application.Interfaces;
 using Authorization_Login_Asp.Net.Core.Domain.Common;
 using Authorization_Login_Asp.Net.Core.Domain.Entities;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Data.Configurations;
+using Microsoft.Extensions.Logging;
+using System.Linq.Expressions;
 
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Data
 {
-    /// <summary>
-    /// کانتکست اصلی دیتابیس برنامه
-    /// </summary>
     public class ApplicationDbContext : DbContext
     {
         private readonly ICurrentUserService _currentUserService;
         private readonly IDateTimeService _dateTimeService;
+        private readonly ILogger<ApplicationDbContext> _logger;
 
         public ApplicationDbContext(
             DbContextOptions<ApplicationDbContext> options,
             ICurrentUserService currentUserService,
-            IDateTimeService dateTimeService) : base(options)
+            IDateTimeService dateTimeService,
+            ILogger<ApplicationDbContext> logger) : base(options)
         {
             _currentUserService = currentUserService;
             _dateTimeService = dateTimeService;
+            _logger = logger;
         }
 
-        #region DbSets
         public DbSet<User> Users { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<Permission> Permissions { get; set; }
@@ -38,13 +43,13 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Data
         public DbSet<LoginHistory> LoginHistory { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
-        #endregion
+        public DbSet<TwoFactorRecoveryCode> RecoveryCodes { get; set; }
+        public DbSet<UserDevice> UserDevices { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // اعمال تنظیمات موجودیت‌ها
             modelBuilder.ApplyConfiguration(new UserConfiguration());
             modelBuilder.ApplyConfiguration(new RoleConfiguration());
             modelBuilder.ApplyConfiguration(new PermissionConfiguration());
@@ -55,69 +60,119 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Data
             modelBuilder.ApplyConfiguration(new LoginHistoryConfiguration());
             modelBuilder.ApplyConfiguration(new NotificationConfiguration());
             modelBuilder.ApplyConfiguration(new AuditLogConfiguration());
+            modelBuilder.ApplyConfiguration(new TwoFactorRecoveryCodeConfiguration());
+            modelBuilder.ApplyConfiguration(new UserDeviceConfiguration());
 
-            // اعمال فیلترهای سراسری
-            modelBuilder.ApplyGlobalFilters();
+            ApplyGlobalFilters(modelBuilder);
+        }
+
+        private void ApplyGlobalFilters(ModelBuilder modelBuilder)
+        {
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                if (typeof(IDeletable).IsAssignableFrom(entityType.ClrType))
+                {
+                    var parameter = Expression.Parameter(entityType.ClrType, "e");
+                    var property = Expression.Property(parameter, nameof(IDeletable.IsDeleted));
+                    var falseConstant = Expression.Constant(false);
+                    var lambda = Expression.Lambda(Expression.Equal(property, falseConstant), parameter);
+
+                    modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+                }
+            }
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            var userId = _currentUserService.UserId; // Get current user's ID (string)
-            var now = _dateTimeService.Now; // Get current time
+            ApplyAuditInfo();
+            ApplySoftDelete();
 
-            foreach (var entry in ChangeTracker.Entries<BaseEntity>()) // Changed from AuditableEntity to BaseEntity
-            {
-                switch (entry.State)
-                {
-                    case EntityState.Added:
-                        // BaseEntity constructor already sets CreatedAt.
-                        // We only need to set CreatedBy if it's not set by the entity's MarkAsCreated method.
-                        // If MarkAsCreated was called with a userId, this might override it or be redundant.
-                        // For consistency, DbContext should be the authority for these audit fields during save.
-                        entry.Property(nameof(BaseEntity.CreatedBy)).CurrentValue = userId;
-                        entry.Property(nameof(BaseEntity.CreatedAt)).CurrentValue = now; // Ensure it uses DateTimeService
-                        entry.Property(nameof(BaseEntity.UpdatedAt)).CurrentValue = null;
-                        entry.Property(nameof(BaseEntity.UpdatedBy)).CurrentValue = null;
-                        entry.Property(nameof(BaseEntity.DeletedBy)).CurrentValue = null;
-                        entry.Property(nameof(BaseEntity.DeletedAt)).CurrentValue = null;
-                        entry.Property(nameof(BaseEntity.IsDeleted)).CurrentValue = false;
-                        break;
-
-                    case EntityState.Modified:
-                        entry.Property(nameof(BaseEntity.UpdatedAt)).CurrentValue = now;
-                        entry.Property(nameof(BaseEntity.UpdatedBy)).CurrentValue = userId;
-
-                        // If the entity is being soft-deleted, IsDeleted will be true.
-                        // The MarkAsDeleted method on BaseEntity should have set DeletedAt and DeletedBy.
-                        // We ensure DbContext respects these values if set by domain logic, or sets them if state is just 'Deleted'.
-                        if (entry.Property(nameof(BaseEntity.IsDeleted)).CurrentValue is true &&
-                            entry.Property(nameof(BaseEntity.DeletedAt)).CurrentValue == null)
-                        {
-                            entry.Property(nameof(BaseEntity.DeletedAt)).CurrentValue = now;
-                            entry.Property(nameof(BaseEntity.DeletedBy)).CurrentValue = userId;
-                        }
-                        break;
-
-                    // case EntityState.Deleted: // This case is likely unreachable if soft delete is consistently used
-                        // Soft deletes are handled when State is Modified and IsDeleted is true.
-                        // If an entity somehow reaches here with State == Deleted, it implies a hard delete
-                        // not going through the BaseEntity.MarkAsDeleted() flow, which should be avoided.
-                        // The AuditLog will capture the 'Deleted' action anyway.
-                        // Removing this case to prevent "unreachable code" warnings if all deletes are soft.
-                        // break;
-                }
-            }
-
-            // جمع آوری اطلاعات برای لاگ حسابرسی قبل از ذخیره تغییرات اصلی
             var auditEntries = OnBeforeSaveChanges();
-
-            // ذخیره تغییرات اصلی موجودیت‌ها
             var result = await base.SaveChangesAsync(cancellationToken);
-
-            // ثبت لاگ‌های حسابرسی پس از ذخیره موفق تغییرات اصلی
             await OnAfterSaveChanges(auditEntries, cancellationToken);
 
             return result;
+        }
+
+        private void ApplyAuditInfo()
+        {
+            var entries = ChangeTracker.Entries()
+                .Where(e => e.Entity is IAuditable &&
+                           (e.State == EntityState.Added || e.State == EntityState.Modified));
+
+            var currentUserId = _currentUserService?.UserId;
+            var currentTime = _dateTimeService.Now;
+
+            foreach (var entry in entries)
+            {
+                var entity = (IAuditable)entry.Entity;
+
+                if (entry.State == EntityState.Added)
+                {
+                    entity.CreatedAt = currentTime;
+                    entity.CreatedBy = currentUserId;
+                }
+                else
+                {
+                    entity.UpdatedAt = currentTime;
+                    entity.UpdatedBy = currentUserId;
+                }
+            }
+        }
+
+        private void ApplySoftDelete()
+        {
+            var entries = ChangeTracker.Entries()
+                .Where(e => e.Entity is IDeletable && e.State == EntityState.Deleted);
+
+            foreach (var entry in entries)
+            {
+                var entity = (IDeletable)entry.Entity;
+                entity.IsDeleted = true;
+                entity.DeletedAt = _dateTimeService.Now;
+                entity.DeletedBy = _currentUserService?.UserId;
+                entry.State = EntityState.Modified;
+            }
+        }
+
+        public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            return await Database.BeginTransactionAsync(cancellationToken);
+        }
+
+        public async Task<T> ExecuteInTransactionAsync<T>(
+            Func<Task<T>> operation,
+            CancellationToken cancellationToken = default)
+        {
+            using var transaction = await BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var result = await operation();
+                await transaction.CommitAsync(cancellationToken);
+                return result;
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
+        }
+
+        public async Task ExecuteInTransactionAsync(
+            Func<Task> operation,
+            CancellationToken cancellationToken = default)
+        {
+            using var transaction = await BeginTransactionAsync(cancellationToken);
+            try
+            {
+                await operation();
+                await transaction.CommitAsync(cancellationToken);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
         }
 
         // متد AuditChanges() حذف شد چون منطق آن در SaveChangesAsync ادغام شد

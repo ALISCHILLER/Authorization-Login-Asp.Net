@@ -183,13 +183,5 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Common
         /// <param name="error">پیام خطا</param>
         public static implicit operator Result<T>(Exception error) => Failure(error.Message);
 
-        /// <summary>
-        /// تبدیل ضمنی از نتیجه به نتیجه با داده
-        /// </summary>
-        /// <param name="result">نتیجه</param>
-        public static implicit operator Result<T>(Result result) => 
-            result.IsSuccess 
-                ? throw new InvalidOperationException("Cannot convert successful Result to Result<T> without data")
-                : Failure(result.Errors);
     }
 }

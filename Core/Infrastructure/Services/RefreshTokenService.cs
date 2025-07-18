@@ -2,7 +2,7 @@ using System;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
-using Authorization_Login_Asp.Net.Domain.Entities;
+using Authorization_Login_Asp.Net.Core.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 

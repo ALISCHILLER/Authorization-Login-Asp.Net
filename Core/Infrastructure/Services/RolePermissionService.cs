@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Authorization_Login_Asp.Net.Core.Domain.Entities;
+using Authorization_Login_Asp.Net.Core.Domain.Interfaces;
 
 namespace Core.Infrastructure.Services
 {

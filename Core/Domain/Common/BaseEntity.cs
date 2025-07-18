@@ -9,9 +9,9 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Common
         public string? CreatedBy { get; protected set; } // Changed to string? based on ICurrentUserService
         public DateTime? UpdatedAt { get; protected set; } // Renamed from LastModifiedAt for consistency
         public string? UpdatedBy { get; protected set; } // Renamed from LastModifiedBy and changed to string?
-        public bool IsDeleted { get; protected set; }
-        public DateTime? DeletedAt { get; protected set; }
-        public string? DeletedBy { get; protected set; } // Changed to string?
+        public bool IsDeleted { get; set; }
+        public DateTime? DeletedAt { get; set; }
+        public string? DeletedBy { get; set; }
 
         protected BaseEntity()
         {

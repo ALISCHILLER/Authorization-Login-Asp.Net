@@ -1,5 +1,8 @@
 using Authorization_Login_Asp.Net.Core.Application.Common.Mappings;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Users;
 using MediatR;
+using System;
+using System.Collections.Generic;
 
 namespace Authorization_Login_Asp.Net.Core.Application.Features.Auth.Queries.GetLoginHistory
 {

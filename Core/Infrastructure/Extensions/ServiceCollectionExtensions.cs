@@ -57,7 +57,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Extensions
             // Services moved from Program.cs or to be centralized here
             services.AddScoped<ICurrentUserService, CurrentUserService>(); // CurrentUserService is in Infrastructure.Services
             services.AddScoped<IAuditService, AuditService>();             // AuditService is in Infrastructure.Services
-            services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();   // JwtTokenGenerator is in Infrastructure.Security
+            services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IPasswordHasher, PasswordHasher>();         // PasswordHasher is in Infrastructure.Security
             // ILoginHistoryRepository is already registered above.
             services.AddScoped<ITwoFactorService, TwoFactorService>();     // TwoFactorService is in Infrastructure.Security (moved from Program.cs)

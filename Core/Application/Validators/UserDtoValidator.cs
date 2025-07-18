@@ -142,40 +142,6 @@ namespace Authorization_Login_Asp.Net.Core.Application.Validators
         }
     }
 
-    /// <summary>
-    /// اعتبارسنجی مدل تغییر رمز عبور
-    /// </summary>
-    public class ChangePasswordRequestDtoValidator : AbstractValidator<ChangePasswordRequestDto>
-    {
-        public ChangePasswordRequestDtoValidator()
-        {
-            RuleFor(x => x.CurrentPassword)
-                .NotEmpty()
-                .WithMessage("رمز عبور فعلی الزامی است.");
-
-            RuleFor(x => x.NewPassword)
-                .NotEmpty()
-                .WithMessage("رمز عبور جدید الزامی است.")
-                .MinimumLength(8)
-                .WithMessage("رمز عبور جدید باید حداقل ۸ کاراکتر باشد.")
-                .Matches("[A-Z]")
-                .WithMessage("رمز عبور جدید باید حداقل شامل یک حرف بزرگ باشد.")
-                .Matches("[a-z]")
-                .WithMessage("رمز عبور جدید باید حداقل شامل یک حرف کوچک باشد.")
-                .Matches("[0-9]")
-                .WithMessage("رمز عبور جدید باید حداقل شامل یک عدد باشد.")
-                // .Matches("[!@#$%^&*(),.?\\"':{}|<>"]")
-                // .WithMessage("رمز عبور باید حداقل شامل یک کاراکتر خاص باشد.");
-                .NotEqual(x => x.CurrentPassword)
-                .WithMessage("رمز عبور جدید نمی‌تواند با رمز عبور فعلی یکسان باشد.");
-
-            RuleFor(x => x.ConfirmNewPassword)
-                .NotEmpty()
-                .WithMessage("تکرار رمز عبور جدید الزامی است.")
-                .Equal(x => x.NewPassword)
-                .WithMessage("تکرار رمز عبور جدید با رمز عبور جدید مطابقت ندارد.");
-        }
-    }
 
     /// <summary>
     /// اعتبارسنجی مدل تنظیمات امنیتی کاربر

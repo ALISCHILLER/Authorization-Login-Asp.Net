@@ -24,28 +24,33 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Security
         private readonly SigningCredentials _signingCredentials;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<JwtService> _logger;
+        private readonly IMemoryCache _cache;
 
         public JwtService(
             IOptions<JwtSettings> jwtSettings,
             IUnitOfWork unitOfWork,
-            ILogger<JwtService> logger)
+            ILogger<JwtService> logger,
+            IMemoryCache cache)
         {
             _jwtSettings = jwtSettings?.Value ?? throw new ArgumentNullException(nameof(jwtSettings));
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _cache = cache;
 
             if (string.IsNullOrEmpty(_jwtSettings.SecretKey))
             {
-                _logger.LogError("JWT SecretKey is not configured."); // Log error instead of just throwing
+                _logger.LogError("JWT SecretKey is not configured.");
                 throw new ArgumentNullException(nameof(_jwtSettings.SecretKey), "JWT SecretKey cannot be null or empty.");
             }
             _securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
             _signingCredentials = new SigningCredentials(_securityKey, SecurityAlgorithms.HmacSha256);
         }
 
-        /// <summary>
-        /// ایجاد توکن دسترسی
-        /// </summary>
+        public async Task<string> GenerateTokenAsync(User user)
+        {
+            return await GenerateAccessTokenAsync(user);
+        }
+
         public async Task<string> GenerateAccessTokenAsync(User user)
         {
             if (user == null)
@@ -57,10 +62,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Security
             return GenerateToken(claims, _jwtSettings.AccessTokenExpirationMinutes);
         }
 
-        /// <summary>
-        /// ایجاد توکن رفرش
-        /// </summary>
-        public async Task<string> GenerateRefreshTokenAsync(User user)
+        public async Task<RefreshToken> GenerateRefreshTokenAsync(User user, string? ipAddress = null)
         {
             if (user == null)
             {
@@ -73,8 +75,17 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Security
                 new Claim("token_type", "refresh")
             }, _jwtSettings.RefreshTokenExpirationDays * 24 * 60);
 
-            await SaveRefreshTokenAsync(user.Id, token, user.SecurityStamp); // Pass user's SecurityStamp
-            return token;
+            var refreshToken = new RefreshToken
+            {
+                UserId = user.Id,
+                Token = token,
+                ExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays),
+                CreatedByIp = ipAddress
+            };
+
+            await _unitOfWork.RefreshTokens.AddAsync(refreshToken);
+            await _unitOfWork.SaveChangesAsync();
+            return refreshToken;
         }
 
         /// <summary>
@@ -215,24 +226,95 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Security
 
         private async Task SaveRefreshTokenAsync(Guid userId, string token, string securityStamp)
         {
-            // It's good practice to invalidate older refresh tokens for the user if a max limit is set.
-            // This logic would typically be here or in a dedicated RefreshTokenService.
-
             var refreshToken = new RefreshToken
             {
-                // Id will be set by BaseEntity constructor
                 UserId = userId,
                 Token = token,
                 ExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays),
-                // CreatedAt will be set by BaseEntity constructor
-                // SecurityStamp might be useful to invalidate refresh tokens if user's security context changes (e.g. password change)
-                // For now, not adding SecurityStamp to RefreshToken entity directly, but it's a consideration.
             };
-            // refreshToken.MarkAsCreated(null); // Or pass system/user ID if available
 
             await _unitOfWork.RefreshTokens.AddAsync(refreshToken);
-            await _unitOfWork.SaveChangesAsync(); // Save changes for the new refresh token
+            await _unitOfWork.SaveChangesAsync();
             _logger.LogInformation("Refresh token saved for user {UserId}", userId);
         }
+
+        public async Task<(string Token, string RefreshToken)> GenerateTokensAsync(User user, string ipAddress)
+        {
+            if (user == null)
+                throw new ArgumentNullException(nameof(user));
+            if (string.IsNullOrWhiteSpace(ipAddress))
+                throw new ArgumentNullException(nameof(ipAddress));
+
+            try
+            {
+                var token = await GenerateAccessTokenAsync(user);
+                var refreshToken = await GenerateRefreshTokenAsync(user);
+
+                _logger.LogInformation("Generated new tokens for user {UserId}", user.Id);
+                return (token, refreshToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating tokens for user {UserId}", user.Id);
+                throw new JwtTokenException("Failed to generate tokens", ex);
+            }
+        }
+
+        public void RevokeToken(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                throw new ArgumentNullException(nameof(token));
+
+            try
+            {
+                var jti = GetTokenId(token);
+                if (!string.IsNullOrEmpty(jti))
+                {
+                    var cacheKey = $"revoked_token_{jti}";
+                    _cache.Set(cacheKey, true, TimeSpan.FromMinutes(_jwtSettings.AccessTokenExpirationMinutes));
+                    _logger.LogInformation("Token revoked: {TokenId}", jti);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error revoking token");
+                throw new JwtTokenException("Failed to revoke token", ex);
+            }
+        }
+
+        public bool IsTokenRevoked(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                return true;
+
+            try
+            {
+                var jti = GetTokenId(token);
+                if (string.IsNullOrEmpty(jti))
+                    return false;
+
+                var cacheKey = $"revoked_token_{jti}";
+                return _cache.TryGetValue<bool>(cacheKey, out var isRevoked) && isRevoked;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking token revocation status");
+                return true;
+            }
+        }
+
+        private string GetTokenId(string token)
+        {
+            try
+            {
+                var handler = new JwtSecurityTokenHandler();
+                var jwtToken = handler.ReadJwtToken(token);
+                return jwtToken.Id;
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
-} 
+}

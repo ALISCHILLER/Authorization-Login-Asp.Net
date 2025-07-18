@@ -186,7 +186,7 @@ builder.Services.Configure<ImageServiceOptions>(builder.Configuration.GetSection
 
 // تنظیمات Health Checks برای نظارت بر سلامت سیستم
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<AppDbContext>()
+    .AddDbContextCheck<ApplicationDbContext>()
     .AddRedis(builder.Configuration.GetConnectionString("Redis"))
     .AddUrlGroup(new Uri(builder.Configuration["ExternalServices:ApiEndpoint"]), "External API")
     .AddCheck<DatabaseHealthCheck>("Database");

@@ -7,7 +7,7 @@ using System.Linq;
 using Authorization_Login_Asp.Net.Core.Domain.Entities;
 using Authorization_Login_Asp.Net.Core.Application.DTOs;
 
-namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
+namespace Authorization_Login_Asp.Net.Core.Domain.Interfaces
 {
     /// <summary>
     /// اینترفیس ریپازیتوری تاریخچه ورود؛ این کلاس متدهای مربوط به مدیریت تاریخچه ورود کاربران را تعریف می‌کند.

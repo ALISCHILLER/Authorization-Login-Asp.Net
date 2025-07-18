@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Authorization_Login_Asp.Net.Core.Domain.Entities;
 
-namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
+namespace Authorization_Login_Asp.Net.Core.Domain.Interfaces
 {
     /// <summary>
     /// رابط مخزن اعلان‌ها

@@ -3,7 +3,7 @@ using Authorization_Login_Asp.Net.Core.Domain.Common;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Entities
 {
-    public class ErrorLog : BaseAuditableEntity
+    public class ErrorLog : BaseEntity
     {
         public int Id { get; set; }
         public string Message { get; set; }
@@ -12,7 +12,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         public string? AdditionalData { get; set; }
     }
 
-    public class SystemError : BaseAuditableEntity
+    public class SystemError : BaseEntity
     {
         public int Id { get; set; }
         public string Message { get; set; }
@@ -21,7 +21,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         public string? UserId { get; set; }
     }
 
-    public class SecurityError : BaseAuditableEntity
+    public class SecurityError : BaseEntity
     {
         public int Id { get; set; }
         public string Message { get; set; }
@@ -30,7 +30,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         public string? IpAddress { get; set; }
     }
 
-    public class ValidationError : BaseAuditableEntity
+    public class ValidationError : BaseEntity
     {
         public int Id { get; set; }
         public string Message { get; set; }
@@ -38,7 +38,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         public string? UserId { get; set; }
     }
 
-    public class PerformanceError : BaseAuditableEntity
+    public class PerformanceError : BaseEntity
     {
         public int Id { get; set; }
         public string Message { get; set; }

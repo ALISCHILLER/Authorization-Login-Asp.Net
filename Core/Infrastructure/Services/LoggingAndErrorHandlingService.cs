@@ -6,7 +6,6 @@ using System;
 using System.Threading.Tasks;
 using Authorization_Login_Asp.Net.Core.Domain.Exceptions;
 using Authorization_Login_Asp.Net.Core.Domain.Interfaces;
-using Authorization_Login_Asp.Net.Core.Infrastructure.Services.Base;
 using Authorization_Login_Asp.Net.Core.Infrastructure.Data;
 using Microsoft.AspNetCore.Http;
 using System.Collections.Generic;

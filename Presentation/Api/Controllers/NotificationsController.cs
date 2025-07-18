@@ -6,22 +6,26 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 using System.ComponentModel.DataAnnotations;
+using Authorization_Login_Asp.Net.Core.Application.Features.Commands.CreateNotification;
+using Authorization_Login_Asp.Net.Core.Application.Features.Commands.DeleteNotification;
+using Authorization_Login_Asp.Net.Core.Application.Features.Commands.MarkNotificationAsRead;
+using Authorization_Login_Asp.Net.Core.Application.Features.Commands.SendErrorAlert;
+using Authorization_Login_Asp.Net.Core.Application.Features.Commands.SendPerformanceAlert;
+using Authorization_Login_Asp.Net.Core.Application.Features.Commands.SendSecurityAlert;
+using Authorization_Login_Asp.Net.Core.Application.Features.Commands.SendSystemAlert;
+using Authorization_Login_Asp.Net.Core.Application.Features.Queries.GetNotifications;
 
 namespace Authorization_Login_Asp.Net.Presentation.Api.Controllers
 {
     /// <summary>
     /// کنترلر مدیریت اعلان‌ها و هشدارهای سیستم
     /// </summary>
-    [Authorize(Policy = "RequireAdminRole")]
     public class NotificationsController : BaseApiController
     {
-        // _mediator is inherited from BaseApiController
-
         public NotificationsController(
             IMediator mediator,
-            ILogger<NotificationsController> logger) : base(logger, mediator) // Pass both to base
+            ILogger<NotificationsController> logger) : base(logger, mediator)
         {
-            // _mediator is already set by base constructor
         }
 
         /// <summary>

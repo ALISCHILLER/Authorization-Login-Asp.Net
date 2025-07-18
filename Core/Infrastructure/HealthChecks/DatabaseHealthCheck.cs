@@ -14,10 +14,10 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.HealthChecks
     /// </summary>
     public class DatabaseHealthCheck : IHealthCheck
     {
-        private readonly AppDbContext _dbContext;
+        private readonly ApplicationDbContext _dbContext;
         private readonly ILogger<DatabaseHealthCheck> _logger;
 
-        public DatabaseHealthCheck(AppDbContext dbContext, ILogger<DatabaseHealthCheck> logger)
+        public DatabaseHealthCheck(ApplicationDbContext dbContext, ILogger<DatabaseHealthCheck> logger)
         {
             _dbContext = dbContext;
             _logger = logger;
