@@ -14,5 +14,7 @@ namespace Authorization_Login_Asp.Net.Core.Application.DTOs.Auth
         public string AccessToken { get; set; } = string.Empty;
         public DateTime? AccessTokenExpiresAt { get; set; }
         public DateTime? RefreshTokenExpiresAt { get; set; }
+        public string? UserIdFor2FA { get; set; }
+        public string? Message { get; set; }
     }
 }

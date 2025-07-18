@@ -10,6 +10,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Interfaces
     public interface IRoleRepository : IGenericRepository<Role>
     {
         Task<Role?> GetByNameAsync(string name, CancellationToken cancellationToken = default);
+        Task Update(Role role);
         Task<IEnumerable<Role>> GetByUserAsync(Guid userId, CancellationToken cancellationToken = default);
         Task<IEnumerable<Role>> GetByUsernameAsync(string username);
         Task<IEnumerable<Role>> GetByPermissionAsync(Guid permissionId);

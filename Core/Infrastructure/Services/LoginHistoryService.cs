@@ -1,15 +1,16 @@
-using Authorization_Login_Asp.Net.Core.Application.Interfaces; // For ILoginHistoryService
+using Authorization_Login_Asp.Net.Core.Application.Interfaces.Services; // فقط نسخه صحیح را ایمپورت کن
+using Authorization_Login_Asp.Net.Core.Application.Interfaces; // اضافه کردن using برای IDateTimeService
 using Authorization_Login_Asp.Net.Core.Domain.Interfaces; // For IUserRepository or a dedicated ILoginHistoryRepository
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Authorization_Login_Asp.Net.Core.Domain.Entities; // For LoginHistory entity
-using Authorization_Login_Asp.Net.Core.Application.DTOs.Auth; // For DeviceInfo
+using Authorization_Login_Asp.Net.Core.Domain.ValueObjects; // اصلاح namespace برای DeviceInfo
 
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
 {
-    public class LoginHistoryService : ILoginHistoryService
+    public class LoginHistoryService : Authorization_Login_Asp.Net.Core.Application.Interfaces.Services.ILoginHistoryService
     {
         private readonly IUserRepository _userRepository; // Or ILoginHistoryRepository if it exists
         private readonly ILogger<LoginHistoryService> _logger;
@@ -39,7 +40,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                 OperatingSystem = deviceInfo?.OperatingSystem ?? string.Empty,
                 Browser = deviceInfo?.BrowserName ?? string.Empty,
                 IsSuccessful = true,
-                LoginTime = _dateTimeService.UtcNow
+                // LoginTime = _dateTimeService.UtcNow
+                // به جای LoginTime از CreatedAt (BaseEntity) استفاده می‌شود
             };
             await _userRepository.AddLoginHistoryAsync(loginHistory);
             // TODO: Review SaveChangesAsync strategy. Currently assuming UnitOfWork pattern.
@@ -60,7 +62,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                 Browser = deviceInfo?.BrowserName ?? string.Empty,
                 IsSuccessful = false,
                 FailureReason = reason,
-                LoginTime = _dateTimeService.UtcNow
+                // LoginTime = _dateTimeService.UtcNow
+                // به جای LoginTime از CreatedAt (BaseEntity) استفاده می‌شود
             };
             await _userRepository.AddLoginHistoryAsync(loginHistory);
             // TODO: Review SaveChangesAsync strategy.
@@ -73,9 +76,11 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
             if (lastLogin != null && !lastLogin.LogoutTime.HasValue)
             {
                 lastLogin.LogoutTime = _dateTimeService.UtcNow;
-                if (lastLogin.LoginTime != DateTime.MinValue) // Ensure LoginTime is valid
+                // if (lastLogin.LoginTime != DateTime.MinValue) // Ensure LoginTime is valid
+                if (lastLogin.CreatedAt != DateTime.MinValue) // Ensure CreatedAt is valid
                 {
-                    lastLogin.SessionDuration = (int)(lastLogin.LogoutTime.Value - lastLogin.LoginTime).TotalSeconds;
+                    // lastLogin.SessionDuration = (int)(lastLogin.LogoutTime.Value - lastLogin.LoginTime).TotalSeconds;
+                    lastLogin.SessionDuration = (int)(lastLogin.LogoutTime.Value - lastLogin.CreatedAt).TotalSeconds;
                 }
                 await _userRepository.UpdateLoginHistoryAsync(lastLogin);
                 // TODO: Review SaveChangesAsync strategy.
@@ -102,9 +107,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
 
         public async Task RecordLoginAsync(Guid userId, string ipAddress, string? deviceToken, CancellationToken cancellationToken = default)
         {
-            // Assuming deviceToken can be part of UserAgent or a new field in DeviceInfo if necessary.
-            // For simplicity, passing deviceToken as part of userAgent or as a device name if deviceInfo is null.
-            var deviceInfo = new DeviceInfo { DeviceName = deviceToken ?? "Unknown" }; // Simplified
+            var deviceInfo = new DeviceInfo(deviceToken ?? "Unknown", deviceToken ?? "Unknown", DeviceType.Unknown, string.Empty, string.Empty, string.Empty);
             await LogSuccessfulLoginAsync(userId, ipAddress, deviceToken, deviceInfo);
             _logger.LogInformation("Login recorded via RecordLoginAsync for User ID: {UserId}", userId);
         }

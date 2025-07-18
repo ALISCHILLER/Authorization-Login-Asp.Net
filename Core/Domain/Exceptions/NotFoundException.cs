@@ -1,5 +1,5 @@
 using System;
-using Authorization_Login_Asp.Net.Core.Domain.Common;
+using Authorization_Login_Asp.Net.Core.Domain.Enums;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
 {
@@ -11,12 +11,12 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         /// <summary>
         /// نوع موجودیت
         /// </summary>
-        public string EntityType { get; }
+        public string? EntityType { get; }
 
         /// <summary>
         /// شناسه موجودیت
         /// </summary>
-        public object EntityId { get; }
+        public object? EntityId { get; }
 
         /// <summary>
         /// ایجاد یک نمونه جدید از استثنای NotFound
@@ -24,16 +24,15 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         /// <param name="message">پیام خطا</param>
         /// <param name="entityType">نوع موجودیت</param>
         /// <param name="entityId">شناسه موجودیت</param>
-        public NotFoundException(string message, string entityType = null, object entityId = null) 
+        public NotFoundException(string message, string? entityType = null, object? entityId = null) 
             : base(message, DomainErrorCodes.General.NotFound)
         {
             EntityType = entityType;
             EntityId = entityId;
-
-            if (entityType != null)
-                AddData("EntityType", entityType);
-            if (entityId != null)
-                AddData("EntityId", entityId);
+            if (entityType != null && AdditionalData != null)
+                AdditionalData["EntityType"] = entityType;
+            if (entityId != null && AdditionalData != null)
+                AdditionalData["EntityId"] = entityId;
         }
 
         /// <summary>
@@ -46,4 +45,4 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         {
         }
     }
-} 
+}

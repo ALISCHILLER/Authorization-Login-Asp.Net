@@ -37,6 +37,21 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
             return user == null ? null! : MapToDto(user);
         }
 
+        public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await _userRepository.DeleteAsync(id, cancellationToken);
+        }
+
+        public async Task<bool> ActivateAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await _userRepository.ActivateAsync(id, cancellationToken);
+        }
+
+        public async Task<bool> DeactivateAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await _userRepository.DeactivateAsync(id, cancellationToken);
+        }
+
         private static UserDto MapToDto(User user)
         {
             return new UserDto

@@ -1,4 +1,5 @@
 using Authorization_Login_Asp.Net.Core.Application.Interfaces.Services;
+using Authorization_Login_Asp.Net.Core.Domain.ValueObjects;
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
 using Authorization_Login_Asp.Net.Core.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -11,6 +12,7 @@ using Authorization_Login_Asp.Net.Core.Domain.Entities;
 using Authorization_Login_Asp.Net.Core.Domain.Common;
 using System.Security.Claims;
 using System;
+using Authorization_Login_Asp.Net.Core.Application.DTOs.Users;
 
 namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
 {
@@ -33,7 +35,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
             IEmailService emailService,
             IMapper mapper,
             ILogger<UserAuthService> logger,
-            ILoginHistoryService loginHistoryService,
+            Core.Application.Interfaces.Services.ILoginHistoryService loginHistoryService,
             ITwoFactorService twoFactorService,
             IDateTimeService dateTimeService)
         {
@@ -61,9 +63,9 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
                 username: request.Username,
                 email: request.Email,
                 passwordHash: hash,
-                firstName: request.FirstName,
-                lastName: request.LastName,
-                phoneNumber: request.PhoneNumber
+                firstName: request.FirstName ?? string.Empty,
+                lastName: request.LastName ?? string.Empty,
+                phoneNumber: request.PhoneNumber ?? string.Empty
             );
             user.PasswordSalt = salt;
 
@@ -101,7 +103,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
                 if(tempUser != null)
                 {
                     // Assuming DeviceInfo is part of LoginRequest or can be constructed
-                    await _loginHistoryService.LogFailedLoginAsync(tempUser.Id, request.IpAddress, request.UserAgent, request.DeviceInfo, "Incorrect password");
+                    await _loginHistoryService.LogFailedLoginAsync(tempUser.Id, request.IpAddress ?? string.Empty, request.UserAgent, request.DeviceInfo, "Incorrect password");
                 }
                 throw new DomainException("Invalid username or password."); // Translated
             }
@@ -109,7 +111,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
             if (user.IsAccountLocked())
             {
                 _logger.LogWarning("Login attempt for locked account: {Username}", user.Username);
-                await _loginHistoryService.LogFailedLoginAsync(user.Id, request.IpAddress, request.UserAgent, request.DeviceInfo, "Account locked");
+                await _loginHistoryService.LogFailedLoginAsync(user.Id, request.IpAddress ?? string.Empty, request.UserAgent, request.DeviceInfo, "Account locked");
                 throw new DomainException($"Your account is locked until {user.AccountLockoutEnd}."); // Translated
             }
 
@@ -130,7 +132,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
             await _userRepository.UpdateAsync(user, cancellationToken);
             // Consider Unit of Work for SaveChangesAsync
 
-            await _loginHistoryService.LogSuccessfulLoginAsync(user.Id, request.IpAddress, request.UserAgent, request.DeviceInfo);
+            await _loginHistoryService.LogSuccessfulLoginAsync(user.Id, request.IpAddress ?? string.Empty, request.UserAgent, request.DeviceInfo);
 
             var accessToken = await _jwtService.GenerateAccessTokenAsync(user);
             var refreshToken = await _jwtService.GenerateRefreshTokenAsync(user, request.IpAddress);
@@ -171,8 +173,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
 
         public Task<AuthResponse> ValidateTwoFactorAsync(TwoFactorRequest request, CancellationToken cancellationToken = default)
         {
-             _logger.LogWarning("ValidateTwoFactorAsync in UserAuthService is deprecated. Use ITwoFactorService.ValidateTwoFactorLoginAsync instead.");
-            return _twoFactorService.ValidateTwoFactorLoginAsync(Guid.Parse(request.UserId), request.Code);
+            _logger.LogWarning("ValidateTwoFactorAsync in UserAuthService is deprecated. Use ITwoFactorService.ValidateTwoFactorLoginAsync instead.");
+            return _twoFactorService.ValidateTwoFactorLoginAsync(request.UserId, request.Code);
         }
 
         public Task<AuthResponse> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default)
@@ -243,11 +245,12 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services.Auth
             return user?.AccountLockoutEnd;
         }
 
-        public Task RecordLoginAsync(Guid userId, string ipAddress, string? deviceToken, CancellationToken cancellationToken = default)
+        public async Task RecordLoginAsync(Guid userId, string ipAddress, string? deviceToken, CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("UserAuthService.RecordLoginAsync called, delegating to ILoginHistoryService. UserID: {UserId}", userId);
-            var deviceInfo = deviceToken != null ? new DeviceInfo { DeviceName = deviceToken } : null;
-            return _loginHistoryService.RecordLoginAsync(userId, ipAddress, deviceToken, cancellationToken); // Corrected to pass cancellationToken
+            var deviceInfo = deviceToken != null ? new DeviceInfo(deviceToken, deviceToken, DeviceType.Unknown, string.Empty, string.Empty, string.Empty) : null;
+            // جایگزینی با LogSuccessfulLoginAsync
+            await _loginHistoryService.LogSuccessfulLoginAsync(userId, ipAddress ?? string.Empty, null, deviceInfo);
         }
     }
 }

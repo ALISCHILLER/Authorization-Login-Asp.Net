@@ -38,14 +38,14 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             return await _dbSet.FirstOrDefaultAsync(u => u.Username == username && !u.IsDeleted, cancellationToken);
         }
 
-        public async Task AddAsync(User user)
+        public async Task AddAsync(User entity, CancellationToken cancellationToken = default)
         {
-            await _dbSet.AddAsync(user);
+            await _dbSet.AddAsync(entity, cancellationToken);
         }
 
-        public async Task UpdateAsync(User user)
+        public async Task UpdateAsync(User entity, CancellationToken cancellationToken = default)
         {
-            _dbSet.Update(user);
+            _dbSet.Update(entity);
             await Task.CompletedTask;
         }
 
@@ -65,16 +65,17 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             await Task.CompletedTask;
         }
 
+        // اصلاح کوئری‌های LoginHistory: جایگزینی LoginTime با CreatedAt
         public async Task<LoginHistory?> GetLastLoginHistoryAsync(Guid userId)
         {
             return await _loginHistorySet.Where(l => l.UserId == userId && !l.IsDeleted)
-                .OrderByDescending(l => l.LoginTime).FirstOrDefaultAsync();
+                .OrderByDescending(l => l.CreatedAt).FirstOrDefaultAsync();
         }
 
         public async Task<IEnumerable<LoginHistory>> GetLoginHistoryAsync(Guid userId, int page, int pageSize)
         {
             return await _loginHistorySet.Where(l => l.UserId == userId && !l.IsDeleted)
-                .OrderByDescending(l => l.LoginTime)
+                .OrderByDescending(l => l.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
@@ -88,13 +89,13 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
         public async Task<LoginHistory?> GetLastSuccessfulLoginAsync(Guid userId)
         {
             return await _loginHistorySet.Where(l => l.UserId == userId && l.IsSuccessful && !l.IsDeleted)
-                .OrderByDescending(l => l.LoginTime).FirstOrDefaultAsync();
+                .OrderByDescending(l => l.CreatedAt).FirstOrDefaultAsync();
         }
 
         public async Task<int> GetFailedLoginAttemptsCountAsync(Guid userId, int timeWindowMinutes = 15)
         {
             var since = DateTime.UtcNow.AddMinutes(-timeWindowMinutes);
-            return await _loginHistorySet.CountAsync(l => l.UserId == userId && !l.IsSuccessful && l.LoginTime >= since && !l.IsDeleted);
+            return await _loginHistorySet.CountAsync(l => l.UserId == userId && !l.IsSuccessful && l.CreatedAt >= since && !l.IsDeleted);
         }
 
         public async Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default)
@@ -148,39 +149,61 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             return await _dbSet.FirstOrDefaultAsync(u => u.Id == id && !u.IsDeleted);
         }
 
-        public async Task<IEnumerable<User>> GetAllAsync()
+        public async Task<IEnumerable<User>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            return await _dbSet.Where(u => !u.IsDeleted).ToListAsync();
+            return await _dbSet.Where(u => !u.IsDeleted).ToListAsync(cancellationToken);
         }
 
-        public async Task<IEnumerable<User>> FindAsync(System.Linq.Expressions.Expression<Func<User, bool>> predicate)
+        public async Task<IEnumerable<User>> FindAsync(System.Linq.Expressions.Expression<Func<User, bool>> predicate, CancellationToken cancellationToken = default)
         {
-            return await _dbSet.Where(predicate).ToListAsync();
+            return await _dbSet.Where(predicate).ToListAsync(cancellationToken);
         }
 
-        void IGenericRepository<User>.Update(User entity)
+        public async Task<bool> ExistsAsync(System.Linq.Expressions.Expression<Func<User, bool>> predicate, CancellationToken cancellationToken = default)
         {
-            _dbSet.Update(entity);
+            return await _dbSet.AnyAsync(predicate, cancellationToken);
         }
 
-        void IGenericRepository<User>.Remove(User entity)
+        public async Task<int> CountAsync(System.Linq.Expressions.Expression<Func<User, bool>> predicate, CancellationToken cancellationToken = default)
         {
-            _dbSet.Remove(entity);
-        }
-
-        public async Task<bool> ExistsAsync(System.Linq.Expressions.Expression<Func<User, bool>> predicate)
-        {
-            return await _dbSet.AnyAsync(predicate);
-        }
-
-        public async Task<int> CountAsync(System.Linq.Expressions.Expression<Func<User, bool>> predicate)
-        {
-            return await _dbSet.CountAsync(predicate);
+            return await _dbSet.CountAsync(predicate, cancellationToken);
         }
 
         public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var user = await _dbSet.FirstOrDefaultAsync(u => u.Id == id && !u.IsDeleted, cancellationToken);
+            if (user == null) return false;
+            user.MarkAsDeleted(null); // حذف نرم با متد دامنه
+            await _context.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        public async Task<bool> ActivateAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var user = await _dbSet.FirstOrDefaultAsync(u => u.Id == id && !u.IsDeleted, cancellationToken);
+            if (user == null) return false;
+            user.IsActive = true;
+            await _context.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        public async Task<bool> DeactivateAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var user = await _dbSet.FirstOrDefaultAsync(u => u.Id == id && !u.IsDeleted, cancellationToken);
+            if (user == null) return false;
+            user.IsActive = false;
+            await _context.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        public void Remove(User entity)
+        {
+            _dbSet.Remove(entity);
         }
     }
 }

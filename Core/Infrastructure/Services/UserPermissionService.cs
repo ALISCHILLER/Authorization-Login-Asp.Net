@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Authorization_Login_Asp.Net.Core.Domain.Entities;
+using Authorization_Login_Asp.Net.Core.Domain.Interfaces;
 
 namespace Core.Infrastructure.Services
 {
@@ -40,7 +42,7 @@ namespace Core.Infrastructure.Services
             if (permissionId == Guid.Empty)
                 throw new ArgumentException("Invalid permission ID", nameof(permissionId));
 
-            await _userPermissionRepository.AddPermissionToUserAsync(userId, permissionId);
+            await _userPermissionRepository.AddPermissionAsync(userId, permissionId);
         }
 
         public async Task RemovePermissionFromUserAsync(Guid userId, Guid permissionId)
@@ -51,7 +53,7 @@ namespace Core.Infrastructure.Services
             if (permissionId == Guid.Empty)
                 throw new ArgumentException("Invalid permission ID", nameof(permissionId));
 
-            await _userPermissionRepository.RemovePermissionFromUserAsync(userId, permissionId);
+            await _userPermissionRepository.RemovePermissionAsync(userId, permissionId);
         }
 
         public async Task<IEnumerable<User>> GetUsersByPermissionAsync(string permissionName)
@@ -59,7 +61,7 @@ namespace Core.Infrastructure.Services
             if (string.IsNullOrWhiteSpace(permissionName))
                 throw new ArgumentException("Permission name cannot be empty", nameof(permissionName));
 
-            return await _userPermissionRepository.GetUsersByPermissionAsync(permissionName);
+            return await _userPermissionRepository.GetUsersWithPermissionAsync(Guid.Parse(permissionName)); // اگر ورودی name است باید تبدیل شود یا متد مناسب صدا زده شود
         }
 
         public async Task<IEnumerable<User>> GetUsersByPermissionAsync(Guid permissionId)
@@ -67,7 +69,7 @@ namespace Core.Infrastructure.Services
             if (permissionId == Guid.Empty)
                 throw new ArgumentException("Invalid permission ID", nameof(permissionId));
 
-            return await _userPermissionRepository.GetUsersByPermissionAsync(permissionId);
+            return await _userPermissionRepository.GetUsersWithPermissionAsync(permissionId);
         }
     }
-} 
+}

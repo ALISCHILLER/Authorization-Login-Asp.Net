@@ -25,6 +25,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         public string Group { get; private set; } = "Default";
         public string Type { get; private set; } = "General";
         public bool IsActive { get; private set; } = true;
+        public string Category { get; private set; } = "Default";
 
         /// <summary>
         /// توضیح کامل‌تر یا اختیاری درباره عملکرد این دسترسی

@@ -3,7 +3,7 @@ using Authorization_Login_Asp.Net.Core.Domain.Common;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Entities
 {
-    public class UserAuditLog : BaseAuditableEntity
+    public class UserAuditLog : BaseEntity // تغییر ارث‌بری به BaseEntity برای پشتیبانی از IEntity و پراپرتی‌های audit
     {
         public Guid UserId { get; set; }
         public string Action { get; set; } = null!;
@@ -18,4 +18,4 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         // Navigation property
         public virtual User User { get; set; } = null!;
     }
-} 
+}

@@ -9,5 +9,6 @@ namespace Authorization_Login_Asp.Net.Core.Application.DTOs.Roles
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public bool IsActive { get; set; }
+        public string Category { get; set; } = string.Empty;
     }
 }

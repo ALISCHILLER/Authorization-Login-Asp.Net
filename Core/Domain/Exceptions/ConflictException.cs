@@ -1,5 +1,5 @@
 using System;
-using Authorization_Login_Asp.Net.Core.Domain.Common;
+using Authorization_Login_Asp.Net.Core.Domain.Enums;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
 {
@@ -11,12 +11,12 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         /// <summary>
         /// نوع موجودیت
         /// </summary>
-        public string EntityType { get; }
+        public string? EntityType { get; }
 
         /// <summary>
         /// مقدار تکراری
         /// </summary>
-        public object ConflictingValue { get; }
+        public object? ConflictingValue { get; }
 
         /// <summary>
         /// ایجاد یک نمونه جدید از استثنای Conflict
@@ -24,16 +24,15 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         /// <param name="message">پیام خطا</param>
         /// <param name="entityType">نوع موجودیت</param>
         /// <param name="conflictingValue">مقدار تکراری</param>
-        public ConflictException(string message, string entityType = null, object conflictingValue = null) 
+        public ConflictException(string message, string? entityType = null, object? conflictingValue = null)
             : base(message, DomainErrorCodes.General.DuplicateEntry)
         {
             EntityType = entityType;
             ConflictingValue = conflictingValue;
-
-            if (entityType != null)
-                AddData("EntityType", entityType);
-            if (conflictingValue != null)
-                AddData("ConflictingValue", conflictingValue);
+            if (entityType != null && AdditionalData != null)
+                AdditionalData["EntityType"] = entityType;
+            if (conflictingValue != null && AdditionalData != null)
+                AdditionalData["ConflictingValue"] = conflictingValue;
         }
 
         /// <summary>
@@ -46,4 +45,4 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         {
         }
     }
-} 
+}

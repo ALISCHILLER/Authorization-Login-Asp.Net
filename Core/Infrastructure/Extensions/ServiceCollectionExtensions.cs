@@ -30,7 +30,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Extensions
             // IUserService is now registered in ApplicationExtensions pointing to Infrastructure.Services.UserService
             // services.AddScoped<IUserService, AuthenticationService>();
             // ILoginHistoryService is now registered in ApplicationExtensions pointing to Infrastructure.Services.LoginHistoryService
-            // services.AddScoped<ILoginHistoryService, AuthenticationService>();
+            // services.AddScoped<Authorization_Login_Asp.Net.Core.Application.Interfaces.Services.ILoginHistoryService, Infrastructure.Services.LoginHistoryService>();
 
             // ثبت سرویس‌های ارتباطی
             services.AddScoped<IEmailService, EmailService>();

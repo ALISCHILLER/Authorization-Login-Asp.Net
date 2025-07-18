@@ -13,5 +13,6 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Interfaces
         Task RemovePermissionFromRoleAsync(Guid roleId, Guid permissionId);
         Task<IEnumerable<Role>> GetRolesByPermissionAsync(string permissionName);
         Task<IEnumerable<Role>> GetRolesByPermissionAsync(Guid permissionId);
+        Task RemoveAllPermissionsFromRoleAsync(Guid roleId);
     }
 } 

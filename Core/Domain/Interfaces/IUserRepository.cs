@@ -21,8 +21,8 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Interfaces
         Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default);
         Task<bool> ExistsByUsernameAsync(string username, CancellationToken cancellationToken = default);
         Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-        Task UpdateAsync(User user);
-        Task SaveChangesAsync();
+        Task UpdateAsync(User user, CancellationToken cancellationToken = default);
+        Task SaveChangesAsync(CancellationToken cancellationToken = default);
         // متدهای مورد نیاز برای تاریخچه ورود
         Task AddLoginHistoryAsync(LoginHistory loginHistory);
         Task UpdateLoginHistoryAsync(LoginHistory loginHistory);
@@ -31,5 +31,8 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Interfaces
         Task<int> GetLoginHistoryCountAsync(Guid userId);
         Task<LoginHistory?> GetLastSuccessfulLoginAsync(Guid userId);
         Task<int> GetFailedLoginAttemptsCountAsync(Guid userId, int timeWindowMinutes = 15);
+        Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+        Task<bool> ActivateAsync(Guid id, CancellationToken cancellationToken = default);
+        Task<bool> DeactivateAsync(Guid id, CancellationToken cancellationToken = default);
     }
 }

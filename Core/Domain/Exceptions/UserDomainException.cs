@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Authorization_Login_Asp.Net.Core.Domain.Enums;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
 {
@@ -17,7 +18,7 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         /// <summary>
         /// نام کاربری (در صورت وجود)
         /// </summary>
-        public string Username { get; }
+        public string? Username { get; }
 
         /// <summary>
         /// ایجاد یک نمونه جدید از استثنای دامنه کاربر
@@ -29,19 +30,18 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         /// <param name="additionalData">اطلاعات اضافی</param>
         public UserDomainException(
             string message,
-            string errorCode = DomainErrorCodes.User.UserNotFound,
+            string? errorCode = null,
             Guid? userId = null,
-            string username = null,
-            IDictionary<string, object> additionalData = null)
+            string? username = null,
+            IDictionary<string, object>? additionalData = null)
             : base(message, errorCode, additionalData)
         {
             UserId = userId;
             Username = username;
-
-            if (userId.HasValue)
-                AddData("UserId", userId.Value);
-            if (!string.IsNullOrEmpty(username))
-                AddData("Username", username);
+            if (userId.HasValue && AdditionalData != null)
+                AdditionalData["UserId"] = userId.Value;
+            if (!string.IsNullOrEmpty(username) && AdditionalData != null)
+                AdditionalData["Username"] = username;
         }
 
         /// <summary>
@@ -56,19 +56,18 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         public UserDomainException(
             string message,
             Exception innerException,
-            string errorCode = DomainErrorCodes.User.UserNotFound,
+            string? errorCode = null,
             Guid? userId = null,
-            string username = null,
-            IDictionary<string, object> additionalData = null)
+            string? username = null,
+            IDictionary<string, object>? additionalData = null)
             : base(message, innerException, errorCode, additionalData)
         {
             UserId = userId;
             Username = username;
-
-            if (userId.HasValue)
-                AddData("UserId", userId.Value);
-            if (!string.IsNullOrEmpty(username))
-                AddData("Username", username);
+            if (userId.HasValue && AdditionalData != null)
+                AdditionalData["UserId"] = userId.Value;
+            if (!string.IsNullOrEmpty(username) && AdditionalData != null)
+                AdditionalData["Username"] = username;
         }
 
         /// <summary>
@@ -87,4 +86,4 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
             return result;
         }
     }
-} 
+}

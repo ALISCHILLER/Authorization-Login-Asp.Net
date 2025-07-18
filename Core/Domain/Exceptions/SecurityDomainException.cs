@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Authorization_Login_Asp.Net.Core.Domain.Enums;
 
 namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
 {
@@ -17,12 +18,12 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         /// <summary>
         /// آدرس IP (در صورت وجود)
         /// </summary>
-        public string IpAddress { get; }
+        public string? IpAddress { get; }
 
         /// <summary>
         /// User Agent (در صورت وجود)
         /// </summary>
-        public string UserAgent { get; }
+        public string? UserAgent { get; }
 
         /// <summary>
         /// ایجاد یک نمونه جدید از استثنای امنیتی
@@ -36,21 +37,21 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
         public SecurityDomainException(
             string message,
             SecurityRiskLevel riskLevel = SecurityRiskLevel.Medium,
-            string errorCode = DomainErrorCodes.Security.SuspiciousActivity,
-            string ipAddress = null,
-            string userAgent = null,
-            IDictionary<string, object> additionalData = null)
+            string? errorCode = null,
+            string? ipAddress = null,
+            string? userAgent = null,
+            IDictionary<string, object>? additionalData = null)
             : base(message, errorCode, additionalData)
         {
             RiskLevel = riskLevel;
             IpAddress = ipAddress;
             UserAgent = userAgent;
-
-            AddData("RiskLevel", riskLevel);
-            if (!string.IsNullOrEmpty(ipAddress))
-                AddData("IpAddress", ipAddress);
-            if (!string.IsNullOrEmpty(userAgent))
-                AddData("UserAgent", userAgent);
+            if (AdditionalData != null)
+                AdditionalData["RiskLevel"] = riskLevel;
+            if (!string.IsNullOrEmpty(ipAddress) && AdditionalData != null)
+                AdditionalData["IpAddress"] = ipAddress;
+            if (!string.IsNullOrEmpty(userAgent) && AdditionalData != null)
+                AdditionalData["UserAgent"] = userAgent;
         }
 
         /// <summary>
@@ -67,21 +68,21 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
             string message,
             Exception innerException,
             SecurityRiskLevel riskLevel = SecurityRiskLevel.Medium,
-            string errorCode = DomainErrorCodes.Security.SuspiciousActivity,
-            string ipAddress = null,
-            string userAgent = null,
-            IDictionary<string, object> additionalData = null)
+            string? errorCode = null,
+            string? ipAddress = null,
+            string? userAgent = null,
+            IDictionary<string, object>? additionalData = null)
             : base(message, innerException, errorCode, additionalData)
         {
             RiskLevel = riskLevel;
             IpAddress = ipAddress;
             UserAgent = userAgent;
-
-            AddData("RiskLevel", riskLevel);
-            if (!string.IsNullOrEmpty(ipAddress))
-                AddData("IpAddress", ipAddress);
-            if (!string.IsNullOrEmpty(userAgent))
-                AddData("UserAgent", userAgent);
+            if (AdditionalData != null)
+                AdditionalData["RiskLevel"] = riskLevel;
+            if (!string.IsNullOrEmpty(ipAddress) && AdditionalData != null)
+                AdditionalData["IpAddress"] = ipAddress;
+            if (!string.IsNullOrEmpty(userAgent) && AdditionalData != null)
+                AdditionalData["UserAgent"] = userAgent;
         }
 
         /// <summary>
@@ -103,4 +104,4 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Exceptions
             return result;
         }
     }
-} 
+}

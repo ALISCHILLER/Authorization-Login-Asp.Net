@@ -46,7 +46,7 @@ public static class ServiceCollectionExtensions
         // ثبت سرویس‌ها
         services.AddScoped<IUserService, Infrastructure.Services.UserService>(); // Explicitly pointing to Infrastructure implementation
         services.AddScoped<IUserAuthenticationService, UserAuthService>(); // Pointing to new UserAuthService in Infrastructure.Services.Auth
-        services.AddScoped<ILoginHistoryService, Infrastructure.Services.LoginHistoryService>(); // Pointing to new LoginHistoryService in Infrastructure.Services
+        services.AddScoped<Authorization_Login_Asp.Net.Core.Application.Interfaces.Services.ILoginHistoryService, Infrastructure.Services.LoginHistoryService>(); // Pointing to new LoginHistoryService in Infrastructure.Services
 
         // TODO: Verify UserProfileService and UserAuthorizationService implementation and location
         services.AddScoped<IUserProfileService, UserProfileService>();
@@ -57,4 +57,4 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
-} 
+}

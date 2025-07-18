@@ -14,10 +14,13 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
 {
     public class UserNotificationRepository : BaseRepository<UserNotification>, IUserNotificationRepository
     {
+        private readonly ILogger<UserNotificationRepository> _logger;
+
         public UserNotificationRepository(
             ApplicationDbContext context,
-            ILogger<UserNotificationRepository> logger) : base(context, logger)
+            ILogger<UserNotificationRepository> logger) : base(context)
         {
+            _logger = logger;
         }
 
         public async Task<IEnumerable<UserNotification>> GetByUserAsync(
@@ -112,6 +115,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
 
                 notification.IsRead = true;
                 notification.ReadAt = DateTime.UtcNow;
+                notification.MarkAsDeleted(null); // به جای set مستقیم IsDeleted و DeletedAt
                 return await _context.SaveChangesAsync(cancellationToken) > 0;
             }
             catch (Exception ex)
@@ -170,9 +174,9 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
                     Title = title,
                     Message = message,
                     NotificationType = notificationType,
-                    Data = data,
-                    CreatedAt = DateTime.UtcNow
+                    Data = data
                 };
+                // CreatedAt توسط BaseEntity مقداردهی می‌شود
 
                 await _dbSet.AddAsync(notification, cancellationToken);
                 await _context.SaveChangesAsync(cancellationToken);
@@ -203,8 +207,8 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
                     return true;
                 }
 
-                notification.IsDeleted = true;
-                notification.DeletedAt = DateTime.UtcNow;
+                // حذف مقداردهی مستقیم IsDeleted و DeletedAt
+                notification.MarkAsDeleted(null);
                 return await _context.SaveChangesAsync(cancellationToken) > 0;
             }
             catch (Exception ex)
@@ -227,12 +231,13 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
                         un.DeletedAt < DateTime.UtcNow.AddDays(-30))
                     .ToListAsync(cancellationToken);
 
-                if (!oldNotifications.Any())
+                if (oldNotifications.Any())
                 {
-                    return 0;
+                    foreach (var n in oldNotifications)
+                        n.MarkAsDeleted(null);
+                    _dbSet.UpdateRange(oldNotifications);
                 }
 
-                _dbSet.RemoveRange(oldNotifications);
                 return await _context.SaveChangesAsync(cancellationToken);
             }
             catch (Exception ex)
@@ -292,4 +297,4 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Repositories
             }
         }
     }
-} 
+}

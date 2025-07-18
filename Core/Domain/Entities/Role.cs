@@ -25,6 +25,8 @@ namespace Authorization_Login_Asp.Net.Core.Domain.Entities
         public RoleType Type { get; private set; }
         public RolePermissions Permissions { get; private set; }
         public DateTime? ExpiresAt { get; private set; }
+        public DateTime? LastModifiedAt { get; private set; }
+        public string? LastModifiedBy { get; private set; }
 
         private readonly List<UserRole> _userRoles = new();
         public virtual IReadOnlyCollection<UserRole> UserRoles => _userRoles.AsReadOnly();

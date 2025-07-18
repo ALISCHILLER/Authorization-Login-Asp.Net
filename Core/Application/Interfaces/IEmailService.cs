@@ -19,5 +19,6 @@ namespace Authorization_Login_Asp.Net.Core.Application.Interfaces
         Task<bool> ValidateEmailAsync(string email);
         Task<bool> IsEmailDeliveredAsync(string email);
         Task<string> GetEmailStatusAsync(string email);
+        Task SendTwoFactorCodeAsync(string email, string code);
     }
 }

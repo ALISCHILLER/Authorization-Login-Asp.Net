@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Authorization_Login_Asp.Net.Core.Application.DTOs.Roles;
 using Authorization_Login_Asp.Net.Core.Application.Interfaces;
+using Authorization_Login_Asp.Net.Core.Application.Interfaces.Services;
 using Authorization_Login_Asp.Net.Core.Domain.Entities;
 using Authorization_Login_Asp.Net.Core.Domain.Enums;
 using Authorization_Login_Asp.Net.Core.Domain.Interfaces;
@@ -18,7 +19,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         private readonly IRoleRepository _roleRepository;
         private readonly IPermissionRepository _permissionRepository;
         private readonly IRolePermissionRepository _rolePermissionRepository;
-        private readonly Authorization_Login_Asp.Net.Core.Domain.Interfaces.IUserRoleRepository _userRoleRepository;
+        private readonly IUserRoleRepository _userRoleRepository;
         private readonly ILoggingService _logger;
         private readonly IConfiguration _configuration;
         private readonly ITracingService _tracingService;
@@ -28,7 +29,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
             IRoleRepository roleRepository,
             IPermissionRepository permissionRepository,
             IRolePermissionRepository rolePermissionRepository,
-            Authorization_Login_Asp.Net.Core.Domain.Interfaces.IUserRoleRepository userRoleRepository,
+            IUserRoleRepository userRoleRepository,
             ILoggingService logger,
             IConfiguration configuration,
             ITracingService tracingService,
@@ -55,8 +56,6 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
             if (request.IsActive.HasValue)
                 query = query.Where(r => r.IsActive == request.IsActive.Value);
 
-            // PermissionId filter removed: not present in GetRolesRequest or Role entity
-
             var roles = await query
                 .OrderByDescending(r => r.CreatedAt)
                 .Skip((request.Page - 1) * request.PageSize)
@@ -68,10 +67,10 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
 
         public async Task<RoleDto> CreateRoleAsync(CreateRoleRequest request)
         {
-            var role = new Role(
+            var role = Role.Create(
                 request.Name,
                 request.Description ?? string.Empty,
-                RoleType.Custom  // 使用自定义类型作为默认值
+                RoleType.User // مقدار معتبر از Enum. اگر Custom نیاز است، به Enum اضافه شود.
             );
 
             if (!request.IsActive)
@@ -79,12 +78,14 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                 role.Deactivate();
             }
 
+            // مدیریت دسترسی‌ها
             if (request.PermissionIds?.Any() == true)
             {
-                var permissions = await _permissionRepository.GetByIdsAsync(request.PermissionIds);
-                foreach (var permission in permissions)
+                foreach (var permissionId in request.PermissionIds)
                 {
-                    await _rolePermissionRepository.AddPermissionToRoleAsync(role.Id, permission.Id);
+                    var permission = await _permissionRepository.GetByIdAsync(permissionId);
+                    if (permission != null)
+                        await _rolePermissionRepository.AddPermissionToRoleAsync(role.Id, permission.Id);
                 }
             }
 
@@ -101,12 +102,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                 throw new ArgumentException("Role not found", nameof(request.Id));
 
             if (!string.IsNullOrWhiteSpace(request.Name))
-            {
-                role.UpdateDetails(
-                    request.Name, 
-                    request.Description ?? role.Description
-                );
-            }
+                role.Update(request.Name, request.Description ?? role.Description, role.Type);
 
             if (request.IsActive.HasValue)
             {
@@ -116,17 +112,15 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
                     role.Deactivate();
             }
 
+            // مدیریت دسترسی‌ها
             if (request.PermissionIds != null)
             {
                 await _rolePermissionRepository.RemoveAllPermissionsFromRoleAsync(role.Id);
-
-                if (request.PermissionIds.Any())
+                foreach (var permissionId in request.PermissionIds)
                 {
-                    var permissions = await _permissionRepository.GetByIdsAsync(request.PermissionIds);
-                    foreach (var permission in permissions)
-                    {
+                    var permission = await _permissionRepository.GetByIdAsync(permissionId);
+                    if (permission != null)
                         await _rolePermissionRepository.AddPermissionToRoleAsync(role.Id, permission.Id);
-                    }
                 }
             }
 
@@ -139,9 +133,7 @@ namespace Authorization_Login_Asp.Net.Core.Infrastructure.Services
         {
             var role = await _roleRepository.GetByIdAsync(id);
             if (role == null)
-            {
                 return null;
-            }
 
             var permissions = await _rolePermissionRepository.GetRolePermissionsAsync(id);
             return MapToDto(role, permissions);
